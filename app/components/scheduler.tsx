@@ -7,12 +7,7 @@ import type {
 } from "@aldabil/react-scheduler/types";
 import {nanoid} from 'nanoid';
 import {onDelete} from '../helpers/onDelete'
-import { Dayjs } from 'dayjs';
-import { DemoContainer } from '@mui/x-date-pickers/internals/demo';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { on } from "stream";
+
 
 
 export interface Appointment {
@@ -224,7 +219,7 @@ function App() {
   });
     return deletedId; // Opcional, puedes devolver el ID del evento eliminado
   };
-  
+
   return (
     <Scheduler
       events={events}
