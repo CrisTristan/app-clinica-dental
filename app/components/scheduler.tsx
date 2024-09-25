@@ -5,11 +5,19 @@ import type {
   ProcessedEvent,
   SchedulerHelpers,
 } from "@aldabil/react-scheduler/types";
+import {nanoid} from 'nanoid';
+import {onDelete} from '../helpers/onDelete'
+import { Dayjs } from 'dayjs';
+import { DemoContainer } from '@mui/x-date-pickers/internals/demo';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { on } from "stream";
 
 
 export interface Appointment {
   event_id: string|number
-  title: string
+  name: string
   start: Date|string
   end: Date|string
 }
@@ -22,10 +30,9 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
 
   // Make your own form/state
   const [state, setState] = useState({
-    title: event?.title || "",
-    description: event?.description || "",
-    start: new Date().getDate(),
-    endDate: new Date().getMinutes()+30
+    id: nanoid(),
+    name: event?.title || "",
+    description: event?.description || ""
   });
 
   const [error, setError] = useState("");
@@ -42,7 +49,7 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
   };
   const handleSubmit = async () => {
     // Your own validation
-    if (state.title.length < 3) {
+    if (state.name.length < 3) {
       return setError("Min 3 letters");
     }
 
@@ -63,7 +70,13 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({"even_id": 1}) 
+          body: JSON.stringify({
+            "id": state.id,
+            "name": state.name,
+            "description": state.description,
+            "startDate" : new Date(scheduler.state.start.value),
+            "endDate": new Date(new Date(scheduler.state.end.value)), 
+          }) 
         })
           .then(response => {
             if (!response.ok) {
@@ -74,8 +87,8 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
         .then(data => {
           console.log(data);
           resolve({
-            event_id: event?.event_id || Math.random(),
-            title: state.title,
+            event_id: event?.event_id || state.id,
+            title: state.name,
             start: scheduler.state.start.value,
             end: scheduler.state.end.value,
             description: state.description
@@ -99,8 +112,8 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
         <p>Proxima Cita</p>
         <TextField
           label="Paciente"
-          value={state.title}
-          onChange={(e) => handleChange(e.target.value, "title")}
+          value={state.name}
+          onChange={(e) => handleChange(e.target.value, "name")}
           error={!!error}
           helperText={error}
           fullWidth
@@ -128,8 +141,95 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
 };
 
 function App() {
+
+
+  const [events, setEvents] = useState<ProcessedEvent[]>([
+    {
+      event_id: 1,
+      title: 'Evento 1',
+      start: new Date(2024, 8, 25, 10, 0),
+      end: new Date(2024, 8, 25, 11, 0),
+    },
+    {
+      event_id: 2,
+      title: 'Evento 2',
+      start: new Date(2024, 8, 26, 12, 0),
+      end: new Date(2024, 8, 26, 13, 0),
+    },
+  ]);
+
+
+  const onEventDrop = async (
+    event: React.DragEvent<HTMLButtonElement>,
+    droppedOn: Date,
+    updatedEvent: ProcessedEvent,
+    originalEvent: ProcessedEvent
+  ): Promise<ProcessedEvent | void> => {
+    
+    // Aquí puedes agregar lógica para manejar el evento arrastrado
+    const updatedEvents = events.map((existingEvent) =>
+      existingEvent.event_id === originalEvent.event_id
+        ? { ...existingEvent, start: droppedOn, end: new Date(droppedOn.getTime() + (originalEvent.end.getTime() - originalEvent.start.getTime())) }
+        : existingEvent
+    );
+
+    console.log("Se ha movido un evento")
+    console.log("UpdatedEvent", updatedEvent);
+    console.log("original Event", originalEvent);
+
+    fetch('http://localhost:3000/appointments/api', {
+      method: "PUT",
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        "id": updatedEvent.event_id,
+        "name": updatedEvent.name,
+        "description": updatedEvent.description,
+        "startDate" : new Date(updatedEvent.start),
+        "endDate": new Date(updatedEvent.end), 
+      }) 
+    }).then(response => {
+      if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+    return response.json();
+  }).catch(error => {
+    console.error('Error fetching data:', error);
+  });
+
+    setEvents(updatedEvents);
+    return updatedEvent; // O puedes devolver void si no necesitas regresar nada
+  };
+
+  const onDelete = async (deletedId: string | number): Promise<void> => {
+    // Filtramos los eventos para eliminar el evento que coincide con el id
+    const updatedEvents = events.filter((event) => event.id !== deletedId);
+    setEvents(updatedEvents);
+    fetch('http://localhost:3000/appointments/api', {
+      method: "DELETE",
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        "id": deletedId,
+      }) 
+    }).then(response => {
+      if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+    return response.json();
+  }).catch(error => {
+    console.error('Error fetching data:', error);
+  });
+    return deletedId; // Opcional, puedes devolver el ID del evento eliminado
+  };
+  
   return (
     <Scheduler
+      events={events}
+      onEventDrop={onEventDrop}
+      onDelete={onDelete}
       week={{
       weekDays: [0, 1, 2, 3, 4, 5],
       weekStartOn: 1,
