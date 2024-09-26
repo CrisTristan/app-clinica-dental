@@ -35,6 +35,7 @@ export async function PUT(req: Request) {
           id: id,
         },
         data: {
+            name : appointment.name,
             desc : appointment.description,
             startDate: appointment.startDate,
             endDate: appointment.endDate

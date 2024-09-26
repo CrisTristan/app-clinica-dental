@@ -7,16 +7,8 @@ import type {
   RemoteQuery
 } from "@aldabil/react-scheduler/types";
 import {nanoid} from 'nanoid';
-import {onDelete} from '../helpers/onDelete'
+import {onUpdateSomeField} from '../helpers/onUpdateSomeField'
 
-
-
-export interface Appointment {
-  event_id: string|number
-  name: string
-  start: Date|string
-  end: Date|string
-}
 
 interface CustomEditorProps {
   scheduler: SchedulerHelpers;
@@ -33,8 +25,6 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
 
   const [error, setError] = useState("");
 
-  const [appointments, setAppointments] = useState([])
-
   const handleChange = (value: string, name: string) => {
     setState((prev) => {
       return {
@@ -43,6 +33,7 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
       };
     });
   };
+
   const handleSubmit = async () => {
     // Your own validation
     if (state.name.length < 3) {
@@ -61,6 +52,21 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
          * start: Date|string
          * end: Date|string
          */
+        if(event?.event_id){
+            const update = onUpdateSomeField(event, state)
+            update.then( (data) =>{
+              resolve({
+                event_id: event?.event_id,
+                title: state.name,
+                start: event.start,
+                end: event.end,
+                description: state.description
+              });
+            })
+
+            return;
+        }
+
         fetch('http://localhost:3000/appointments/api', {
           method: "POST",
           headers: {
@@ -102,6 +108,7 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
       scheduler.loading(false);
     }
   };
+  
   return (
     <div>
       <div style={{ padding: "1rem" }}>
