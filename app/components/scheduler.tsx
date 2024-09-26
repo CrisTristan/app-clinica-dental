@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TextField, Button, DialogActions } from "@mui/material";
 import { Scheduler } from "@aldabil/react-scheduler";
 import type {
   ProcessedEvent,
   SchedulerHelpers,
+  RemoteQuery
 } from "@aldabil/react-scheduler/types";
 import {nanoid} from 'nanoid';
 import {onDelete} from '../helpers/onDelete'
@@ -137,21 +138,39 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
 
 function App() {
 
+  const [events, setEvents] = useState<ProcessedEvent[]>([]);
 
-  const [events, setEvents] = useState<ProcessedEvent[]>([
-    {
-      event_id: 1,
-      title: 'Evento 1',
-      start: new Date(2024, 8, 25, 10, 0),
-      end: new Date(2024, 8, 25, 11, 0),
-    },
-    {
-      event_id: 2,
-      title: 'Evento 2',
-      start: new Date(2024, 8, 26, 12, 0),
-      end: new Date(2024, 8, 26, 13, 0),
-    },
-  ]);
+
+  const fetchRemoteData = async (query: RemoteQuery): Promise<ProcessedEvent[]> => {
+    console.log({ query });
+    /**Simulate fetchin remote data */
+
+    return new Promise( async (res, rej)=>{
+        try {
+        const response = await fetch('http://localhost:3000/appointments/api');
+        if (!response.ok) {
+          throw new Error('Error en la respuesta de la red');
+        }
+        const data = await response.json();
+
+        const formattedEvents = data.map(event => ({
+          event_id : event.id,
+          title: event.name,
+          description: event.desc,
+          start: new Date(event.startDate), // Asegúrate de que 'start' sea la clave correcta
+          end: new Date(event.endDate)      // Asegúrate de que 'end' sea la clave correcta
+        }));
+
+        return res(formattedEvents)
+        } catch (err) {
+        console.log(err)
+        }
+        
+    });
+    
+  };
+   
+  
 
 
   const onEventDrop = async (
@@ -222,7 +241,7 @@ function App() {
 
   return (
     <Scheduler
-      events={events}
+      getRemoteEvents={fetchRemoteData}
       onEventDrop={onEventDrop}
       onDelete={onDelete}
       week={{
