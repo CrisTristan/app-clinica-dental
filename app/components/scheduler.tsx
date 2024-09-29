@@ -7,6 +7,7 @@ import type {
   RemoteQuery
 } from "@aldabil/react-scheduler/types";
 import {nanoid} from 'nanoid';
+import { onSubmit } from "../helpers/onSubmit";
 import {onUpdateSomeField} from '../helpers/onUpdateSomeField'
 
 
@@ -33,7 +34,7 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
       };
     });
   };
-
+  
   const handleSubmit = async () => {
     // Your own validation
     if (state.name.length < 3) {
@@ -108,7 +109,7 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
       scheduler.loading(false);
     }
   };
-  
+
   return (
     <div>
       <div style={{ padding: "1rem" }}>
