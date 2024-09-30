@@ -6,10 +6,10 @@ import Imagen1 from '../images/shutterstock.jpg';
 import Image from 'next/image';
 
 const images = [
-  Imagen1,
-  "/placeholder.svg?height=400&width=600",
-  "/placeholder.svg?height=400&width=600",
-  "/placeholder.svg?height=400&width=600",
+  "https://cdn.pixabay.com/photo/2024/02/16/06/26/dentist-8576790_1280.png",
+  "https://cdn.pixabay.com/photo/2016/09/02/16/17/dentist-1639683_1280.jpg",
+  "https://cdn.pixabay.com/photo/2024/04/30/07/18/dentist-8729627_1280.jpg",
+  "https://cdn.pixabay.com/photo/2024/06/28/04/30/preventive-dentistry-8858477_1280.jpg",
 ]
 
 export default function AutoCarrousel() {

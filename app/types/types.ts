@@ -5,3 +5,12 @@ export interface Appointment {
     start: Date|string
     end: Date|string
 }
+
+export interface Patient {
+    id: number,
+    name: string,
+    phone: number,
+    email: string,
+    lastVisit: string,
+    nextAppointment: string
+}

@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from 'react'
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
@@ -10,21 +10,18 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Users, Calendar, FileText, Settings, Menu, Plus, Search } from 'lucide-react';
+} from "@/components/ui/table"
+import { Users, Calendar, FileText, Settings, Menu, Plus, Search } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export default function PatientManagement() {
   const [currentPage, setCurrentPage] = useState('Pacientes')
   const [searchTerm, setSearchTerm] = useState('')
-
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const toggleMenu = () => {
-    setIsMenuOpen(prev => !prev);
-  };
+  const router = useRouter()
 
   const navItems = [
-    { name: 'Pacientes', icon: <Users className="mr-2 h-4 w-4"/> },
+    { name: 'Pacientes', icon: <Users className="mr-2 h-4 w-4" /> },
     { name: 'Citas', icon: <Calendar className="mr-2 h-4 w-4" /> },
     { name: 'Historiales', icon: <FileText className="mr-2 h-4 w-4" /> },
     { name: 'Configuración', icon: <Settings className="mr-2 h-4 w-4" /> },
@@ -43,6 +40,10 @@ export default function PatientManagement() {
     patient.phone.includes(searchTerm) ||
     patient.email.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const handlePatientClick = (patientId: number, patientName: string) => {
+    router.push(`/pacientes/${encodeURIComponent(patientId)}?name:${patientName}`)
+  }
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -72,20 +73,9 @@ export default function PatientManagement() {
         <div className="max-w-6xl mx-auto">
           <header className="flex justify-between items-center mb-8">
             <h1 className="text-3xl font-bold">{currentPage}</h1>
-            <Button variant="outline" className="md:hidden" onClick={toggleMenu}>
+            <Button variant="outline" className="md:hidden">
               <Menu className="h-4 w-4" />
-              {isMenuOpen && (
-              <div className="absolute bg-white shadow-md rounded-lg p-4 md:hidden">
-                <ul>
-                  <li className="py-2"><a href="/pacientes">Pacientes</a></li>
-                  <li className="py-2"><a href="/citas">Citas</a></li>
-                  <li className="py-2"><a href="/historial">Historial</a></li>
-                  <li className="py-2"><a href="/configuracion">Configuración</a></li>
-                </ul>
-              </div>
-            )}
             </Button>
-            
           </header>
 
           {currentPage === 'Pacientes' && (
@@ -102,7 +92,7 @@ export default function PatientManagement() {
                   />
                 </div>
                 <Button>
-                  <Plus className="mr-2 h-4 w-4" onClick={()=>{console.log(filteredPatients)}}/> Nuevo Paciente
+                  <Plus className="mr-2 h-4 w-4" /> Nuevo Paciente
                 </Button>
               </div>
               <Table>
@@ -117,7 +107,11 @@ export default function PatientManagement() {
                 </TableHeader>
                 <TableBody>
                   {filteredPatients.map((patient) => (
-                    <TableRow key={patient.id}>
+                    <TableRow 
+                      key={patient.id} 
+                      onClick={() => handlePatientClick(patient.id, patient.name)}
+                      className="cursor-pointer hover:bg-gray-100"
+                    >
                       <TableCell className="font-medium">{patient.name}</TableCell>
                       <TableCell>{patient.phone}</TableCell>
                       <TableCell>{patient.email}</TableCell>
@@ -133,8 +127,6 @@ export default function PatientManagement() {
           {currentPage !== 'Pacientes' && (
             <p className="text-gray-500">Contenido de {currentPage} en desarrollo.</p>
           )}
-
-            
         </div>
       </main>
     </div>

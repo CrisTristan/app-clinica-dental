@@ -10,10 +10,11 @@ export default function NavBar(){
           </Link>
           <nav>
             <ul className="flex space-x-4">
-              <li><Link href="/" className="hover:underline">Inicio</Link></li>
-              <li><Link href="/agenda" className="hover:underline">Agenda</Link></li>
-              <li><Link href="/pacientes" className="hover:underline">Pacientes</Link></li>
-              <li><Link href="/login" className="hover:underline">Login</Link></li>
+              <li><Link href="/" className="hover:underline text-white">Inicio</Link></li>
+              <li><Link href="/agenda" className="hover:underline text-white">Agenda</Link></li>
+              <li><Link href="/pacientes" className="hover:underline text-white">Pacientes</Link></li>
+              <li><Link href="/login" className="hover:underline text-white">Login</Link></li>
+              <li><Link href="/productividad" className="hover:underline text-white">Productividad</Link></li>
             </ul>
           </nav>
         </div>

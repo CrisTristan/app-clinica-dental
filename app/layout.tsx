@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import 'mdb-react-ui-kit/dist/css/mdb.min.css'
+import "@fortawesome/fontawesome-free/css/all.min.css"
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
