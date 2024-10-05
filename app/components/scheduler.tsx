@@ -172,6 +172,7 @@ function App() {
         return res(formattedEvents)
         } catch (err) {
         console.log(err)
+        rej(err)
         }
         
     });
@@ -194,10 +195,6 @@ function App() {
         ? { ...existingEvent, start: droppedOn, end: new Date(droppedOn.getTime() + (originalEvent.end.getTime() - originalEvent.start.getTime())) }
         : existingEvent
     );
-
-    console.log("Se ha movido un evento")
-    console.log("UpdatedEvent", updatedEvent);
-    console.log("original Event", originalEvent);
 
     fetch('http://localhost:3000/appointments/api', {
       method: "PUT",

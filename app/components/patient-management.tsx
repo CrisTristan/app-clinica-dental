@@ -14,11 +14,34 @@ import {
 import { Users, Calendar, FileText, Settings, Menu, Plus, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+
+
 
 export default function PatientManagement() {
   const [currentPage, setCurrentPage] = useState('Pacientes')
   const [searchTerm, setSearchTerm] = useState('')
+  const [newPatient, setNewPatient] = useState(false);
+
+  const [patient, setPatient] = useState({name: '', phone: ''})
   const router = useRouter()
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setPatient((prevPatient) => ({
+      ...prevPatient,
+      [name]: value,
+    }));
+  };
 
   const navItems = [
     { name: 'Pacientes', icon: <Users className="mr-2 h-4 w-4" /> },
@@ -28,21 +51,31 @@ export default function PatientManagement() {
   ]
 
   const patients = [
-    { id: 1, name: 'Ana Martínez', phone: '123-456-7890', email: 'ana@example.com', lastVisit: '2023-05-15', nextAppointment: '2023-06-20' },
-    { id: 2, name: 'Carlos Rodríguez', phone: '098-765-4321', email: 'carlos@example.com', lastVisit: '2023-04-30', nextAppointment: '2023-06-15' },
-    { id: 3, name: 'Elena Gómez', phone: '555-555-5555', email: 'elena@example.com', lastVisit: '2023-05-10', nextAppointment: '2023-07-01' },
-    { id: 4, name: 'David Torres', phone: '333-333-3333', email: 'david@example.com', lastVisit: '2023-05-20', nextAppointment: '2023-06-25' },
-    { id: 5, name: 'Laura Sánchez', phone: '444-444-4444', email: 'laura@example.com', lastVisit: '2023-05-05', nextAppointment: '2023-06-18' },
+    { id: 1, name: 'Ana Martínez', phone: '123-456-7890', lastVisit: '2023-05-15', nextAppointment: '2023-06-20' },
+    { id: 2, name: 'Carlos Rodríguez', phone: '098-765-4321', lastVisit: '2023-04-30', nextAppointment: '2023-06-15' },
+    { id: 3, name: 'Elena Gómez', phone: '555-555-5555', lastVisit: '2023-05-10', nextAppointment: '2023-07-01' },
+    { id: 4, name: 'David Torres', phone: '333-333-3333',  lastVisit: '2023-05-20', nextAppointment: '2023-06-25' },
+    { id: 5, name: 'Laura Sánchez', phone: '444-444-4444',  lastVisit: '2023-05-05', nextAppointment: '2023-06-18' },
   ]
 
   const filteredPatients = patients.filter(patient =>
     patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.phone.includes(searchTerm) ||
-    patient.email.toLowerCase().includes(searchTerm.toLowerCase())
+    patient.phone.includes(searchTerm) /*||
+    patient.email.toLowerCase().includes(searchTerm.toLowerCase())*/
   )
 
   const handlePatientClick = (patientId: number, patientName: string) => {
-    router.push(`/pacientes/${encodeURIComponent(patientId)}?name:${patientName}`)
+    router.push(`/pacientes/${encodeURIComponent(patientId)}/?name=${patientName}`)
+  }
+
+  const handleNewPatient = ()=>{
+    setNewPatient(true);
+  }
+
+  const handleSavePatient = ()=>{  //Logica para guardar el paciente en la BD
+    console.log("Nombre:", patient.name);
+    console.log("Teléfono:", patient.phone);
+      setNewPatient(false)
   }
 
   return (
@@ -91,16 +124,62 @@ export default function PatientManagement() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" /> Nuevo Paciente
-                </Button>
+            
+              <div>
+                <Dialog open={newPatient} onOpenChange={setNewPatient}>
+                  <DialogTrigger asChild>
+                    <Button onClick={handleNewPatient}>
+                        <Plus className="mr-2 h-4 w-4" /> Nuevo Paciente
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Crear Paciente</DialogTitle>
+                        <DialogDescription>
+                            Crea un nuevo Paciente.
+                        </DialogDescription>
+                    </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="name" className="text-right">
+                            Nombre
+                          </Label>
+                          <Input
+                            id="name"
+                            name='name'
+                            defaultValue=""
+                            value={patient.name}
+                            onChange={handleChange}
+                            required
+                            className="col-span-3"
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="telefono" className="text-right">
+                          Telefono
+                          </Label>
+                          <Input
+                            id="telefono"
+                            name='phone'
+                            defaultValue="998"
+                            value={patient.phone}
+                            onChange={handleChange}
+                            className="col-span-3"
+                          />
+                        </div>
+                      </div>
+                  <DialogFooter>
+                    <Button type="submit" onClick={handleSavePatient}>Guardar</Button>
+                  </DialogFooter>
+                  </DialogContent>
+              </Dialog>
+              </div>
               </div>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Teléfono</TableHead>
-                    <TableHead>Email</TableHead>
                     <TableHead>Última Visita</TableHead>
                     <TableHead>Próxima Cita</TableHead>
                   </TableRow>
@@ -114,7 +193,6 @@ export default function PatientManagement() {
                     >
                       <TableCell className="font-medium">{patient.name}</TableCell>
                       <TableCell>{patient.phone}</TableCell>
-                      <TableCell>{patient.email}</TableCell>
                       <TableCell>{patient.lastVisit}</TableCell>
                       <TableCell>{patient.nextAppointment}</TableCell>
                     </TableRow>
@@ -127,6 +205,8 @@ export default function PatientManagement() {
           {currentPage !== 'Pacientes' && (
             <p className="text-gray-500">Contenido de {currentPage} en desarrollo.</p>
           )}
+
+          
         </div>
       </main>
     </div>
