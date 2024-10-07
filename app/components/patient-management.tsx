@@ -76,6 +76,7 @@ export default function PatientManagement() {
     console.log("Nombre:", patient.name);
     console.log("Teléfono:", patient.phone);
       setNewPatient(false)
+      setPatient({name: '', phone: ''})
   }
 
   return (
@@ -145,7 +146,6 @@ export default function PatientManagement() {
                             Nombre
                           </Label>
                           <Input
-                            id="name"
                             name='name'
                             defaultValue=""
                             value={patient.name}
@@ -159,7 +159,6 @@ export default function PatientManagement() {
                           Telefono
                           </Label>
                           <Input
-                            id="telefono"
                             name='phone'
                             defaultValue="998"
                             value={patient.phone}
