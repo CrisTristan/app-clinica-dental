@@ -13,10 +13,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Appointments {
-  id        String  @id
-  name      String?
+model Appointment {
+  id        String   @id
   desc      String?
   startDate DateTime
-  endDate   DateTime 
+  endDate   DateTime
+  name      Patient  @relation(fields: [nameId], references: [id])
+  nameId    Int
+}
+
+model Patient {
+  id           Int           @id @default(autoincrement())
+  name         String        
+  apellido_pat String?
+  apellido_mat String?
+  telefono     String       @unique
+  edad         Int?
+  domicilio    String?
+  sexo         Gender?
+  Appointment  Appointment[]
+}
+
+enum Gender {
+  Male
+  Female
 }

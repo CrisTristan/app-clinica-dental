@@ -16,6 +16,7 @@ export const onUpdateSomeField = async(event: ProcessedEvent, state : Appointmen
             "id": event?.event_id,
             "name": state.name,
             "description": state.description,
+            "phone": state.phone,
             "startDate": event?.start,
             "endDate": event?.end
         }) 

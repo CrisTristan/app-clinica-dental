@@ -21,10 +21,12 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
   const [state, setState] = useState({
     id: nanoid(),
     name: event?.title || "",
-    description: event?.description || ""
+    description: event?.description || "",
+    phone: event?.subtitle || 998
   });
 
-  const [error, setError] = useState("");
+  const [errorOnName, setErrorOnName] = useState("");
+  const [errorOnPhone, setErrorOnPhone] = useState("");
 
   const handleChange = (value: string, name: string) => {
     setState((prev) => {
@@ -36,11 +38,20 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
   };
   
   const handleSubmit = async () => {
-    // Your own validation
+    // Validaciones
     if (state.name.length < 3) {
-      return setError("Min 3 letters");
+      return setErrorOnName("Min 3 letters");
     }
 
+    if(!Number.isInteger(Number.parseInt(state.phone))){
+      return setErrorOnPhone("telefono debe ser Numerico")
+    }
+
+    if(state.phone.length < 10){
+      console.log(typeof state.phone)
+      return setErrorOnPhone("telefono debe ser de 10 digitos")
+    }
+    //Validaciones
     try {
       scheduler.loading(true);
 
@@ -59,6 +70,7 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
               resolve({
                 event_id: event?.event_id,
                 title: state.name,
+                subtitle: state.phone,
                 start: event.start,
                 end: event.end,
                 description: state.description
@@ -77,6 +89,7 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
             "id": state.id,
             "name": state.name,
             "description": state.description,
+            "phone": state.phone,
             "startDate" : new Date(scheduler.state.start.value),
             "endDate": new Date(new Date(scheduler.state.end.value)), 
           }) 
@@ -92,6 +105,7 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
           resolve({
             event_id: event?.event_id || state.id,
             title: state.name,
+            subtitle: state.phone,
             start: scheduler.state.start.value,
             end: scheduler.state.end.value,
             description: state.description
@@ -118,14 +132,22 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
           label="Paciente"
           value={state.name}
           onChange={(e) => handleChange(e.target.value, "name")}
-          error={!!error}
-          helperText={error}
+          error={!!errorOnName}
+          helperText={errorOnName}
           fullWidth
         />
         <TextField
           label="Description"
           value={state.description}
           onChange={(e) => handleChange(e.target.value, "description")}
+          fullWidth
+        />
+        <TextField
+          label="Telefono"
+          value={state.phone}
+          onChange={(e) => handleChange(e.target.value, "phone")}
+          error={!!errorOnPhone}
+          helperText={errorOnPhone}
           fullWidth
         />
         <Button
@@ -163,8 +185,9 @@ function App() {
 
         const formattedEvents = data.map(event => ({
           event_id : event.id,
-          title: event.name,
+          title: event.name.name,
           description: event.desc,
+          subtitle: event.name.telefono,
           start: new Date(event.startDate), // Asegúrate de que 'start' sea la clave correcta
           end: new Date(event.endDate)      // Asegúrate de que 'end' sea la clave correcta
         }));
@@ -196,6 +219,8 @@ function App() {
         : existingEvent
     );
 
+    console.log(updatedEvent.subtitle);
+
     fetch('http://localhost:3000/appointments/api', {
       method: "PUT",
       headers: {
@@ -204,6 +229,7 @@ function App() {
       body: JSON.stringify({
         "id": updatedEvent.event_id,
         "name": updatedEvent.name,
+        "phone": updatedEvent.subtitle,
         "description": updatedEvent.description,
         "startDate" : new Date(updatedEvent.start),
         "endDate": new Date(updatedEvent.end), 
