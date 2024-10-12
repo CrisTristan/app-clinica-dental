@@ -13,6 +13,39 @@ export async function GET() {
 export async function POST(req: Request) {
     const appointment = await req.json();
 
+    const patient = await prisma.patient.findUnique({
+        where : { 
+            telefono : appointment.phone
+        },
+        select: {
+            id: true
+        }
+    })
+
+    if(patient){
+        await prisma.appointment.create({
+            data: {
+                id: appointment.id,
+                name: {
+                    connect: {
+                      id: patient.id
+                    }
+                },
+                desc : appointment.description,
+                startDate: appointment.startDate,
+                endDate: appointment.endDate
+            },
+        })
+
+        return new Response(JSON.stringify(appointment), {
+            headers: {
+                "Content-Type": "application/json",
+            },
+            status: 201
+        });
+
+    }
+
     await prisma.appointment.create({
         data: {
             id: appointment.id,

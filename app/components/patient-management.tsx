@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -24,15 +24,36 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-
+import { Patient } from '../types/types'
 
 
 export default function PatientManagement() {
+
+  useEffect(()=>{
+      const getAllPatients = ()=>{
+          const response = fetch('http://localhost:3000/patients/api')
+          response.then(data =>{
+            return data.json()
+          })
+          .then(patients =>{
+            console.log(patients)
+            setPatients(patients)
+          })
+          .catch(error =>{
+            console.log(error)
+          })
+      }
+
+      getAllPatients()
+  }, []);
+  
   const [currentPage, setCurrentPage] = useState('Pacientes')
   const [searchTerm, setSearchTerm] = useState('')
   const [newPatient, setNewPatient] = useState(false);
 
-  const [patient, setPatient] = useState({name: '', phone: ''})
+  const [patient, setPatient] = useState({name: '', phone: '998'})
+  const [error, setError] = useState("");
+  const [patients, setPatients] = useState<Patient[]>([])
   const router = useRouter()
 
   const handleChange = (e) => {
@@ -41,6 +62,14 @@ export default function PatientManagement() {
       ...prevPatient,
       [name]: value,
     }));
+
+
+    // Valida el campo y establece el error si es necesario
+    if (name === 'phone' && !/^\d+$/.test(value)) {
+      setError('El número de teléfono solo debe contener dígitos.');
+    } else {
+      setError('');
+    }
   };
 
   const navItems = [
@@ -50,22 +79,22 @@ export default function PatientManagement() {
     { name: 'Configuración', icon: <Settings className="mr-2 h-4 w-4" /> },
   ]
 
-  const patients = [
+  /*const patients = [
     { id: 1, name: 'Ana Martínez', phone: '123-456-7890', lastVisit: '2023-05-15', nextAppointment: '2023-06-20' },
     { id: 2, name: 'Carlos Rodríguez', phone: '098-765-4321', lastVisit: '2023-04-30', nextAppointment: '2023-06-15' },
     { id: 3, name: 'Elena Gómez', phone: '555-555-5555', lastVisit: '2023-05-10', nextAppointment: '2023-07-01' },
     { id: 4, name: 'David Torres', phone: '333-333-3333',  lastVisit: '2023-05-20', nextAppointment: '2023-06-25' },
     { id: 5, name: 'Laura Sánchez', phone: '444-444-4444',  lastVisit: '2023-05-05', nextAppointment: '2023-06-18' },
-  ]
+  ]*/
 
   const filteredPatients = patients.filter(patient =>
     patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.phone.includes(searchTerm) /*||
+    patient.telefono.includes(searchTerm) /*||
     patient.email.toLowerCase().includes(searchTerm.toLowerCase())*/
   )
 
   const handlePatientClick = (patientId: number, patientName: string) => {
-    router.push(`/pacientes/${encodeURIComponent(patientId)}/?name=${patientName}`)
+    router.push(`/pacientes/${encodeURIComponent(patientId)}/?id=${patientId}&name=${patientName}`)
   }
 
   const handleNewPatient = ()=>{
@@ -75,8 +104,37 @@ export default function PatientManagement() {
   const handleSavePatient = ()=>{  //Logica para guardar el paciente en la BD
     console.log("Nombre:", patient.name);
     console.log("Teléfono:", patient.phone);
+    if(patient.phone.length<10){
+        setError("Numero de telefono de 10 digitos")
+        return;
+    }
+
+    fetch('http://localhost:3000/patients/api', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        // Datos que enviarás en el cuerpo de la solicitud
+        name: patient.name,
+        phone: patient.phone
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Error en la solicitud');
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Respuesta:', data);
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+
       setNewPatient(false)
-      setPatient({name: '', phone: ''})
+      setPatient({name: '', phone: '998'})
   }
 
   return (
@@ -160,12 +218,12 @@ export default function PatientManagement() {
                           </Label>
                           <Input
                             name='phone'
-                            defaultValue="998"
                             value={patient.phone}
                             onChange={handleChange}
                             className="col-span-3"
                           />
                         </div>
+                        {error && <p className="text-red-500 text-sm">{error}</p>}
                       </div>
                   <DialogFooter>
                     <Button type="submit" onClick={handleSavePatient}>Guardar</Button>
@@ -191,9 +249,9 @@ export default function PatientManagement() {
                       className="cursor-pointer hover:bg-gray-100"
                     >
                       <TableCell className="font-medium">{patient.name}</TableCell>
-                      <TableCell>{patient.phone}</TableCell>
-                      <TableCell>{patient.lastVisit}</TableCell>
-                      <TableCell>{patient.nextAppointment}</TableCell>
+                      <TableCell>{patient.telefono}</TableCell>
+                      <TableCell>{patient.Appointment && patient.Appointment.length > 0 ? patient.Appointment[0].startDate : "Sin citas"}</TableCell>
+                      <TableCell>{patient.Appointment.length > 0 && patient.Appointment.length >= 2 ? patient.Appointment[1].startDate : "Sin citas"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

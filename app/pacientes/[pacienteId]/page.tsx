@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import { useSearchParams, usePathname } from "next/navigation"
 import PerfilPaciente from "@/app/components/perfil_paciente"
 import Odontogram from "../../components/Odontogram"
+import { Patient } from "@/app/types/types"
 
 export default function patientDetails({params} : {
     params: {
@@ -10,7 +11,7 @@ export default function patientDetails({params} : {
     }
 }){
 
-  const paciente = {
+  /*const paciente = {
     id: '1',
     nombre: 'Juan',
     apellidos: 'Pérez García',
@@ -29,22 +30,28 @@ export default function patientDetails({params} : {
       { servicio: 'Blanqueamiento', precio: 200 },
       { servicio: 'Ortodoncia', precio: 2000 }
     ]
-  }
+  }*/
 
+    const [patient, setPatient] = useState<Patient>();
     const pathName = usePathname()
     const searchParams = useSearchParams()
     const name = searchParams.get('name');
+    const id =searchParams.get('id');
 
     useEffect(()=>{
-        const someFunction = ()=>{
+        const someFunction = async ()=>{
             const url = `${pathName}?${searchParams}`
             console.log(url)
-            const fetch = new Promise((res, rej)=>{
-                 setTimeout(()=>{
-                     console.log(`fetching data with ${name}`)
-                     res("Hey");     
-                 }, 3000);   
-            });
+            try{
+              const res = await fetch(`http://localhost:3000/patients/api?id=${id}`)
+              const data = await res.json();
+              console.log(data);
+              setPatient(data);
+            }catch(error){
+              console.log(error)
+            }
+
+            
         }
          
         someFunction()
@@ -53,7 +60,7 @@ export default function patientDetails({params} : {
 
     return(
         <div>
-          <PerfilPaciente paciente={paciente}/>
+          <PerfilPaciente paciente={patient}/>
         </div>
     )
 }

@@ -3,13 +3,16 @@
 import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useState, useCallback } from 'react'
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { useState, useCallback, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-import { X } from "lucide-react"
+import { X, Edit, Save } from "lucide-react"
 import Odontogram from './Odontogram'
+import { Patient } from '../types/types'
 
-interface Paciente {
+/*interface Paciente {
   id: string
   nombre: string
   apellidos: string
@@ -20,11 +23,21 @@ interface Paciente {
   foto: string
   historialClinico: string[]
   presupuestos: { servicio: string; precio: number }[]
-}
+}*/
 
-export default function PerfilPaciente({ paciente }: { paciente: Paciente }) {
+export default function PerfilPaciente({ paciente }: { paciente: Patient }) {
+
+  useEffect(()=>{
+    //Inicializamos el estado del paciente.
+    setPatient(paciente);
+  }, [paciente]);
+
+  const [patient, setPatient] = useState<Patient>(); //estado del paciente, contiente todos los datos del mismo.
   const [archivos, setArchivos] = useState<File[]>([])
   const [imagenSeleccionada, setImagenSeleccionada] = useState<string | null>(null)
+  const [editPatientProfile, setEditPatientProfile] = useState(false);
+
+  
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setArchivos(prevArchivos => [...prevArchivos, ...acceptedFiles])
@@ -34,6 +47,14 @@ export default function PerfilPaciente({ paciente }: { paciente: Paciente }) {
 
   const onImageClick = (file: File) => {
     setImagenSeleccionada(URL.createObjectURL(file))
+  }
+
+  const handleEditClick= ()=>{
+    setEditPatientProfile(prev => !prev)
+  }
+
+  const handleSaveClick = ()=>{
+    
   }
 
   return (
@@ -48,8 +69,8 @@ export default function PerfilPaciente({ paciente }: { paciente: Paciente }) {
           </CardHeader>
           <CardContent className="flex justify-center">
             <Image
-              src={paciente.foto}
-              alt={`Foto de ${paciente.nombre} ${paciente.apellidos}`}
+              src={patient?.foto}
+              alt={`Foto de ${patient?.name} ${paciente?.ape_pat}`}
               width={200}
               height={200}
               className="rounded-full"
@@ -67,30 +88,56 @@ export default function PerfilPaciente({ paciente }: { paciente: Paciente }) {
               <TableBody>
                 <TableRow>
                   <TableCell className="font-medium">Nombre</TableCell>
-                  <TableCell>{paciente.nombre}</TableCell>
+                  <Input
+                    disabled={!editPatientProfile} 
+                    value={patient?.name}
+                  />
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-medium">Apellidos</TableCell>
-                  <TableCell>{paciente.apellidos}</TableCell>
+                  <Input
+                    disabled={!editPatientProfile} 
+                    value={patient?.ape_pat}
+                  />
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-medium">Teléfono</TableCell>
-                  <TableCell>{paciente.telefono}</TableCell>
+                  <Input
+                    disabled={!editPatientProfile} 
+                    value={patient?.telefono}
+                  />
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-medium">Fecha de Nacimiento</TableCell>
-                  <TableCell>{paciente.fechaNacimiento}</TableCell>
+                  <Input
+                    disabled={!editPatientProfile} 
+                    value={patient?.fechaNacimiento}
+                  />
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-medium">Email</TableCell>
-                  <TableCell>{paciente.email}</TableCell>
+                  <Input
+                    disabled={!editPatientProfile} 
+                    value={patient?.fechaNacimiento}
+                  />
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-medium">Dirección</TableCell>
-                  <TableCell>{paciente.direccion}</TableCell>
+                  <Input
+                    disabled={!editPatientProfile} 
+                    value={patient?.direccion}
+                  />
                 </TableRow>
               </TableBody>
             </Table>
+            <div className='mt-4 flex space-between'>
+            <Button onClick={handleEditClick} variant="outline" size="sm">
+                <Edit className="w-4 h-4 mr-2" /> Editar
+            </Button>
+            <Button onClick={handleSaveClick} variant="outline" size="sm">
+                <Save className="w-4 h-4 mr-2" /> Guardar
+            </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -101,7 +148,7 @@ export default function PerfilPaciente({ paciente }: { paciente: Paciente }) {
           </CardHeader>
           <CardContent>
             <ul className="list-disc pl-5">
-              {paciente.historialClinico.map((item, index) => (
+              {paciente?.historialClinico?.map((item, index) => (
                 <li key={index} className="mb-2">{item}</li>
               ))}
             </ul>
@@ -128,7 +175,7 @@ export default function PerfilPaciente({ paciente }: { paciente: Paciente }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paciente.presupuestos.map((presupuesto, index) => (
+                {paciente?.presupuestos?.map((presupuesto, index) => (
                   <TableRow key={index}>
                     <TableCell>{presupuesto.servicio}</TableCell>
                     <TableCell className="text-right">{presupuesto.precio.toFixed(2)} €</TableCell>

@@ -10,8 +10,15 @@ export interface Appointment {
 export interface Patient {
     id: number,
     name: string,
-    phone: number,
+    ape_pat: string,
+    ape_mat: string,
+    telefono: string,
     email: string,
     lastVisit: string,
-    nextAppointment: string
+    nextAppointment: string,
+    fechaNacimiento: string
+    direccion: string
+    foto: string
+    historialClinico: string[]
+    presupuestos: { servicio: string; precio: number }[]
 }
