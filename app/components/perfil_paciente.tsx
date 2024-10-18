@@ -5,13 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef, startTransition, useTransition } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { X, Edit, Save } from "lucide-react"
 import Odontogram from './Odontogram'
 import { Patient } from '../types/types'
-
+import { uploadImage } from '../actions/uploadImage'
+import { getProfilePhoto } from '../actions/getProfilePhoto'
 /*interface Paciente {
   id: string
   nombre: string
@@ -27,20 +28,32 @@ import { Patient } from '../types/types'
 
 export default function PerfilPaciente({ paciente }: { paciente: Patient }) {
 
-  useEffect(()=>{
-    //Inicializamos el estado del paciente.
-    setPatient(paciente);
+  useEffect(() => {
+
+    
+    if (paciente) { // Verifica que paciente no sea undefined o null
+      setPatient(paciente);
+      const entries = Object.entries(paciente);
+      console.log(entries);
+
+      const url = getProfilePhoto("JoseAntonio")
+      url.then(res=> setPatient(prev => ({...prev, foto: res})));
+    }
+
   }, [paciente]);
+
 
   const [patient, setPatient] = useState<Patient>(); //estado del paciente, contiente todos los datos del mismo.
   const [archivos, setArchivos] = useState<File[]>([])
   const [imagenSeleccionada, setImagenSeleccionada] = useState<string | null>(null)
   const [editPatientProfile, setEditPatientProfile] = useState(false);
-
-  
+  const [editando, setEditando] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isPending, startTransition] = useTransition()
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setArchivos(prevArchivos => [...prevArchivos, ...acceptedFiles])
+    console.log(acceptedFiles);
   }, [])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop })
@@ -57,17 +70,35 @@ export default function PerfilPaciente({ paciente }: { paciente: Patient }) {
     
   }
 
+  const onPhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    console.log(file?.name)
+
+    startTransition(async ()=>{
+      const res = await uploadImage(file?.name, "")
+    })
+
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        console.log(reader.result?.toString)
+        setPatient(prev => ({ ...prev, foto: reader.result as string })) //Actualizamos el estado 
+      }
+      reader.readAsDataURL(file) //leemos el archivo 
+    }
+  }
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-6 text-center">Perfil del Paciente</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Sección 1: Foto del paciente */}
-        <Card>
+        <Card className='grid place-content-center'>
           <CardHeader>
             <CardTitle>Foto del Paciente</CardTitle>
           </CardHeader>
-          <CardContent className="flex justify-center">
+          <CardContent>
             <Image
               src={patient?.foto}
               alt={`Foto de ${patient?.name} ${paciente?.ape_pat}`}
@@ -75,6 +106,16 @@ export default function PerfilPaciente({ paciente }: { paciente: Patient }) {
               height={200}
               className="rounded-full"
             />
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={onPhotoChange}
+              accept="image/*"
+              style={{ display: 'none' }}
+            />
+            <Button onClick={()=> fileInputRef.current?.click()}>
+              {isPending ? "actializando...": "Cambiar"}
+            </Button>
           </CardContent>
         </Card>
 
@@ -86,48 +127,21 @@ export default function PerfilPaciente({ paciente }: { paciente: Patient }) {
           <CardContent>
             <Table>
               <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">Nombre</TableCell>
-                  <Input
-                    disabled={!editPatientProfile} 
-                    value={patient?.name}
-                  />
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Apellidos</TableCell>
-                  <Input
-                    disabled={!editPatientProfile} 
-                    value={patient?.ape_pat}
-                  />
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Teléfono</TableCell>
-                  <Input
-                    disabled={!editPatientProfile} 
-                    value={patient?.telefono}
-                  />
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Fecha de Nacimiento</TableCell>
-                  <Input
-                    disabled={!editPatientProfile} 
-                    value={patient?.fechaNacimiento}
-                  />
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Email</TableCell>
-                  <Input
-                    disabled={!editPatientProfile} 
-                    value={patient?.fechaNacimiento}
-                  />
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Dirección</TableCell>
-                  <Input
-                    disabled={!editPatientProfile} 
-                    value={patient?.direccion}
-                  />
-                </TableRow>
+              {patient && Object.entries(patient).map(([key, value]) => {
+                  if (['id', 'foto', 'historialClinico', 'presupuestos'].includes(key)) return null
+                  return (
+                    <TableRow key={key}>
+                      <TableCell className="font-medium">{key.charAt(0).toUpperCase() + key.slice(1)}</TableCell>
+                      <TableCell>
+                          <Input
+                            disabled={!editPatientProfile}
+                            name={key}
+                            value={value}
+                          />
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
             <div className='mt-4 flex space-between'>

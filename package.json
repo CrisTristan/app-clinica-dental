@@ -26,6 +26,7 @@
     "@syncfusion/ej2-react-schedule": "^27.1.48",
     "chart.js": "^4.4.4",
     "class-variance-authority": "^0.7.0",
+    "cloudinary": "^2.5.1",
     "clsx": "^2.1.1",
     "contextmenu": "^1.0.2",
     "dayjs": "^1.11.13",

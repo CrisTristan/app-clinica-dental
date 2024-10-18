@@ -7,6 +7,9 @@ const nextConfig = {
           hostname: 'cdn.pixabay.com',
           port: '',
         },
+        {
+          hostname: 'res.cloudinary.com'
+        }
       ],
     }
 };
