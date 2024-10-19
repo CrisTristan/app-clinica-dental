@@ -19,7 +19,7 @@ import { loginAction } from "../actions/auth-actions"
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string()
-  .min(5, {message: "La contraseña deber tener al menos 2 caracteres"})
+  .min(5, {message: "La contraseña deber tener minimo 5 caracteres"})
   .max(30, {message: "La contraseña no debe tener mas de 30 caracteres"})
 })
 
@@ -37,7 +37,8 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof loginSchema>) {
     // Do something with the form values.
     // ✅ This will be type-safe and validated.
-    await loginAction(values)
+    const response = await loginAction(values)
+    console.log(response);
   }
 
   return (
@@ -64,7 +65,9 @@ export default function LoginPage() {
             <FormItem>
               <FormLabel>Contraseña</FormLabel>
               <FormControl>
-                <Input placeholder="contraseña" {...field} />
+                <Input placeholder="contraseña" {...field} 
+                 type="password"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
