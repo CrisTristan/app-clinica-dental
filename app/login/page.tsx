@@ -1,61 +1,78 @@
 "use client"
 
-import NavBar from '../components/navBar';
-import { useState } from 'react'
-import {Button, ButtonGroup} from "@nextui-org/button";
-import { Input } from "@nextui-org/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import zod from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { Button } from "@/components/ui/button"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { loginAction } from "../actions/auth-actions"
 
-export default function Login(){
-    const [username, setUsername] = useState('')
-    const [password, setPassword] = useState('')
-  
-    const handleSubmit = (event: React.FormEvent) => {
-      event.preventDefault()
-      // Aquí iría la lógica para manejar el inicio de sesión
-      console.log('Inicio de sesión con:', { username, password })
-    }
-  
-    return (
-    <main>
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Iniciar Sesión</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Usuario</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  placeholder="Ingrese su nombre de usuario"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Ingrese su contraseña"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full">
-                Iniciar Sesión
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    </main>
-    )
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string()
+  .min(5, {message: "La contraseña deber tener al menos 2 caracteres"})
+  .max(30, {message: "La contraseña no debe tener mas de 30 caracteres"})
+})
+
+export default function LoginPage() {
+  // 1. Define your form.
+  const form = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: ""
+    },
+  })
+
+  // 2. Define a submit handler.
+  async function onSubmit(values: z.infer<typeof loginSchema>) {
+    // Do something with the form values.
+    // ✅ This will be type-safe and validated.
+    await loginAction(values)
+  }
+
+  return (
+    <div className="grid place-content-center">
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-50">
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Correo Electronico</FormLabel>
+              <FormControl>
+                <Input placeholder="email" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Contraseña</FormLabel>
+              <FormControl>
+                <Input placeholder="contraseña" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit">Submit</Button>
+      </form>
+    </Form>
+    </div>
+  )
 }
