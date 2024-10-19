@@ -7,7 +7,6 @@ export default function Agenda(){
 
     return(
         <div>
-            <NavBar/>
             <Scheduler/>
         </div>
     );

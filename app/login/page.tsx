@@ -6,7 +6,7 @@ import {Button, ButtonGroup} from "@nextui-org/button";
 import { Input } from "@nextui-org/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-
+import zod from "zod"
 
 export default function Login(){
     const [username, setUsername] = useState('')
@@ -20,8 +20,6 @@ export default function Login(){
   
     return (
     <main>
-
-      <NavBar/>
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <Card className="w-full max-w-md">
           <CardHeader>

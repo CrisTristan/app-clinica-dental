@@ -5,7 +5,6 @@ export default function pacientes(){
 
     return(
         <div>
-            <NavBar/>
             <PatientManagement/>
         </div>
     )

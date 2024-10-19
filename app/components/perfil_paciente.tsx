@@ -13,6 +13,11 @@ import Odontogram from './Odontogram'
 import { Patient } from '../types/types'
 import { uploadImage } from '../actions/uploadImage'
 import { getProfilePhoto } from '../actions/getProfilePhoto'
+import {CldUploadWidget, CldImage} from "next-cloudinary"
+import { getAllPatientImages } from '../actions/getAllImages'
+import { deleteOneImage } from '../actions/deleteOneImage'
+import DeleteButtonNotify from './deleteButtonNotify'
+
 /*interface Paciente {
   id: string
   nombre: string
@@ -26,8 +31,10 @@ import { getProfilePhoto } from '../actions/getProfilePhoto'
   presupuestos: { servicio: string; precio: number }[]
 }*/
 
-export default function PerfilPaciente({ paciente }: { paciente: Patient }) {
+export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Patient, nombre: string, id: number }) {
 
+  const pathPatientFolder = `/pacientes/${nombre+"_"+id}`
+  console.log(pathPatientFolder)
   useEffect(() => {
 
     
@@ -35,31 +42,39 @@ export default function PerfilPaciente({ paciente }: { paciente: Patient }) {
       setPatient(paciente);
       const entries = Object.entries(paciente);
       console.log(entries);
-
-      const url = getProfilePhoto("JoseAntonio")
+      const url = getProfilePhoto(nombre, id)
       url.then(res=> setPatient(prev => ({...prev, foto: res})));
+      const images = getAllPatientImages(nombre, id)
+      images.then(res => setArchivos(res))
     }
 
   }, [paciente]);
 
+  
 
   const [patient, setPatient] = useState<Patient>(); //estado del paciente, contiente todos los datos del mismo.
-  const [archivos, setArchivos] = useState<File[]>([])
+  const [archivos, setArchivos] = useState<string[]>([]) //se hizo un cambio en el tipo useState()
   const [imagenSeleccionada, setImagenSeleccionada] = useState<string | null>(null)
   const [editPatientProfile, setEditPatientProfile] = useState(false);
   const [editando, setEditando] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isPending, startTransition] = useTransition()
+  //const [fullNameNoSpaces, setFullNameNoSpaces] = useState("")
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+
+  const handleDeleteImage = (url)=>{
+    deleteOneImage(url)
+  }
+
+  const onDrop = useCallback((acceptedFiles: string[]) => {
     setArchivos(prevArchivos => [...prevArchivos, ...acceptedFiles])
     console.log(acceptedFiles);
   }, [])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop })
 
-  const onImageClick = (file: File) => {
-    setImagenSeleccionada(URL.createObjectURL(file))
+  const onImageClick = (url: string) => {
+    setImagenSeleccionada(url)
   }
 
   const handleEditClick= ()=>{
@@ -75,7 +90,7 @@ export default function PerfilPaciente({ paciente }: { paciente: Patient }) {
     console.log(file?.name)
 
     startTransition(async ()=>{
-      const res = await uploadImage(file?.name, "")
+      const res = await uploadImage(file?.name, nombre, id)
     })
 
     if (file) {
@@ -206,44 +221,54 @@ export default function PerfilPaciente({ paciente }: { paciente: Patient }) {
             <CardTitle>Archivos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div
-              {...getRootProps()}
-              className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer ${
-                isDragActive ? 'border-primary' : 'border-gray-300'
-              }`}
-            >
-              <input {...getInputProps()} />
-              {isDragActive ? (
-                <p>Suelta los archivos aquí ...</p>
-              ) : (
-                <p>Arrastra y suelta algunos archivos aquí, o haz clic para seleccionar archivos</p>
-              )}
-            </div>
+          <div className='grid place-content-center mb-5'>
+          <CldUploadWidget signatureEndpoint="/api/sign-cloudinary-params"
+            onSuccess={(results)=> console.log(results.info?.url)}
+            options={{sources: ['local', 'url', 'google_drive', 'camera'], folder: pathPatientFolder, tags: ['encias']}}
+          >
+              {({ open }) => {
+              return (
+                <button 
+                  className='bg-cyan-400 rounded-lg px-20 py-5'
+                  onClick={() => open()}>
+                  Guardar Imagen
+                </button>
+              );
+              }}
+          </CldUploadWidget>
+          
+          </div>
             <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {archivos.map((file, index) => (
+              {archivos.map((URL, index) => (
                 <Dialog key={index}>
                   <DialogTrigger asChild>
-                    <div className="relative cursor-pointer" onClick={() => onImageClick(file)}>
-                      <Image
-                        src={URL.createObjectURL(file)}
+                    <div className="relative cursor-pointer" onClick={() => onImageClick(URL)}>
+                      <CldImage
+                        src={URL}
                         alt={`Archivo ${index + 1}`}
                         width={200}
                         height={200}
                         className="rounded-lg object-cover w-full h-40"
                       />
-                      <p className="mt-2 text-sm text-center truncate">{file.name}</p>
+                      <p className="mt-2 text-sm text-center truncate">{}</p>
                     </div>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[1500px] sm:max-h-[120vh]">
                     <div className="relative w-full h-full">
                       <Image
-                        src={URL.createObjectURL(file)}
-                        alt={`Vista ampliada de ${file.name}`}
+                        src={URL}
+                        alt={`Vista ampliada de`}
                         layout="responsive"
                         width={1200}
                         height={1000}
                         objectFit="contain"
                       />
+                      {/* <Button  */}
+                        {/* variant="destructive" */}
+                        {/* onClick={()=> handleDeleteImage(URL)}> */}
+                         {/* Borrar Imagen */}
+                      {/* </Button> */}
+                      <DeleteButtonNotify onDelete={()=> deleteOneImage(URL)} nextAction={()=> setImagenSeleccionada}/>
                     </div>
                     <button
                       onClick={() => setImagenSeleccionada(null)}

@@ -8,9 +8,6 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      
-      <NavBar/>
-      
       {/* Encabezado */}
       <header className="bg-cover bg-center h-[40vh] w-full flex flex-col justify-center items-center text-white mb-5" style={{ backgroundImage: "url('https://cdn.pixabay.com/photo/2017/08/06/07/12/dentist-2589771_1280.jpg')" }}>
         <h1 className="text-4xl md:text-6xl font-bold text-sky-500">Bienvenido a Tu Clínica Dental</h1>

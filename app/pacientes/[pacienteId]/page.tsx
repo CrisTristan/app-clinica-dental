@@ -60,7 +60,7 @@ export default function patientDetails({params} : {
 
     return(
         <div>
-          <PerfilPaciente paciente={patient}/>
+          <PerfilPaciente paciente={patient} nombre={name} id={id}/>
         </div>
     )
 }
