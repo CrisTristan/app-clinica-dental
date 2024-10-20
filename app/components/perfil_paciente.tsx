@@ -34,7 +34,6 @@ import DeleteButtonNotify from './deleteButtonNotify'
 export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Patient, nombre: string, id: number }) {
 
   const pathPatientFolder = `/pacientes/${nombre+"_"+id}`
-  console.log(pathPatientFolder)
   useEffect(() => {
 
     

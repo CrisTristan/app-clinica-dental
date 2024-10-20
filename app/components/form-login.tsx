@@ -15,15 +15,16 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { loginAction } from "../actions/auth-actions"
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { loginSchema } from "@/lib/zod"
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string()
-  .min(5, {message: "La contraseña deber tener minimo 5 caracteres"})
-  .max(30, {message: "La contraseña no debe tener mas de 30 caracteres"})
-})
+export default function formLogin() {
 
-export default function LoginPage() {
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+  const router = useRouter()
+
   // 1. Define your form.
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -37,8 +38,17 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof loginSchema>) {
     // Do something with the form values.
     // ✅ This will be type-safe and validated.
-    const response = await loginAction(values)
-    console.log(response);
+    setError(null)
+    startTransition(async ()=>{
+      const response = await loginAction(values)
+      console.log(response);
+      if(response.error){
+        setError(response.error);
+      }else{
+        router.push("/dashboard");
+      } 
+    })
+    
   }
 
   return (
@@ -73,7 +83,10 @@ export default function LoginPage() {
             </FormItem>
           )}
         />
-        <Button type="submit">Submit</Button>
+        {
+          error && <FormMessage>{error}</FormMessage>
+        }
+        <Button type="submit" disabled={isPending}>Submit</Button>
       </form>
     </Form>
     </div>

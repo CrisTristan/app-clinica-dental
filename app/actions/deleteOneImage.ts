@@ -16,9 +16,9 @@ export async function deleteOneImage(url: string) : Promise<string>{
     try {
         Cloudinary.uploader.destroy(FilePathtoDeleteWithSpace)
         .then(res=> console.log(res))
-        return "borrada"
+        return "imagen borrada"
     } catch (error) {
-        return "Hubo un error al borrar la imagen"
+        throw new Error ("No se pudo borrar la imagen")
     }
     
 }
