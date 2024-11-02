@@ -3,20 +3,36 @@ import useContextMenu from 'contextmenu';
 import 'contextmenu/ContextMenu.css';
 import '../styles/Tooth.css';
 
-function Tooth({ number, positionX, positionY, onChange }) {
-    const initialState = {
-        Cavities: {
-            center: 0,
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0
-        },
-        Extract: 0,
-        Crown: 0,
-        Filter: 0,
-        Fracture: 0
-    };
+function Tooth({ number, positionX, positionY, onChange, state }) {
+
+    let initialState;
+    
+    
+    useEffect(()=>{
+        const initializeTeethState = async ()=>{
+             if(state){
+                initialState = state;
+             }
+             //console.log(initialState);   
+        }
+
+        initializeTeethState();
+
+    }, [state])
+
+    // const initialState = {
+    //     Cavities: {   //Caries
+    //         center: 0,
+    //         top: 0,
+    //         bottom: 0,
+    //         left: 0,
+    //         right: 0
+    //     },
+    //     Extract: 0, //extraido
+    //     Crown: 0,  //corona
+    //     Ortodoncia: 0, 
+    //     Fracture: 0
+    // };
 
     function reducer(toothState, action) {
         switch (action.type) {
@@ -24,8 +40,8 @@ function Tooth({ number, positionX, positionY, onChange }) {
                 return { ...toothState, Crown: action.value };
             case 'extract':
                 return { ...toothState, Extract: action.value };
-            case 'filter':
-                return { ...toothState, Filter: action.value };
+            case 'Ortodoncia':
+                return { ...toothState, Ortodoncia: action.value };
             case 'fracture':
                 return { ...toothState, Fracture: action.value };
             case 'carie':
@@ -33,28 +49,47 @@ function Tooth({ number, positionX, positionY, onChange }) {
             case 'clear':
                 return initialState;
             default:
+                console.log(toothState);
                 throw new Error();
         }
     }
 
     const crown = (val) => ({ type: "crown", value: val });
     const extract = (val) => ({ type: "extract", value: val });
-    const filter = (val) => ({ type: "filter", value: val });
+    const Ortodoncia = (val) => ({ type: "Ortodoncia", value: val });
     const fracture = (val) => ({ type: "fracture", value: val });
     const carie = (z, val) => ({ type: "carie", value: val, zone: z });
     const clear = () => ({ type: "clear" });
 
-    const [toothState, dispatch] = useReducer(reducer, initialState);
+    const [toothState, dispatch] = useReducer(reducer, initialState,(initialArg) => {
+        return initialArg || {
+            Cavities: {   
+                center: 0,
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 0
+            },
+            Extract: 0,
+            Crown: 0,
+            Ortodoncia: 0,
+            Fracture: 0
+        }; 
+    });
+
     const [contextMenu, useCM] = useContextMenu({ submenuSymbol: '>' });
 
+
     const firstUpdate = useRef(true);
+    
+
     useEffect(() => {
         if (firstUpdate.current) {
             firstUpdate.current = false;
             return;
         }
         onChange(number, toothState);
-    }, [toothState, onChange, number]);
+    }, [toothState]);
 
     // Done SubMenu
     const doneSubMenu = (place, value) => {
@@ -71,30 +106,30 @@ function Tooth({ number, positionX, positionY, onChange }) {
     // Todo SubMenu
     const todoSubMenu = (place, value) => {
         return {
-            'Cavity': () => dispatch(carie(place, value)),
-            'Cavities All': () => dispatch(carie('all', value)),
-            'Absent': () => dispatch(extract(value)),
-            'Crown': () => dispatch(crown(value)),
-            'Filtered Out': () => dispatch(filter(value)),
-            'Fractured': () => dispatch(fracture(value)),
+            'Carie': () => dispatch(carie(place, value)),
+            'Carie Todo': () => dispatch(carie('all', value)),
+            'Ausente': () => dispatch(extract(value)),
+            'Corona': () => dispatch(crown(value)),
+            'Ortodoncia': () => dispatch(Ortodoncia(value)),
+            'Fracturado': () => dispatch(fracture(value))
         }
     }
 
     // Main ContextMenu
     const menuConfig = (place) => {
         return {
-            'Done': doneSubMenu(place, 1),
-            'To Do': todoSubMenu(place, 2),
+            'Hecho': doneSubMenu(place, 1),
+            'Tarea Pendiente': todoSubMenu(place, 2),
             'JSX line': <hr></hr>,
-            'Clear All': () => dispatch(clear()),
+            'Limpiar': () => dispatch(clear()),
         }
     };
 
     let getClassNamesByZone = (zone) => {
-        if (toothState.Cavities) {
-            if (toothState.Cavities[zone] === 1) {
+        if (toothState && toothState.Cavities) {
+            if (toothState && toothState.Cavities[zone] === 1) {
                 return 'to-do';
-            } else if (toothState.Cavities[zone] === 2) {
+            } else if (toothState && toothState.Cavities[zone] === 2) {
                 return 'done';
             }
         }
@@ -110,27 +145,29 @@ function Tooth({ number, positionX, positionY, onChange }) {
             <g transform={translate}>
                 <polygon
                     points="0,0 20,0 15,5 5,5"
-                    onContextMenu={useCM(menuConfig('top'))}
+                    onClick={useCM(menuConfig('top'))} //El context menu ahora se abre con click normal
+                    //onContextMenu={useCM(menuConfig('top'))} 
                     className={getClassNamesByZone('top')}
                 />
                 <polygon
                     points="5,15 15,15 20,20 0,20"
-                    onContextMenu={useCM(menuConfig('bottom'))}
+                    onClick={useCM(menuConfig('bottom'))}
+                    //onContextMenu={useCM(menuConfig('bottom'))}
                     className={getClassNamesByZone('bottom')}
                 />
                 <polygon
                     points="15,5 20,0 20,20 15,15"
-                    onContextMenu={useCM(menuConfig('left'))}
+                    onClick={useCM(menuConfig('left'))}
                     className={getClassNamesByZone('left')}
                 />
                 <polygon
                     points="0,0 5,5 5,15 0,20"
-                    onContextMenu={useCM(menuConfig('right'))}
+                    onClick={useCM(menuConfig('right'))}
                     className={getClassNamesByZone('right')}
                 />
                 <polygon
                     points="5,5 15,5 15,15 5,15"
-                    onContextMenu={useCM(menuConfig('center'))}
+                    onClick={useCM(menuConfig('center'))}
                     className={getClassNamesByZone('center')}
                 />
                 {drawToothActions()}
@@ -169,26 +206,31 @@ function Tooth({ number, positionX, positionY, onChange }) {
 
     function drawToothActions() {
         let otherFigures = null;
-        if (toothState.Extract > 0) {
+        if (toothState && toothState.Extract > 0) {
             otherFigures = <g stroke={toothState.Extract === 1 ? "red" : "blue"}>
                 <line x1="0" y1="0" x2="20" y2="20" strokeWidth="2" />
                 <line x1="0" y1="20" x2="20" y2="0" strokeWidth="2" />
             </g>
         }
 
-        if (toothState.Fracture > 0) {
+        if (toothState && toothState.Fracture > 0) {
             otherFigures = <g stroke={toothState.Fracture === 1 ? "red" : "blue"}>
                 <line x1="0" y1="10" x2="20" y2="10" strokeWidth="2"></line>
             </g>
         }
-
-        if (toothState.Filter > 0) {
+                        //Filter
+        if (toothState && toothState.Ortodoncia > 0) {
             otherFigures = <g stroke={toothState.Fracture === 1 ? "red" : "blue"}>
-                <line x1="0" y1="20" x2="20" y2="0" strokeWidth="2" />
+                <line x1="0" y1="20" x2="0" y2="0" strokeWidth="2" />
+                <line x1="0" y1="20" x2="20" y2="20" strokeWidth="2" />
+                <line x1="20" y1="20" x2="20" y2="0" strokeWidth="2" />
+                <line x1="0" y1="0" x2="20" y2="0" strokeWidth="2" />
+                <line x1="5" y1="10" x2="15" y2="10" strokeWidth="2" />
+                <line x1="10" y1="15" x2="10" y2="5" strokeWidth="2" />
             </g>
         }
 
-        if (toothState.Crown > 0) {
+        if (toothState && toothState.Crown > 0) {
             otherFigures = <circle
                 cx="10"
                 cy="10"

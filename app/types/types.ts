@@ -10,15 +10,36 @@ export interface Appointment {
 export interface Patient {
     id: number,
     name: string,
-    ape_pat: string,
-    ape_mat: string,
+    apellido_pat: string,
+    apellido_mat: string,
     telefono: string,
+    edad: number,
     email: string,
     lastVisit: string,
     nextAppointment: string,
     fechaNacimiento: string
-    direccion: string
+    domicilio: string
     foto: string
     historialClinico: string[]
     presupuestos: { servicio: string; precio: number }[]
+}
+
+export interface ImageFormat{
+    url: string,
+    width: number,
+    height: number
+}
+
+export interface Tooth {
+    Cavities: {   //Caries
+        center: number,
+        top: number,
+        bottom: number,
+        left: number,
+        right: number
+    },
+    Extract: number, //extraido
+    Crown: number,  //corona
+    Ortodoncia: number, 
+    Fracture: number
 }

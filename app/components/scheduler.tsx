@@ -97,6 +97,7 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
           .then(response => {
             if (!response.ok) {
             throw new Error('Network response was not ok');
+            
           }
           return response.json();
         })
@@ -310,7 +311,7 @@ function App() {
       viewerExtraComponent={(fields, event) => {
         return (
           <div>
-            <p>Useful to render custom fields...</p>
+            <p>Useful to render custom fields...{event?.color}</p>
             <p>Description: {event.description || "Nothing..."}</p>
           </div>
         );

@@ -18,7 +18,7 @@ model Appointment {
   desc      String?
   startDate DateTime
   endDate   DateTime
-  name      Patient  @relation(fields: [nameId], references: [id])
+  name      Patient  @relation(fields: [nameId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   nameId    Int
 }
 
@@ -32,6 +32,7 @@ model Patient {
   domicilio    String?
   sexo         Gender?
   Appointment  Appointment[]
+  teethState   Teeth?
 }
 
 enum Gender {
@@ -85,4 +86,11 @@ model VerificationToken {
   expires    DateTime
  
   @@id([identifier, token])
+}
+
+model Teeth {
+  id      Int      @id @default(autoincrement())
+  teethState   Json
+  name      Patient  @relation(fields: [nameId], references: [id])
+  nameId    Int @unique
 }

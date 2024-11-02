@@ -54,7 +54,7 @@ export default function formLogin() {
   return (
     <div className="grid place-content-center">
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-50">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="">
         <FormField
           control={form.control}
           name="email"

@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { authentication } from "../actions/authentication";
+import { auth } from "@/auth";
+import { SignOut } from "./signOut";
+export default async function NavBar(){
 
-export default function NavBar(){
+    const session = await auth();
 
     return(
         <header className="bg-primary text-primary-foreground py-4">
@@ -13,7 +17,7 @@ export default function NavBar(){
               <li><Link href="/" className="hover:underline text-white">Inicio</Link></li>
               <li><Link href="/agenda" className="hover:underline text-white">Agenda</Link></li>
               <li><Link href="/pacientes" className="hover:underline text-white">Pacientes</Link></li>
-              <li><Link href="/login" className="hover:underline text-white">Login</Link></li>
+              <li>{ !session ? <Link href="/login" className="hover:underline text-white">Login</Link> : <SignOut/>}</li>
               <li><Link href="/productividad" className="hover:underline text-white">Productividad</Link></li>
             </ul>
           </nav>

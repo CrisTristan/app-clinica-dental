@@ -25,9 +25,14 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Patient } from '../types/types'
+import { Checkbox } from "@/components/ui/checkbox"
+import DeleteButtonNotify from './deleteButtonNotify'
+import AdministradorAnuncios from './AdministradorAnuncios'
 
 
 export default function PatientManagement() {
+  const [checkedItems, setCheckedItems] = useState<string[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([])
 
   useEffect(()=>{
       const getAllPatients = ()=>{
@@ -51,10 +56,50 @@ export default function PatientManagement() {
   const [searchTerm, setSearchTerm] = useState('')
   const [newPatient, setNewPatient] = useState(false);
 
-  const [patient, setPatient] = useState({name: '', phone: '998'})
-  const [error, setError] = useState("");
-  const [patients, setPatients] = useState<Patient[]>([])
+  const [patient, setPatient] = useState({name: '', phone: '998', apellidoPat: '', apellidoMat: ''})
+  const [errorPhone, setErrorPhone] = useState("");
+  const [errorName, setErrorName] = useState("");
+  const [errorOnSavePatient, setErrorOnSavePatient] = useState(false)
+  
   const router = useRouter()
+  
+
+  const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, checked } = event.target;
+    console.log(id, checked)
+    if (checked) {
+      setCheckedItems((prevItems) => [...prevItems, id]); // Agregar id si está marcado
+    } else {
+      setCheckedItems((prevItems) => prevItems.filter((item) => item !== id)); // Remover id si está desmarcado
+    }
+
+  };
+
+  const handleDeletePatient = async () => {
+    console.log(checkedItems);
+    try {
+      const response = await fetch('http://localhost:3000/patients/api', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ids: checkedItems })
+      });
+      if (!response.ok) throw new Error('Error en la solicitud');
+  
+      const data = await response.json();
+      console.log('Respuesta:', data);
+  
+      setCheckedItems([]); // Limpiar los seleccionados
+      const updatedPatients = patients.filter(
+        (patient) => !checkedItems.map(Number).includes(patient.id)
+      );      
+
+      setPatients(updatedPatients); // Actualiza la lista sin hacer refresh
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -63,20 +108,25 @@ export default function PatientManagement() {
       [name]: value,
     }));
 
+    if (name === 'name' && !(/^[A-Za-z]+ ?[A-Za-z]+$/.test(value))) {
+      setErrorName('Solo se permiten letras y un espacio');
+    } else {
+      setErrorName('');
+    }
 
     // Valida el campo y establece el error si es necesario
     if (name === 'phone' && !/^\d+$/.test(value)) {
-      setError('El número de teléfono solo debe contener dígitos.');
+      setErrorPhone('El número de teléfono solo debe contener dígitos.');
     } else {
-      setError('');
+      setErrorPhone('');
     }
   };
 
   const navItems = [
     { name: 'Pacientes', icon: <Users className="mr-2 h-4 w-4" /> },
-    { name: 'Citas', icon: <Calendar className="mr-2 h-4 w-4" /> },
-    { name: 'Historiales', icon: <FileText className="mr-2 h-4 w-4" /> },
-    { name: 'Configuración', icon: <Settings className="mr-2 h-4 w-4" /> },
+    { name: 'Proximas Citas', icon: <Calendar className="mr-2 h-4 w-4" /> },
+    { name: 'Anuncios', icon: <FileText className="mr-2 h-4 w-4" /> },
+    { name: 'Servicios', icon: <Settings className="mr-2 h-4 w-4" /> },
   ]
 
   /*const patients = [
@@ -98,14 +148,20 @@ export default function PatientManagement() {
   }
 
   const handleNewPatient = ()=>{
+    console.log(checkedItems);
     setNewPatient(true);
+    setCheckedItems([]);
   }
 
   const handleSavePatient = ()=>{  //Logica para guardar el paciente en la BD
     console.log("Nombre:", patient.name);
     console.log("Teléfono:", patient.phone);
+    if(errorName.length > 0 || errorPhone.length>0){
+        return;
+    }
+
     if(patient.phone.length<10){
-        setError("Numero de telefono de 10 digitos")
+        setErrorPhone("Numero de telefono de 10 digitos")
         return;
     }
 
@@ -117,7 +173,9 @@ export default function PatientManagement() {
       body: JSON.stringify({
         // Datos que enviarás en el cuerpo de la solicitud
         name: patient.name,
-        phone: patient.phone
+        phone: patient.phone,
+        apellidoPat: patient.apellidoPat,
+        apellidoMat: patient.apellidoMat
       })
     })
     .then(response => {
@@ -128,13 +186,15 @@ export default function PatientManagement() {
     })
     .then(data => {
       console.log('Respuesta:', data);
+      setPatients(prev => [...prev, {...patient}])
+      setNewPatient(false)
+      setErrorOnSavePatient(false)
     })
     .catch(error => {
       console.error('Error:', error);
-    });
-
-      setNewPatient(false)
-      setPatient({name: '', phone: '998'})
+      setErrorOnSavePatient(true)
+    });  
+      setPatient({name: '', phone: '998', apellidoPat: '', apellidoMat: ''})
   }
 
   return (
@@ -184,7 +244,8 @@ export default function PatientManagement() {
                   />
                 </div>
             
-              <div>
+              <div className='flex space-x-4'>
+                 {checkedItems.length > 0 && (<DeleteButtonNotify onDelete={handleDeletePatient} text='Eliminar Pacientes' size='lg'/>)}
                 <Dialog open={newPatient} onOpenChange={setNewPatient}>
                   <DialogTrigger asChild>
                     <Button onClick={handleNewPatient}>
@@ -200,15 +261,39 @@ export default function PatientManagement() {
                     </DialogHeader>
                       <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="name" className="text-right">
+                          <Label htmlFor="nombre" className="text-right">
                             Nombre
                           </Label>
                           <Input
                             name='name'
-                            defaultValue=""
                             value={patient.name}
                             onChange={handleChange}
-                            required
+                            required={true}
+                            className="col-span-3"
+                          />
+                          {errorName && <p className="text-red-500 text-sm">{errorName}</p>}
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="nombre" className="text-right">
+                            Apellido Paterno
+                          </Label>
+                          <Input
+                            name='apellidoPat'
+                            value={patient.apellidoPat}
+                            onChange={handleChange}
+                            required={false}
+                            className="col-span-3"
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="nombre" className="text-right">
+                            Apellido Paterno
+                          </Label>
+                          <Input
+                            name='apellidoMat'
+                            value={patient.apellidoMat}
+                            onChange={handleChange}
+                            required={false}
                             className="col-span-3"
                           />
                         </div>
@@ -223,9 +308,10 @@ export default function PatientManagement() {
                             className="col-span-3"
                           />
                         </div>
-                        {error && <p className="text-red-500 text-sm">{error}</p>}
+                        {errorPhone && <p className="text-red-500 text-sm">{errorPhone}</p>}
                       </div>
                   <DialogFooter>
+                    {errorOnSavePatient && <p className="text-red-500 text-sm">{`El paciente ${patient.name} no fue guardado debido a que el numero ${patient.phone} ya existe`}</p>}
                     <Button type="submit" onClick={handleSavePatient}>Guardar</Button>
                   </DialogFooter>
                   </DialogContent>
@@ -235,29 +321,33 @@ export default function PatientManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead></TableHead>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Teléfono</TableHead>
                     <TableHead>Última Visita</TableHead>
                     <TableHead>Próxima Cita</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {filteredPatients.map((patient) => (
+                <TableBody className=''>
+                  {filteredPatients.map(({id, name, apellido_pat, apellido_mat, telefono, Appointment}) => (
                     <TableRow 
-                      key={patient.id} 
-                      onClick={() => handlePatientClick(patient.id, patient.name)}
-                      className="cursor-pointer hover:bg-gray-100"
+                      key={id} 
+                      className="cursor-pointer border-b border-gray-200 size-10 hover:bg-gray-500 text-md"
                     >
-                      <TableCell className="font-medium">{patient.name}</TableCell>
-                      <TableCell>{patient.telefono}</TableCell>
-                      <TableCell>{patient.Appointment && patient.Appointment.length > 0 ? patient.Appointment[0].startDate : "Sin citas"}</TableCell>
-                      <TableCell>{patient.Appointment.length > 0 && patient.Appointment.length >= 2 ? patient.Appointment[1].startDate : "Sin citas"}</TableCell>
+                      <input id={""+id} onChange={handleCheckboxChange} type='checkbox' className='size-7'/>
+                      <TableCell onClick={() => handlePatientClick(id, name)} className="font-medium bg-cyan-500">{`${name} ${apellido_pat == null ? "": apellido_pat} ${apellido_mat == null ? "": apellido_mat}`}</TableCell>
+                      <TableCell onClick={() => handlePatientClick(id, name)} >{telefono}</TableCell>
+                      <TableCell onClick={() => handlePatientClick(id, name)} >{Appointment && Appointment?.length > 0 ? Appointment[0]?.startDate : "Sin citas"}</TableCell>
+                      <TableCell onClick={() => handlePatientClick(id, name)} >{Appointment?.length > 0 && Appointment?.length >= 2 ? Appointment[1]?.startDate : "Sin citas"}</TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
+              </TableBody>
               </Table>
             </>
           )}
+          {
+            currentPage === 'Anuncios' && (<AdministradorAnuncios/>)
+          }
 
           {currentPage !== 'Pacientes' && (
             <p className="text-gray-500">Contenido de {currentPage} en desarrollo.</p>

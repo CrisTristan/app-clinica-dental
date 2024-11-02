@@ -61,6 +61,14 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
   //const [fullNameNoSpaces, setFullNameNoSpaces] = useState("")
 
 
+  const handleInputDataPatient = (e)=>{
+    const { name, value } = e.target;
+    setPatient((prevPatient) => ({
+      ...prevPatient,
+      [name]: value,
+    }));
+  }
+
   const handleDeleteImage = (url)=>{
     deleteOneImage(url)
   }
@@ -69,8 +77,6 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
     setArchivos(prevArchivos => [...prevArchivos, ...acceptedFiles])
     console.log(acceptedFiles);
   }, [])
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop })
 
   const onImageClick = (url: string) => {
     setImagenSeleccionada(url)
@@ -81,24 +87,37 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
   }
 
   const handleSaveClick = ()=>{
-    
-  }
-
-  const onPhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    console.log(file?.name)
-
-    startTransition(async ()=>{
-      const res = await uploadImage(file?.name, nombre, id)
+    fetch('http://localhost:3000/patients/api', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        // Datos que enviarás en el cuerpo de la solicitud
+        id: patient?.id,
+        name: patient?.name,
+        apellido_pat: patient?.apellido_pat,
+        apellido_mat: patient?.apellido_mat,
+        edad: patient?.edad,
+        domicilio: patient?.domicilio
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Error en la solicitud');
+      }
+      return response.json();
+    }).catch(error => {
+      console.log(error);
     })
 
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        console.log(reader.result?.toString)
-        setPatient(prev => ({ ...prev, foto: reader.result as string })) //Actualizamos el estado 
-      }
-      reader.readAsDataURL(file) //leemos el archivo 
+
+  }
+
+  const onPhotoChange = (url: URL) => {
+
+    if (url) {
+        setPatient(prev => ({ ...prev, foto: url })) //Actualizamos el estado 
     }
   }
 
@@ -115,21 +134,25 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
           <CardContent>
             <Image
               src={patient?.foto}
-              alt={`Foto de ${patient?.name} ${paciente?.ape_pat}`}
+              alt={`Foto de ${patient?.name} ${paciente?.apellido_pat}`}
               width={200}
               height={200}
               className="rounded-full"
             />
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={onPhotoChange}
-              accept="image/*"
-              style={{ display: 'none' }}
-            />
-            <Button onClick={()=> fileInputRef.current?.click()}>
-              {isPending ? "actializando...": "Cambiar"}
-            </Button>
+            <CldUploadWidget signatureEndpoint="/api/sign-cloudinary-params"
+            options={{sources: ['local', 'url', 'google_drive', 'camera'], folder: pathPatientFolder+"/fotoPerfil", tags: ['encias']}}
+            onSuccess={(results)=> onPhotoChange(results.info?.url)}
+            >
+              {({ open }) => {
+              return (
+                <button 
+                  className='bg-cyan-400 rounded-lg px-20 py-5'
+                  onClick={() => open()}>
+                  Cambiar foto Perfil
+                </button>
+              );
+              }}
+          </CldUploadWidget>
           </CardContent>
         </Card>
 
@@ -147,11 +170,14 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
                     <TableRow key={key}>
                       <TableCell className="font-medium">{key.charAt(0).toUpperCase() + key.slice(1)}</TableCell>
                       <TableCell>
+                          {key === 'telefono' ? <Input disabled={true} name={key} value={value}/> :
                           <Input
-                            disabled={!editPatientProfile}
+                            //disabled={!editPatientProfile}
                             name={key}
                             value={value}
+                            onChange={handleInputDataPatient}
                           />
+                          }
                       </TableCell>
                     </TableRow>
                   )
@@ -159,9 +185,9 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
               </TableBody>
             </Table>
             <div className='mt-4 flex space-between'>
-            <Button onClick={handleEditClick} variant="outline" size="sm">
-                <Edit className="w-4 h-4 mr-2" /> Editar
-            </Button>
+            {/* <Button onClick={handleEditClick} variant="outline" size="sm"> */}
+                {/* <Edit className="w-4 h-4 mr-2" /> Editar */}
+            {/* </Button> */}
             <Button onClick={handleSaveClick} variant="outline" size="sm">
                 <Save className="w-4 h-4 mr-2" /> Guardar
             </Button>
@@ -183,11 +209,7 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-2">
-          <CardContent>
-              <Odontogram/>
-          </CardContent>
-        </Card>
+        <Odontogram/>
 
         {/* Sección 4: Presupuestos */}
         <Card className="md:col-span-2">
@@ -222,7 +244,7 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
           <CardContent>
           <div className='grid place-content-center mb-5'>
           <CldUploadWidget signatureEndpoint="/api/sign-cloudinary-params"
-            onSuccess={(results)=> console.log(results.info?.url)}
+            //onSuccess={(results)=> console.log(results.info?.url)}
             options={{sources: ['local', 'url', 'google_drive', 'camera'], folder: pathPatientFolder, tags: ['encias']}}
           >
               {({ open }) => {
