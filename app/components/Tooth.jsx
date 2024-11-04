@@ -59,7 +59,10 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
     useEffect(()=>{
          if(state){
         console.log(number, state)
-        dispatch({type: 'set_data', payload: state})
+        const isDifferent = JSON.stringify(state) !== JSON.stringify(toothState);
+        if(isDifferent){
+            dispatch({type: 'set_data', payload: state}) //evitar despachos innecesarios
+        }  
         }
     }, [state])
 
@@ -70,21 +73,7 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
     const carie = (z, val) => ({ type: "carie", value: val, zone: z });
     const clear = () => ({ type: "clear" });
 
-    const [toothState, dispatch] = useReducer(reducer, state, (initialArg)=>{ return initialArg || {
-        Cavities: {   //Caries
-            center: state?.Cavities.center,
-            top: state?.Cavities?.top,
-            bottom: state?.Cavities?.bottom,
-            left: state?.Cavities?.left,
-            right: state?.Cavities?.right
-        },
-        Extract: state?.Extract, //extraido
-        Crown: state?.Crown,  //corona
-        Ortodoncia: state?.Ortodoncia, 
-        Fracture: state?.Fracture
-    }  
- //console.log(number, state.Crown)
- });
+    const [toothState, dispatch] = useReducer(reducer, state, (initialArg)=>{ return initialArg || initialState});
 
     const [contextMenu, useCM] = useContextMenu({ submenuSymbol: '>' });
 
@@ -92,13 +81,13 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
     const firstUpdate = useRef(true);
     
 
-    // useEffect(() => {
-    //     if (firstUpdate.current) {
-    //         firstUpdate.current = false;
-    //         return;
-    //     }
-    //     onChange(number, toothState);
-    // }, [toothState]);
+    useEffect(() => {
+        if (firstUpdate.current) {
+            firstUpdate.current = false;
+            return;
+        }
+        onChange(number, toothState);
+    }, [toothState]);
 
     // Done SubMenu
     const doneSubMenu = (place, value) => {

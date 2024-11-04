@@ -4,9 +4,9 @@ import Tooth from './Tooth';
 function Teeth({ start, end, x, y, handleChange, id, teethState }) {
     let tooths = getArray(start, end);
 
-    if(teethState){
-        console.log(teethState)
-    } 
+    // if(teethState){
+    //     console.log(teethState)
+    // } 
     
     return (
         <g transform="scale(1.4)" id="gmain">

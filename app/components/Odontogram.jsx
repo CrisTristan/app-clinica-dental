@@ -89,7 +89,7 @@ export default function Odontogram() {
         height="100%"
         width="100%"
       >
-        {/* <Teeth start={18} end={11} x={0} y={0} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={18} end={11} x={0} y={0} handleChange={handleToothUpdate} teethState={teethState}/>
         <Teeth start={21} end={28} x={210} y={0} handleChange={handleToothUpdate} teethState={teethState}/>
 
         <Teeth start={55} end={51} x={75} y={40} handleChange={handleToothUpdate} teethState={teethState}/>
@@ -99,8 +99,8 @@ export default function Odontogram() {
         <Teeth start={71} end={75} x={210} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
 
         <Teeth start={48} end={41} x={0} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={31} end={38} x={210} y={120} handleChange={handleToothUpdate} teethState={teethState}/> */}
-        {
+        <Teeth start={31} end={38} x={210} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
+        {/* {
             <Tooth onChange={handleToothUpdate}
             key={i}
             number={i}
@@ -108,7 +108,7 @@ export default function Odontogram() {
             positionX={Math.abs((i - 18) * 25) + 0}
             state={teethState[i]}
             />
-        }
+        } */}
       </svg>
       <button 
         onClick={handleSave} 
