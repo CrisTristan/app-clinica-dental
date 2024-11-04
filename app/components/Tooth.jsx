@@ -2,37 +2,23 @@ import React, { useEffect, useReducer, useRef } from 'react';
 import useContextMenu from 'contextmenu';
 import 'contextmenu/ContextMenu.css';
 import '../styles/Tooth.css';
+import { type } from 'os';
 
 function Tooth({ number, positionX, positionY, onChange, state }) {
-
-    let initialState;
     
-    
-    useEffect(()=>{
-        const initializeTeethState = async ()=>{
-             if(state){
-                initialState = state;
-             }
-             //console.log(initialState);   
-        }
-
-        initializeTeethState();
-
-    }, [state])
-
-    // const initialState = {
-    //     Cavities: {   //Caries
-    //         center: 0,
-    //         top: 0,
-    //         bottom: 0,
-    //         left: 0,
-    //         right: 0
-    //     },
-    //     Extract: 0, //extraido
-    //     Crown: 0,  //corona
-    //     Ortodoncia: 0, 
-    //     Fracture: 0
-    // };
+    let initialState = {
+            Cavities: {   //Caries
+                center: 0,
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 0
+            },
+            Extract: 0, //extraido
+            Crown: 0,  //corona
+            Ortodoncia: 0, 
+            Fracture: 0
+    };
 
     function reducer(toothState, action) {
         switch (action.type) {
@@ -48,11 +34,34 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
                 return { ...toothState, Cavities: setCavities(toothState, action.zone, action.value) };
             case 'clear':
                 return initialState;
+            case 'set_data':
+                return {...action.payload};
             default:
                 console.log(toothState);
                 throw new Error();
         }
     }
+
+    // state = {
+    //     Cavities: {   //Caries
+    //         center: 1,
+    //         top: 2,
+    //         bottom: 1,
+    //         left: 2,
+    //         right: 1
+    //     },
+    //     Extract: 2, //extraido
+    //     Crown: 0,  //corona
+    //     Ortodoncia: 0, 
+    //     Fracture: 0
+    // }
+    
+    useEffect(()=>{
+         if(state){
+        console.log(number, state)
+        dispatch({type: 'set_data', payload: state})
+        }
+    }, [state])
 
     const crown = (val) => ({ type: "crown", value: val });
     const extract = (val) => ({ type: "extract", value: val });
@@ -61,21 +70,21 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
     const carie = (z, val) => ({ type: "carie", value: val, zone: z });
     const clear = () => ({ type: "clear" });
 
-    const [toothState, dispatch] = useReducer(reducer, initialState,(initialArg) => {
-        return initialArg || {
-            Cavities: {   
-                center: 0,
-                top: 0,
-                bottom: 0,
-                left: 0,
-                right: 0
-            },
-            Extract: 0,
-            Crown: 0,
-            Ortodoncia: 0,
-            Fracture: 0
-        }; 
-    });
+    const [toothState, dispatch] = useReducer(reducer, state, (initialArg)=>{ return initialArg || {
+        Cavities: {   //Caries
+            center: state?.Cavities.center,
+            top: state?.Cavities?.top,
+            bottom: state?.Cavities?.bottom,
+            left: state?.Cavities?.left,
+            right: state?.Cavities?.right
+        },
+        Extract: state?.Extract, //extraido
+        Crown: state?.Crown,  //corona
+        Ortodoncia: state?.Ortodoncia, 
+        Fracture: state?.Fracture
+    }  
+ //console.log(number, state.Crown)
+ });
 
     const [contextMenu, useCM] = useContextMenu({ submenuSymbol: '>' });
 
@@ -83,13 +92,13 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
     const firstUpdate = useRef(true);
     
 
-    useEffect(() => {
-        if (firstUpdate.current) {
-            firstUpdate.current = false;
-            return;
-        }
-        onChange(number, toothState);
-    }, [toothState]);
+    // useEffect(() => {
+    //     if (firstUpdate.current) {
+    //         firstUpdate.current = false;
+    //         return;
+    //     }
+    //     onChange(number, toothState);
+    // }, [toothState]);
 
     // Done SubMenu
     const doneSubMenu = (place, value) => {
@@ -141,7 +150,9 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
     const translate = `translate(${positionX},${positionY})`;
 
     return (
-        <svg className="tooth">
+        <>
+        { state && 
+        (<svg className="tooth">
             <g transform={translate}>
                 <polygon
                     points="0,0 20,0 15,5 5,5"
@@ -182,7 +193,9 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
                 </text>
             </g>
             {contextMenu}
-        </svg>
+        </svg>)
+        }
+        </>
     )
 
     function setCavities(prevState, zone, value) {
