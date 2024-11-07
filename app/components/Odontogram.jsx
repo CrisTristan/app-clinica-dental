@@ -21,7 +21,7 @@ export default function Odontogram() {
                       throw new Error('Error en la solicitud');
                   }
                   const data = await response.json();
-                  console.log(data.teethState);
+                  // console.log(data.teethState);
                   setTeethState(data.teethState);
                   //setFirstTeethState(data.teethState);  // Guardar el estado de los dientes
                   setTeethStateKeys(Object.keys(data.teethState));  // Guardar las claves si es necesario

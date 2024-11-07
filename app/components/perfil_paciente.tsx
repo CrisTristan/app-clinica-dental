@@ -244,7 +244,7 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
           <CardContent>
           <div className='grid place-content-center mb-5'>
           <CldUploadWidget signatureEndpoint="/api/sign-cloudinary-params"
-            //onSuccess={(results)=> console.log(results.info?.url)}
+            onSuccess={(results)=> setArchivos(prev=> [...prev,results.info?.url])}
             options={{sources: ['local', 'url', 'google_drive', 'camera'], folder: pathPatientFolder, tags: ['encias']}}
           >
               {({ open }) => {

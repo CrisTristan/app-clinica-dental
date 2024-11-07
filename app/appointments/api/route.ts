@@ -1,14 +1,44 @@
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
-export async function GET() {
-    const Appointments = await prisma.appointment.findMany({
-        include: {
-            name: true,
-        }
-    })
-    return Response.json(Appointments)
+// export async function GET() {
+//     const Appointments = await prisma.appointment.findMany({
+//         include: {
+//             name: true,
+//         }
+//     })
+//     return Response.json(Appointments)
+// }
+
+export async function GET(req: Request) { 
+    // Parseamos la URL para extraer los parámetros de consulta
+    const url = new URL(req.url);
+    const startDate = url.searchParams.get('startDate');
+
+    if (!startDate) {
+        return new Response('startDate parameter is missing', { status: 400 });
+    }
+
+    console.log(startDate);
+    try {
+        const Appointments = await prisma.appointment.findMany({
+            include: { name: true },
+            where: {
+                startDate: {
+                    gte: new Date(startDate)
+                }
+            },
+            take: 7
+        });
+        console.log(Appointments);
+        return Response.json(Appointments);
+    } catch (error) {
+        console.log(error);
+        return new Response('Server error', { status: 500 });
+    }
 }
+
+
 
 export async function POST(req: Request) {
     const appointment = await req.json();

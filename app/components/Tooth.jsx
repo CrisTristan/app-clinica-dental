@@ -58,7 +58,7 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
     
     useEffect(()=>{
          if(state){
-        console.log(number, state)
+        //console.log(number, state)
         const isDifferent = JSON.stringify(state) !== JSON.stringify(toothState);
         if(isDifferent){
             dispatch({type: 'set_data', payload: state}) //evitar despachos innecesarios
