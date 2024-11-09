@@ -35,8 +35,13 @@ export default function Odontogram() {
       fetchTeethState();
   }, [id]);
 
+  useEffect(()=>{
+      console.log(window.innerWidth);
+  }, [window.innerWidth]);
+
   useEffect(() => {
     //console.log(teethState); // Aquí verás el estado actualizado
+    handleSaveTeeth();
 }, [teethState]);
 
   // const handleToothUpdate = (id, toothState) => {
@@ -55,7 +60,7 @@ export default function Odontogram() {
     }));
   };
 
-  const handleSave = () => {
+  const handleSaveTeeth = () => {
     //console.log('Estado de los dientes:', teethState);
     fetch('http://localhost:3000/tooth/api', {
       method: 'POST',
@@ -78,10 +83,9 @@ export default function Odontogram() {
     })
   };
  
-  const i=16;
   return (
     <div className="Odontogram">
-    <div className="overflow-x-auto"> {/* Permite scroll horizontal si es necesario */}
+    <div className="h-80"> {/* Permite scroll horizontal si es necesario */}
       <svg 
         version="1.1" 
         className="" // Añade clases de Tailwind
@@ -89,33 +93,18 @@ export default function Odontogram() {
         height="100%"
         width="100%"
       >
-        <Teeth start={18} end={11} x={0} y={0} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={21} end={28} x={210} y={0} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={18} end={11} x={window.innerWidth/8} y={0} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={21} end={28} x={window.innerWidth/8} y={40} handleChange={handleToothUpdate} teethState={teethState}/>
 
-        <Teeth start={55} end={51} x={75} y={40} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={61} end={65} x={210} y={40} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={55} end={51} x={window.innerWidth/18} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={61} end={65} x={window.innerWidth/3} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
 
-        <Teeth start={85} end={81} x={75} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={71} end={75} x={210} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={85} end={81} x={window.innerWidth/18} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={71} end={75} x={window.innerWidth/3} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
 
-        <Teeth start={48} end={41} x={0} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={31} end={38} x={210} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
-        {/* {
-            <Tooth onChange={handleToothUpdate}
-            key={i}
-            number={i}
-            positionY={0}
-            positionX={Math.abs((i - 18) * 25) + 0}
-            state={teethState[i]}
-            />
-        } */}
+        <Teeth start={48} end={41} x={window.innerWidth/8} y={160} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={31} end={38} x={window.innerWidth/8} y={200} handleChange={handleToothUpdate} teethState={teethState}/>
       </svg>
-      <button 
-        onClick={handleSave} 
-        className="mt-4 w-full sm:w-auto px-4 py-2 bg-blue-500 text-white rounded"
-      >
-        Guardar Estado
-      </button>
     </div>
   </div>
   );

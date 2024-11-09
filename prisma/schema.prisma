@@ -33,6 +33,7 @@ model Patient {
   sexo         Gender?
   Appointment  Appointment[]
   teethState   Teeth?
+  servicios Json?
 }
 
 enum Gender {
@@ -93,4 +94,10 @@ model Teeth {
   teethState   Json
   name      Patient  @relation(fields: [nameId], references: [id])
   nameId    Int @unique
+}
+
+model Service {
+  id      Int      @id @default(autoincrement())
+  name   String
+  price   Int
 }

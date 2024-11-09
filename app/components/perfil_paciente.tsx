@@ -17,6 +17,7 @@ import {CldUploadWidget, CldImage} from "next-cloudinary"
 import { getAllPatientImages } from '../actions/getAllImages'
 import { deleteOneImage } from '../actions/deleteOneImage'
 import DeleteButtonNotify from './deleteButtonNotify'
+import ManageBudgets from './ManageBudgets'
 
 /*interface Paciente {
   id: string
@@ -62,10 +63,12 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
 
 
   const handleInputDataPatient = (e)=>{
-    const { name, value } = e.target;
+    const { name, value} = e.target;
+    const listId = e.target.getAttribute('list');
+
     setPatient((prevPatient) => ({
       ...prevPatient,
-      [name]: value,
+      [name || listId]: value,
     }));
   }
 
@@ -87,6 +90,7 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
   }
 
   const handleSaveClick = ()=>{
+    console.log(patient);
     fetch('http://localhost:3000/patients/api', {
       method: 'PUT',
       headers: {
@@ -99,7 +103,8 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
         apellido_pat: patient?.apellido_pat,
         apellido_mat: patient?.apellido_mat,
         edad: patient?.edad,
-        domicilio: patient?.domicilio
+        domicilio: patient?.domicilio,
+        sexo: patient?.sexo
       })
     })
     .then(response => {
@@ -165,12 +170,21 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
             <Table>
               <TableBody>
               {patient && Object.entries(patient).map(([key, value]) => {
-                  if (['id', 'foto', 'historialClinico', 'presupuestos'].includes(key)) return null
+                  if (['id', 'foto', 'historialClinico', 'servicios'].includes(key)) return null
                   return (
                     <TableRow key={key}>
                       <TableCell className="font-medium">{key.charAt(0).toUpperCase() + key.slice(1)}</TableCell>
                       <TableCell>
                           {key === 'telefono' ? <Input disabled={true} name={key} value={value}/> :
+                          key === 'sexo' ?
+                          <div> 
+                          <input list="sexo" onChange={handleInputDataPatient}/> 
+                          <datalist id="sexo">
+                            <option value={value ? (value === 'Male' ? 'Masculino': 'Femenino') : 'Masculino'}/>
+                            <option value={value ? (value === 'Male' ? 'Femenino': 'Masculino') : 'Femenino'}/>
+                          </datalist>
+                          </div>
+                          :
                           <Input
                             //disabled={!editPatientProfile}
                             name={key}
@@ -208,12 +222,14 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
             </ul>
           </CardContent>
         </Card>
-
+        <div className='h-80'>
+        <div>
         <Odontogram/>
-
+        </div>
+        </div>      
         {/* Sección 4: Presupuestos */}
         <Card className="md:col-span-2">
-          <CardHeader>
+          {/* <CardHeader>
             <CardTitle>Presupuestos</CardTitle>
           </CardHeader>
           <CardContent>
@@ -233,7 +249,8 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
+          </CardContent> */}
+          <ManageBudgets id={id}/>
         </Card>
 
         {/* Sección 5: Archivos */}
