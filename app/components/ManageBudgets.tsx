@@ -75,12 +75,21 @@ export default function ManageBudgets({id}) {
     savePatientBudgets(id, budgets);
   }
 
+  const sumAllPayments = (budget : Budget)=>{
+      let suma: number=0;
+      budget.paymentHistory.forEach(element => {
+        
+        suma += Number(element.abono);
+      });
+
+      return suma;
+  }
 
   const createBudget = (serviceName: string, price?: number) => {
     const newBudget: Budget = {
       id: Date.now().toString(),
       name: serviceName,
-      price: price,
+      price: Number(price) || 1000,
       balance: Number(price) || 1000, // Ejemplo de saldo inicial
       createdAt: new Date(),
       paymentHistory: [{abono: '', fecha: ''}]
@@ -160,13 +169,16 @@ export default function ManageBudgets({id}) {
       </Dialog>
       </div>      
       <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-1">
+        <h1>Presupuestos Activos</h1>
         {budgets.map(budget => (
           <Card key={budget.id}>
             <CardHeader>
               <CardTitle>{budget.name}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p>Saldo: ${budget.balance.toFixed(2)}</p>
+              <p>Total: ${budget.price}</p>
+              <p>Por Pagar: ${budget.balance.toFixed(2)}</p>
+              <p>Pagado: ${sumAllPayments(budget)}</p>
               <p>Creado: {budget.createdAt.toLocaleDateString()}</p>
             </CardContent>
             <CardFooter className="flex justify-between">

@@ -78,7 +78,7 @@ export default function AdministradorAnuncios() {
         {anuncios.map(({url, height, width}, index) => (
           <Card key={index}>
             <CardContent className="p-4">
-              <Image src={url} alt={`Anuncio ${index + 1}`} width={width} height={height} className="w-full h-48 object-cover mb-2" />
+              <Image src={url} alt={`Anuncio ${index + 1}`} width={width} height={height} className="w-full h-60 object-cover mb-2" />
               <Button variant="destructive" onClick={() => eliminarAnuncio(url)}>
                 <Trash2 className="mr-2 h-4 w-4" /> Eliminar
               </Button>

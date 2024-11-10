@@ -16,7 +16,12 @@ export async function GET(req: Request) {
     const startDate = url.searchParams.get('startDate');
 
     if (!startDate) {
-        return new Response('startDate parameter is missing', { status: 400 });
+        const Appointments = await prisma.appointment.findMany({
+                    include: {
+                        name: true,
+                    }
+                })
+                return Response.json(Appointments)
     }
 
     console.log(startDate);

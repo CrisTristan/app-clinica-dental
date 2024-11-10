@@ -29,6 +29,7 @@ export default function ProximasCitas(){
 
     return (
         <div>
+            <h1>Solo se Muestran Citas del Dia de hoy en adelante</h1>
              <CitasDentales citas={appointments}/>
         </div>
     )

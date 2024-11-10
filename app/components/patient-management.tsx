@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Users, Calendar, FileText, Settings, Menu, Plus, Search } from 'lucide-react'
+import { Users, Calendar, FileText, Settings, Menu, Plus, Search, ChartColumnBig } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -29,6 +29,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import DeleteButtonNotify from './deleteButtonNotify'
 import AdministradorAnuncios from './AdministradorAnuncios'
 import ProximasCitas from './proximasCitas'
+import IncomeExpenseChart from './incomeExpenseChart'
 
 
 export default function PatientManagement() {
@@ -65,7 +66,7 @@ export default function PatientManagement() {
   const [errorPhone, setErrorPhone] = useState("");
   const [errorName, setErrorName] = useState("");
   const [errorOnSavePatient, setErrorOnSavePatient] = useState(false)
-  
+  const [viewMenu, setViewMenu] = useState(false);
   const router = useRouter()
   
 
@@ -93,7 +94,7 @@ export default function PatientManagement() {
       if (!response.ok) throw new Error('Error en la solicitud');
   
       const data = await response.json();
-      console.log('Respuesta:', data);
+      //console.log('Respuesta:', data);
   
       setCheckedItems([]); // Limpiar los seleccionados
       const updatedPatients = patients.filter(
@@ -131,7 +132,8 @@ export default function PatientManagement() {
     { name: 'Pacientes', icon: <Users className="mr-2 h-4 w-4" /> },
     { name: 'Proximas Citas', icon: <Calendar className="mr-2 h-4 w-4" /> },
     { name: 'Anuncios', icon: <FileText className="mr-2 h-4 w-4" /> },
-    { name: 'Servicios', icon: <Settings className="mr-2 h-4 w-4" /> },
+    // { name: 'Servicios', icon: <Settings className="mr-2 h-4 w-4" /> },
+    { name: 'Productividad', icon: <ChartColumnBig className='mr-2 h-4 w-4'/>}
   ]
 
   /*const patients = [
@@ -231,9 +233,23 @@ export default function PatientManagement() {
         <div className="max-w-6xl mx-auto">
           <header className="flex justify-between items-center mb-8">
             <h1 className="text-3xl font-bold">{currentPage}</h1>
-            <Button variant="outline" className="md:hidden">
+            <Button variant="outline" className="md:hidden" onClick={()=>setViewMenu(prev=> !prev)}>
               <Menu className="h-4 w-4" />
             </Button>
+            <div className={`${viewMenu ? "": "hidden"} md:hiden`}>
+              {navItems.map((item) => (
+              <li key={item.name} className="mb-2">
+                <Button
+                  variant={currentPage === item.name ? "default" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setCurrentPage(item.name)}
+                >
+                  {item.icon}
+                  {item.name}
+                </Button>
+              </li>
+              ))}
+            </div>
           </header>
 
           {currentPage === 'Pacientes' && (
@@ -356,6 +372,9 @@ export default function PatientManagement() {
           }
           {
             currentPage === 'Proximas Citas' && (<ProximasCitas/>)
+          }
+          {
+            currentPage === 'Productividad' &&(<IncomeExpenseChart/>)
           }
           {currentPage !== 'Pacientes' && (
             <p className="text-gray-500">Contenido de {currentPage} en desarrollo.</p>

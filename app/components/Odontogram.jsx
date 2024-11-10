@@ -21,7 +21,7 @@ export default function Odontogram() {
                       throw new Error('Error en la solicitud');
                   }
                   const data = await response.json();
-                  // console.log(data.teethState);
+                  console.log(data.teethState);
                   setTeethState(data.teethState);
                   //setFirstTeethState(data.teethState);  // Guardar el estado de los dientes
                   setTeethStateKeys(Object.keys(data.teethState));  // Guardar las claves si es necesario
@@ -35,14 +35,10 @@ export default function Odontogram() {
       fetchTeethState();
   }, [id]);
 
-  useEffect(()=>{
-      console.log(window.innerWidth);
-  }, [window.innerWidth]);
-
   useEffect(() => {
     //console.log(teethState); // Aquí verás el estado actualizado
-    handleSaveTeeth();
-}, [teethState]);
+    // handleSaveTeeth();
+  }, [teethState]);
 
   // const handleToothUpdate = (id, toothState) => {
   //   odontogramState[id] = toothState;
@@ -93,18 +89,19 @@ export default function Odontogram() {
         height="100%"
         width="100%"
       >
-        <Teeth start={18} end={11} x={window.innerWidth/8} y={0} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={21} end={28} x={window.innerWidth/8} y={40} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={18} end={11} x={60} y={0} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={21} end={28} x={60} y={40} handleChange={handleToothUpdate} teethState={teethState}/>
 
-        <Teeth start={55} end={51} x={window.innerWidth/18} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={61} end={65} x={window.innerWidth/3} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={55} end={51} x={30} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={61} end={65} x={160} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
 
-        <Teeth start={85} end={81} x={window.innerWidth/18} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={71} end={75} x={window.innerWidth/3} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={85} end={81} x={30} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={71} end={75} x={160} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
 
-        <Teeth start={48} end={41} x={window.innerWidth/8} y={160} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={31} end={38} x={window.innerWidth/8} y={200} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={48} end={41} x={60} y={160} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={31} end={38} x={60} y={200} handleChange={handleToothUpdate} teethState={teethState}/>
       </svg>
+      <button onClick={()=>handleSaveTeeth()} className='bg-cyan-300 p-4'>Guardar Dientes</button>
     </div>
   </div>
   );

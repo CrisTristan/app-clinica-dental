@@ -178,10 +178,10 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
                           {key === 'telefono' ? <Input disabled={true} name={key} value={value}/> :
                           key === 'sexo' ?
                           <div> 
-                          <input list="sexo" onChange={handleInputDataPatient}/> 
+                          <input list="sexo" onChange={handleInputDataPatient} value={value ? (value === 'Male'? 'Masculino': 'Femenino') :''}/> 
                           <datalist id="sexo">
-                            <option value={value ? (value === 'Male' ? 'Masculino': 'Femenino') : 'Masculino'}/>
-                            <option value={value ? (value === 'Male' ? 'Femenino': 'Masculino') : 'Femenino'}/>
+                            <option value='Masculino'/>
+                            <option value='Femenino'/>
                           </datalist>
                           </div>
                           :
@@ -222,13 +222,11 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
             </ul>
           </CardContent>
         </Card>
-        <div className='h-80'>
-        <div>
+        <Card className="md:col-span-3 h-80">
         <Odontogram/>
-        </div>
-        </div>      
+        </Card>
         {/* Sección 4: Presupuestos */}
-        <Card className="md:col-span-2">
+        <Card className="md:col-span-2 mt-8">
           {/* <CardHeader>
             <CardTitle>Presupuestos</CardTitle>
           </CardHeader>
