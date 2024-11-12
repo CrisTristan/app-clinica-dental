@@ -2,7 +2,7 @@
 import { prisma } from "@/prisma"
 
 export const savePatientBudgets = async (id: number, budgets)=>{
-    console.log(budgets)
+    console.log("servicios",budgets)
     try {
         const res = await prisma.patient.update({
             where: {

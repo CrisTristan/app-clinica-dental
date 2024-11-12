@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -63,16 +63,24 @@ export default function ManageBudgets({id}) {
     
   }, [])
 
+  const firstUpdate = useRef(true);
+  
   useEffect(() => {
     // Guardar presupuestos cada vez que cambian
+    //console.log(budgets);
+    if (firstUpdate.current) {
+      firstUpdate.current = false;
+      return;
+    }
     saveBudgetsToDatabase(budgets)
   }, [budgets])
 
   const saveBudgetsToDatabase = async (budgetsToSave: Budget[]) => {
     // Simular guardado en base de datos usando localStorage
     //localStorage.setItem('dentalBudgets', JSON.stringify(budgetsToSave))
-    if(budgets.length === 0) return;
-    savePatientBudgets(id, budgets);
+    //if(budgetsToSave.length === 0) return;
+    const savedBudgets = await savePatientBudgets(id, budgetsToSave);
+    console.log(savedBudgets);
   }
 
   const sumAllPayments = (budget : Budget)=>{

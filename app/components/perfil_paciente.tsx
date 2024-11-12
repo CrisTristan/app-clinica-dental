@@ -134,14 +134,14 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
         {/* Sección 1: Foto del paciente */}
         <Card className='grid place-content-center'>
           <CardHeader>
-            <CardTitle>Foto del Paciente</CardTitle>
+            <CardTitle className='text-center'>Foto del Paciente</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className='flex flex-col justify-center'>
             <Image
               src={patient?.foto}
               alt={`Foto de ${patient?.name} ${paciente?.apellido_pat}`}
-              width={200}
-              height={200}
+              width={500}
+              height={500}
               className="rounded-full"
             />
             <CldUploadWidget signatureEndpoint="/api/sign-cloudinary-params"
@@ -151,7 +151,7 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
               {({ open }) => {
               return (
                 <button 
-                  className='bg-cyan-400 rounded-lg px-20 py-5'
+                  className='bg-cyan-400 rounded-lg py-2'
                   onClick={() => open()}>
                   Cambiar foto Perfil
                 </button>
@@ -178,7 +178,7 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
                           {key === 'telefono' ? <Input disabled={true} name={key} value={value}/> :
                           key === 'sexo' ?
                           <div> 
-                          <input list="sexo" onChange={handleInputDataPatient} value={value ? (value === 'Male'? 'Masculino': 'Femenino') :''}/> 
+                          <input list="sexo" onChange={handleInputDataPatient} /> 
                           <datalist id="sexo">
                             <option value='Masculino'/>
                             <option value='Femenino'/>

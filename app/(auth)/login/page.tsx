@@ -1,11 +1,13 @@
 "use client"
 import FormLogin from "../../components/form-login"
 
-export default function LoginPage(){
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams : {verified: string}
+}){
 
-    return(
-      <div>
-        <FormLogin/>
-      </div>  
-    )
+    const isVerified = searchParams.verified === "true";
+
+    return <FormLogin isVerified= {isVerified}/> 
 }

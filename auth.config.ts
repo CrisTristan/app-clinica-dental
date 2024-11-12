@@ -3,6 +3,8 @@ import Credentials from "next-auth/providers/credentials"
 import { loginSchema } from "./lib/zod"
 import { db } from "./lib/db";
 import bcript from "bcryptjs";
+import { nanoid } from "nanoid";
+import { sendEmailVerification } from "./lib/email";
 // Notice this is only an object, not a full Auth.js instance
 export default {
     providers: [
@@ -33,6 +35,39 @@ export default {
               throw new Error("contraseña incorrecta");
             }
 
+            //verificación de email
+            if(!user.emailVerified){
+
+              const verifyTokenExits = await db.verificationToken.findFirst({
+                where: {
+                  identifier: user.email
+                }
+              })
+
+              //SI existe un token lo eliminamos
+              if(verifyTokenExits?.identifier){
+                const deleteToken = await db.verificationToken.delete({
+                  where: {
+                    identifier: user.email
+                  }
+                })
+              }
+
+              const token = nanoid();
+
+              await db.verificationToken.create({
+                data: {
+                  identifier: user.email,
+                  token,
+                  expires: new Date(Date.now()+1000*60*60*24)
+                },
+              })
+
+              //Enviar email de verificación
+              await sendEmailVerification(user.email, token);
+              
+              throw new Error("Por favor verifique su correo Electronico")
+            }
             return user;
           },
         }),

@@ -16,8 +16,18 @@ export default async function NavBar(){
             <ul className="flex space-x-4">
               <li><Link href="/" className="hover:underline text-white">Inicio</Link></li>
               <li>{ !session ? <Link href="/login" className="hover:underline text-white">Login</Link> : <SignOut/>}</li>
-              <li><Link href="/agenda" className="hover:underline text-white">Agenda</Link></li>
-              <li><Link href="/pacientes" className="hover:underline text-white">Panel Admin</Link></li>
+              <li>
+                {
+                session?.user?.role === "admin" &&
+                <Link href="/agenda" className="hover:underline text-white">Agenda</Link>
+                }
+              </li>
+              <li>
+                {
+                session?.user?.role === "admin" &&
+                <Link href="/pacientes" className="hover:underline text-white">Panel Admin</Link>
+                }
+              </li>
               {/* <li><Link href="/productividad" className="hover:underline text-white">Productividad</Link></li> */}
             </ul>
           </nav>

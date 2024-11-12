@@ -19,7 +19,12 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { loginSchema } from "@/lib/zod"
 
-export default function formLogin() {
+export default function formLogin({
+  isVerified
+}: 
+{
+  isVerified: boolean
+}) {
 
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -45,14 +50,22 @@ export default function formLogin() {
       if(response.error){
         setError(response.error);
       }else{
-        router.push("/dashboard");
+        router.push("/pacientes");
       } 
     })
     
   }
 
   return (
-    <div className="grid place-content-center">
+    <div className="max-w-52">
+    <h1>Login</h1>
+    {
+      isVerified && (
+      <p className="text-center bg-green-300">
+        Email Verificado ahora puedes ingresar
+      </p>
+      )
+    }
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="">
         <FormField

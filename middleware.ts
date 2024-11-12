@@ -2,16 +2,16 @@ import NextAuth from "next-auth"
 import authConfig from "./auth.config"
 import { NextResponse } from "next/server";
  
-export const { auth: middleware } = NextAuth(authConfig)
+const { auth: middleware } = NextAuth(authConfig)
 
 const publicRoutes = [
   "/",
   "/login",
-  "/registe",
+  "/register",
   "/api/auth/verify-email"
 ]
 
-/*export default middleware((req)=>{
+export default middleware((req)=>{
   const {nextUrl, auth} = req
   const isLoggedIn = !!auth?.user
 
@@ -21,7 +21,7 @@ const publicRoutes = [
   }
 
   return NextResponse.next();
-});*/
+});
 
 export const config = {
     matcher: [

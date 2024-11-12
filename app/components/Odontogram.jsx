@@ -1,4 +1,4 @@
-import React, {useContext, useEffect, useState}from 'react';
+import React, {useContext, useEffect, useState, useRef}from 'react';
 import Teeth from './Teeth';
 import "../styles/Odontogram.css"
 import { useSearchParams } from 'next/navigation';
@@ -21,7 +21,7 @@ export default function Odontogram() {
                       throw new Error('Error en la solicitud');
                   }
                   const data = await response.json();
-                  console.log(data.teethState);
+                  //console.log(data.teethState);
                   setTeethState(data.teethState);
                   //setFirstTeethState(data.teethState);  // Guardar el estado de los dientes
                   setTeethStateKeys(Object.keys(data.teethState));  // Guardar las claves si es necesario
@@ -35,10 +35,21 @@ export default function Odontogram() {
       fetchTeethState();
   }, [id]);
 
-  useEffect(() => {
-    //console.log(teethState); // Aquí verás el estado actualizado
-    // handleSaveTeeth();
-  }, [teethState]);
+  // const firstUpdate = useRef(true);
+
+  // useEffect(() => {
+  //   console.log(teethState); // Aquí verás el estado actualizado
+  //   if (firstUpdate.current) {
+  //           firstUpdate.current = false;
+  //           return;
+  //   }
+    
+  //   const isEmpty = (obj) => Object.keys(obj).length === 0;
+
+  //   if(!isEmpty(teethState)){
+  //     handleSaveTeeth();
+  //   }
+  // }, [teethState]);
 
   // const handleToothUpdate = (id, toothState) => {
   //   odontogramState[id] = toothState;

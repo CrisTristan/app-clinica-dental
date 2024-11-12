@@ -2,5 +2,5 @@
 import { signOut } from "next-auth/react"
  
 export function SignOut() {
-  return <button onClick={() => signOut({redirectTo: "/login"})}>Sign Out</button>
+  return <button onClick={() => signOut({redirectTo: "/login"})}>Salir</button>
 }
