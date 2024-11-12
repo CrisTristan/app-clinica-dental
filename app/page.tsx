@@ -38,7 +38,7 @@ export default function Home() {
       </section>
 
       {/* Testimonios */}
-      <section className="my-12 text-center">
+      {/* <section className="my-12 text-center">
         <h2 className="text-3xl font-semibold mb-6">Lo que dicen nuestros pacientes</h2>
         <div className="mb-6">
           <p className="italic">"El mejor servicio dental que he recibido. ¡Totalmente recomendable!"</p>
@@ -48,7 +48,7 @@ export default function Home() {
           <p className="italic">"Profesionales y amables. Me sentí en buenas manos."</p>
           <cite className="block mt-2">- María López</cite>
         </div>
-      </section>
+      </section> */}
 
       <footer className="bg-muted py-4 mt-8">
         <div className="container mx-auto text-center">

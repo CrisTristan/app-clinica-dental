@@ -43,7 +43,7 @@ export async function POST(req : Request){
 export async function PUT(req : Request){
 
     const {id, name, apellido_pat, apellido_mat, telefono, edad, domicilio, sexo} : Patient = await req.json();
-    console.log(sexo);
+    //console.log(sexo);
     const Patient = await prisma.patient.update({
         where: {
             id
@@ -55,7 +55,7 @@ export async function PUT(req : Request){
             telefono,
             edad: Number(edad),
             domicilio,
-            sexo: sexo === 'Masculino'? 'Male': 'Female',
+            sexo: sexo,
         }
     })
     return Response.json(Patient);

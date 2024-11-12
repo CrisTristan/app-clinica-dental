@@ -37,8 +37,8 @@ model Patient {
 }
 
 enum Gender {
-  Male
-  Female
+  Masculino
+  Femenino
 }
 
 enum Role {

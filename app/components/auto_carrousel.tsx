@@ -11,6 +11,7 @@ import { isGeneratorFunction } from 'util/types';
 import { authentication } from '../actions/authentication';
 import { getAllAddvertisements } from '../actions/getAllAddvertisements';
 import { ImageFormat } from '../types/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 /*const images : string[] = [
   "https://cdn.pixabay.com/photo/2024/02/16/06/26/dentist-8576790_1280.png",
@@ -78,15 +79,24 @@ export default function AutoCarrousel() {
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
           {Addvertisments?.map(({url, width, height}, index) => (
-            <CldImage
-              key={index} 
+            <Dialog>
+            <DialogTrigger asChild>
+              <Image
+                  src={url}
+                  width={width}
+                  height={height} 
+                  alt={''}
+              />
+            </DialogTrigger>
+            <DialogContent className="flex justify-center items-center sm:max-w-[850px] p-4">
+            <Image
               src={url}
-              width={width+1000}
-              height={height+1000}
-              
-              alt={`Slide ${index + 1}`}
-              className="w-full h-auto flex-shrink-0"
+              width={width * 2} // Doble del ancho original
+              height={height * 2} // Doble de la altura original
+              alt=""
             />
+          </DialogContent>
+          </Dialog>
           ))}
         </div>
       </div>

@@ -80,7 +80,7 @@ export default function ManageBudgets({id}) {
     //localStorage.setItem('dentalBudgets', JSON.stringify(budgetsToSave))
     //if(budgetsToSave.length === 0) return;
     const savedBudgets = await savePatientBudgets(id, budgetsToSave);
-    console.log(savedBudgets);
+    //console.log(savedBudgets);
   }
 
   const sumAllPayments = (budget : Budget)=>{

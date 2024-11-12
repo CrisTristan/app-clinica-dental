@@ -2,6 +2,7 @@ import Link from "next/link";
 import { authentication } from "../actions/authentication";
 import { auth } from "@/auth";
 import { SignOut } from "./signOut";
+import Image from "next/image";
 export default async function NavBar(){
 
     const session = await auth();
@@ -10,7 +11,11 @@ export default async function NavBar(){
         <header className="bg-primary text-primary-foreground py-4">
         <div className="container mx-auto flex justify-between items-center">
           <Link href="/" className="text-2xl font-bold">
-            Mi Sitio
+            <Image
+              src={"https://th.bing.com/th/id/OIP.SOLDwLuhaxavlwt3TOunUwHaHa?rs=1&pid=ImgDetMain"}
+              width={100}
+              height={100}
+            />
           </Link>
           <nav>
             <ul className="flex space-x-4">

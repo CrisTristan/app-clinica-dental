@@ -178,7 +178,7 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
                           {key === 'telefono' ? <Input disabled={true} name={key} value={value}/> :
                           key === 'sexo' ?
                           <div> 
-                          <input list="sexo" onChange={handleInputDataPatient} /> 
+                          <input list="sexo" onChange={handleInputDataPatient} value={value}/> 
                           <datalist id="sexo">
                             <option value='Masculino'/>
                             <option value='Femenino'/>
