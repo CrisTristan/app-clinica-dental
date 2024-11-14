@@ -31,7 +31,7 @@ export default function AutoCarrousel() {
       const adds : ImageFormat[] = await getAllAddvertisements();
       setAddvertisements(adds);
 
-     
+      console.log(adds);
     };
     fetchAddvertisements();
   }, []);
@@ -82,6 +82,7 @@ export default function AutoCarrousel() {
             <Dialog>
             <DialogTrigger asChild>
               <Image
+                  className='h-[40vh]'
                   src={url}
                   width={width}
                   height={height} 
@@ -90,6 +91,7 @@ export default function AutoCarrousel() {
             </DialogTrigger>
             <DialogContent className="flex justify-center items-center sm:max-w-[850px] p-4">
             <Image
+              className='h-[60vh]'
               src={url}
               width={width * 2} // Doble del ancho original
               height={height * 2} // Doble de la altura original

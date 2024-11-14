@@ -12,9 +12,12 @@ const nextConfig = {
         },
         {
           hostname: 'th.bing.com'
+        },
+        {
+          hostname: 'pps.whatsapp.net'
         }
       ],
-    }
+    },
 };
 
 export default nextConfig;

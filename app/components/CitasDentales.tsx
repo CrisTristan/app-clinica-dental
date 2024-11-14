@@ -113,7 +113,7 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
                 <li key={cita.id} className="flex justify-between space-x-2 p-2 rounded-md bg-teal-300 text-lg">
                   <div className='flex flex-col jutify-center'>
                     <Avatar className="w-10 h-10">
-                      <AvatarFallback>{cita.name.name[0]}{cita.name.apellido_pat[0]}</AvatarFallback>
+                      <AvatarFallback>{cita.name?.name[0]}{}</AvatarFallback>
                     </Avatar>
                     {/* <div className="flex-grow"> */}
                     <p className="text-lg text-muted-foreground">
