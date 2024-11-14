@@ -1,6 +1,4 @@
-import NavBar from "./components/navBar"
 import AutoCarrousel from "../app/components/auto_carrousel"
-import Link from "next/link";
 import Image from "next/image";
 import AgendarCitaBoton from "./components/agendarCitaBoton";
 

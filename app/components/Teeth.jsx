@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
 import Tooth from './Tooth';
 
-function Teeth({ start, end, x, y, handleChange, id, teethState }) {
+function Teeth({ start, end, x, y, handleChange, teethState }) {
     let tooths = getArray(start, end);
 
     // if(teethState){

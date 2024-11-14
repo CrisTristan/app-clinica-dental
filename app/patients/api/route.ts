@@ -1,6 +1,5 @@
 import { Patient } from "@/app/types/types";
 import { PrismaClient } from "@prisma/client";
-import { revalidatePath } from "next/cache";
 
 const prisma = new PrismaClient();
 

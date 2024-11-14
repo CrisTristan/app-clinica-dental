@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react"
 import { useSearchParams, usePathname } from "next/navigation"
 import PerfilPaciente from "@/app/components/perfil_paciente"
-import Odontogram from "../../../components/Odontogram"
 import { Patient } from "@/app/types/types"
 
 export default function patientDetails({params} : {

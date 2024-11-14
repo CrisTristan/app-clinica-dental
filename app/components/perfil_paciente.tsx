@@ -2,16 +2,14 @@
 
 import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { useState, useCallback, useEffect, useRef, startTransition, useTransition } from 'react'
-import { useDropzone } from 'react-dropzone'
+import { useState, useCallback, useEffect, useRef, useTransition } from 'react'
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-import { X, Edit, Save } from "lucide-react"
+import { X, Save } from "lucide-react"
 import Odontogram from './Odontogram'
 import { Patient } from '../types/types'
-import { uploadImage } from '../actions/uploadImage'
 import { getProfilePhoto } from '../actions/getProfilePhoto'
 import {CldUploadWidget, CldImage} from "next-cloudinary"
 import { getAllPatientImages } from '../actions/getAllImages'

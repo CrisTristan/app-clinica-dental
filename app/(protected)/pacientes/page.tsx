@@ -1,6 +1,4 @@
 import PatientManagement from "../../components/patient-management"
-import NavBar from "../../components/navBar"
-import { authentication } from "@/app/actions/authentication";
 import { auth } from "@/auth";
 
 export default async function pacientes(){

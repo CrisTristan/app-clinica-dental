@@ -11,8 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Users, Calendar, FileText, Settings, Menu, Plus, Search, ChartColumnBig } from 'lucide-react'
-import Link from 'next/link'
+import { Users, Calendar, FileText, Menu, Plus, Search, ChartColumnBig } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
   Dialog,
@@ -25,7 +24,6 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Patient } from '../types/types'
-import { Checkbox } from "@/components/ui/checkbox"
 import DeleteButtonNotify from './deleteButtonNotify'
 import AdministradorAnuncios from './AdministradorAnuncios'
 import ProximasCitas from './proximasCitas'
@@ -93,7 +91,7 @@ export default function PatientManagement() {
       });
       if (!response.ok) throw new Error('Error en la solicitud');
   
-      const data = await response.json();
+      //const data = await response.json();
       //console.log('Respuesta:', data);
   
       setCheckedItems([]); // Limpiar los seleccionados

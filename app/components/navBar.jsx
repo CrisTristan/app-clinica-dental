@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { authentication } from "../actions/authentication";
-import { auth } from "@/auth";
 import { SignOut } from "./signOut";
 import Image from "next/image";
 import { useEffect, useState } from "react";

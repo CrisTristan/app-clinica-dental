@@ -1,13 +1,11 @@
-import React, {useContext, useEffect, useState, useRef}from 'react';
+import React, {useEffect, useState}from 'react';
 import Teeth from './Teeth';
 import "../styles/Odontogram.css"
 import { useSearchParams } from 'next/navigation';
-import Tooth from './Tooth';
 
 export default function Odontogram() {
 
   const searchParams = useSearchParams()
-  const name = searchParams.get('name');
   const id =searchParams.get('id');
   const [teethState, setTeethState] = useState({});
 

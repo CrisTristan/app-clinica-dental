@@ -22,7 +22,7 @@ export const onSubmit = async (state : Appointment, scheduler, event, setError) 
          */
         if(event?.event_id){
             const update = onUpdateSomeField(event, state)
-            update.then( (data) =>{
+            update.then( () =>{
               resolve({
                 event_id: event?.event_id,
                 title: state.name,

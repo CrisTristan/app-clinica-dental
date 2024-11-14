@@ -1,4 +1,3 @@
-import React, {useState} from "react";
 import { ProcessedEvent } from "@aldabil/react-scheduler/types";
 import {Appointment} from "../types/types"
 

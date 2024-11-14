@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import {useState } from "react";
 import { TextField, Button, DialogActions } from "@mui/material";
 import { Scheduler } from "@aldabil/react-scheduler";
 import type {
@@ -7,7 +7,6 @@ import type {
   RemoteQuery
 } from "@aldabil/react-scheduler/types";
 import {nanoid} from 'nanoid';
-import { onSubmit } from "../helpers/onSubmit";
 import {onUpdateSomeField} from '../helpers/onUpdateSomeField'
 
 
@@ -66,7 +65,7 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
          */
         if(event?.event_id){
             const update = onUpdateSomeField(event, state)
-            update.then( (data) =>{
+            update.then( () =>{
               resolve({
                 event_id: event?.event_id,
                 title: state.name,

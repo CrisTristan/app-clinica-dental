@@ -2,7 +2,6 @@ import React, { useEffect, useReducer, useRef } from 'react';
 import useContextMenu from 'contextmenu';
 import 'contextmenu/ContextMenu.css';
 import '../styles/Tooth.css';
-import { type } from 'os';
 
 function Tooth({ number, positionX, positionY, onChange, state }) {
     
