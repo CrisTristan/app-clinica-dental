@@ -12,7 +12,7 @@ export default function NavBar(){
     useEffect(() => {
       const fetchSession = async () => {
           const session = await authentication();
-          //console.log(session);
+          console.log(session);
           setUserSession(session);
       };
 
