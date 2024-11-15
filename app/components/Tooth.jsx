@@ -113,14 +113,14 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
     }
 
     // Main ContextMenu
-    const menuConfig = (place) => {
-        return {
-            'Hecho': doneSubMenu(place, 1),
-            'Tarea Pendiente': todoSubMenu(place, 2),
-            'JSX line': <hr></hr>,
-            'Limpiar': () => dispatch(clear()),
-        }
-    };
+    const menuConfig = state
+    ? (place) => ({
+        'Hecho': doneSubMenu(place, 1),
+        'Tarea Pendiente': todoSubMenu(place, 2),
+        'JSX line': <hr />,
+        'Limpiar': () => dispatch(clear()),
+    })
+    : null;
 
     let getClassNamesByZone = (zone) => {
         if (toothState && toothState.Cavities) {
@@ -144,29 +144,29 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
             <g transform={translate}>
                 <polygon
                     points="0,0 20,0 15,5 5,5"
-                    // onClick={useCM(menuConfig('top'))} //El context menu ahora se abre con click normal
-                    onContextMenu={useCM(menuConfig('top'))} 
+                    // onClick={state ? useCM(menuConfig('top')) : undefined} //El context menu ahora se abre con click normal
+                    // onContextMenu={useCM(menuConfig('top'))} 
                     className={getClassNamesByZone('top')}
                 />
                 <polygon
                     points="5,15 15,15 20,20 0,20"
                     // onClick={useCM(menuConfig('bottom'))}
-                    onContextMenu={useCM(menuConfig('bottom'))}
+                    // onClick={state ? useCM(menuConfig('bottom')) : undefined}
                     className={getClassNamesByZone('bottom')}
                 />
                 <polygon
                     points="15,5 20,0 20,20 15,15"
-                    onContextMenu={useCM(menuConfig('left'))}
+                    // onClick={state ? useCM(menuConfig('left')) : undefined}
                     className={getClassNamesByZone('left')}
                 />
                 <polygon
                     points="0,0 5,5 5,15 0,20"
-                    onContextMenu={useCM(menuConfig('right'))}
+                    // onClick={state ? useCM(menuConfig('right')) : undefined}
                     className={getClassNamesByZone('right')}
                 />
                 <polygon
                     points="5,5 15,5 15,15 5,15"
-                    onContextMenu={useCM(menuConfig('center'))}
+                    // onClick={state ? useCM(menuConfig('center')) : undefined}
                     className={getClassNamesByZone('center')}
                 />
                 {drawToothActions()}

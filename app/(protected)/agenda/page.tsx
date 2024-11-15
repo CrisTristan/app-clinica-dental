@@ -3,7 +3,7 @@ import Scheduler from "../../components/scheduler";
 import { useEffect, useState } from "react";
 import { authentication } from "@/app/actions/authentication";
 
-export default async function Agenda(){
+export default function Agenda(){
 
     const [isAdmin, setIsAdmin] = useState(false)
     useEffect(()=>{

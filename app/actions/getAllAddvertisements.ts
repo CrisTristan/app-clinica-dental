@@ -7,7 +7,7 @@ export async function getAllAddvertisements(): Promise<ImageFormat[]>{
     const resources = response.resources;
     console.log(resources)
     const images : ImageFormat[] = [];
-    resources.map(image =>{
+    resources.map((image: ImageFormat) =>{
         images.push({url: image.secure_url, width: image.width, height: image.height});
     })
 

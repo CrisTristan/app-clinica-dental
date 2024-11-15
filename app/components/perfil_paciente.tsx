@@ -30,7 +30,7 @@ import ManageBudgets from './ManageBudgets'
   presupuestos: { servicio: string; precio: number }[]
 }*/
 
-export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Patient, nombre: string, id: number }) {
+export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Patient | undefined, nombre: string | null, id: string | null}) {
 
   const pathPatientFolder = `/pacientes/${nombre+"_"+id}`
   useEffect(() => {
