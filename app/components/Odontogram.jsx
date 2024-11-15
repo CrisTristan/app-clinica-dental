@@ -14,7 +14,7 @@ export default function Odontogram() {
       const fetchTeethState = async () => {
           if (id) {
               try {
-                  const response = await fetch(`http://localhost:3000/tooth/api?id=${id}`);
+                  const response = await fetch(`/tooth/api?id=${id}`);
                   if (!response.ok) {
                       throw new Error('Error en la solicitud');
                   }
@@ -67,7 +67,7 @@ export default function Odontogram() {
 
   const handleSaveTeeth = () => {
     //console.log('Estado de los dientes:', teethState);
-    fetch('http://localhost:3000/tooth/api', {
+    fetch('/tooth/api', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

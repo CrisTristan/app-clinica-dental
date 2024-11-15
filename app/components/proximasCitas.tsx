@@ -11,7 +11,7 @@ export default function ProximasCitas(){
             const today = new Date();
             const formattedDate = today.toISOString().split('T')[0];
             console.log(formattedDate);
-            const data = await fetch(`http://localhost:3000/appointments/api?startDate=${formattedDate}`);
+            const data = await fetch(`/appointments/api?startDate=${formattedDate}`);
             const appointments = await data.json();
             console.log(appointments)
             setAppointments(appointments)

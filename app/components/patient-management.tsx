@@ -40,7 +40,7 @@ export default function PatientManagement() {
 
   useEffect(()=>{
       const getAllPatients = ()=>{
-          const response = fetch('http://localhost:3000/patients/api')
+          const response = fetch('/patients/api')
           response.then(data =>{
             return data.json()
           })
@@ -82,7 +82,7 @@ export default function PatientManagement() {
   const handleDeletePatient = async () => {
     console.log(checkedItems);
     try {
-      const response = await fetch('http://localhost:3000/patients/api', {
+      const response = await fetch('/patients/api', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
@@ -170,7 +170,7 @@ export default function PatientManagement() {
         return;
     }
 
-    fetch('http://localhost:3000/patients/api', {
+    fetch('/patients/api', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

@@ -79,7 +79,7 @@ const CustomEditor = ({ scheduler }: CustomEditorProps) => {
             return;
         }
 
-        fetch('http://localhost:3000/appointments/api', {
+        fetch('/appointments/api', {
           method: "POST",
           headers: {
             'Content-Type': 'application/json'
@@ -177,7 +177,7 @@ function App() {
 
     return new Promise( async (res, rej)=>{
         try {
-        const response = await fetch('http://localhost:3000/appointments/api');
+        const response = await fetch('/appointments/api');
         if (!response.ok) {
           throw new Error('Error en la respuesta de la red');
         }
@@ -221,7 +221,7 @@ function App() {
 
     console.log(updatedEvent.subtitle);
 
-    fetch('http://localhost:3000/appointments/api', {
+    fetch('/appointments/api', {
       method: "PUT",
       headers: {
         'Content-Type': 'application/json'
@@ -251,7 +251,7 @@ function App() {
     // Filtramos los eventos para eliminar el evento que coincide con el id
     const updatedEvents = events.filter((event) => event.id !== deletedId);
     setEvents(updatedEvents);
-    fetch('http://localhost:3000/appointments/api', {
+    fetch('/appointments/api', {
       method: "DELETE",
       headers: {
         'Content-Type': 'application/json'

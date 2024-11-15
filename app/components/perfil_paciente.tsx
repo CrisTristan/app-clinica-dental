@@ -89,7 +89,7 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
 
   const handleSaveClick = ()=>{
     console.log(patient);
-    fetch('http://localhost:3000/patients/api', {
+    fetch('/patients/api', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'

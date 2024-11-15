@@ -50,7 +50,7 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
     if(message.length === 0) return;
 
     console.log(number, message)
-    await fetch('http://localhost:3000/api/sendMessage', {
+    await fetch('/api/sendMessage', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
