@@ -21,7 +21,7 @@ export default function Agenda(){
     return(
         <div>
             {
-            true ?   
+            isAdmin ?   
             <Scheduler/> :
             <p>usted no eres administrador</p>
             }
