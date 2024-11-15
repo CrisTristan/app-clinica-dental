@@ -144,29 +144,29 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
             <g transform={translate}>
                 <polygon
                     points="0,0 20,0 15,5 5,5"
-                    onClick={useCM(menuConfig('top'))} //El context menu ahora se abre con click normal
-                    //onContextMenu={useCM(menuConfig('top'))} 
+                    // onClick={useCM(menuConfig('top'))} //El context menu ahora se abre con click normal
+                    onContextMenu={useCM(menuConfig('top'))} 
                     className={getClassNamesByZone('top')}
                 />
                 <polygon
                     points="5,15 15,15 20,20 0,20"
-                    onClick={useCM(menuConfig('bottom'))}
-                    //onContextMenu={useCM(menuConfig('bottom'))}
+                    // onClick={useCM(menuConfig('bottom'))}
+                    onContextMenu={useCM(menuConfig('bottom'))}
                     className={getClassNamesByZone('bottom')}
                 />
                 <polygon
                     points="15,5 20,0 20,20 15,15"
-                    onClick={useCM(menuConfig('left'))}
+                    onContextMenu={useCM(menuConfig('left'))}
                     className={getClassNamesByZone('left')}
                 />
                 <polygon
                     points="0,0 5,5 5,15 0,20"
-                    onClick={useCM(menuConfig('right'))}
+                    onContextMenu={useCM(menuConfig('right'))}
                     className={getClassNamesByZone('right')}
                 />
                 <polygon
                     points="5,5 15,5 15,15 5,15"
-                    onClick={useCM(menuConfig('center'))}
+                    onContextMenu={useCM(menuConfig('center'))}
                     className={getClassNamesByZone('center')}
                 />
                 {drawToothActions()}
