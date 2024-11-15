@@ -79,7 +79,7 @@ export default function AutoCarrousel() {
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
           {Addvertisments?.map(({url, width, height}, index) => (
-            <Dialog>
+            <Dialog key={url}>
             <DialogTrigger asChild>
               <Image
                   className='h-[40vh]'

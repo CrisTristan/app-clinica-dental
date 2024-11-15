@@ -74,7 +74,7 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
 
     const [toothState, dispatch] = useReducer(reducer, state, (initialArg)=>{ return initialArg || initialState});
 
-    const [contextMenu, useCM] = useContextMenu({ submenuSymbol: '>' });
+    const [contextMenu, useCM] = useContextMenu({ submenuSymbol: '>', positionX: 20, positionY: 20});
 
 
     const firstUpdate = useRef(true);

@@ -4,7 +4,7 @@ import { useSearchParams, usePathname } from "next/navigation"
 import PerfilPaciente from "@/app/components/perfil_paciente"
 import { Patient } from "@/app/types/types"
 
-export default function patientDetails({params} : {
+export default function PatientDetails({params} : {
     params: {
         pacienteId: string
     }

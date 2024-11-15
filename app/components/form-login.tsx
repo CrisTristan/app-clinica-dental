@@ -19,7 +19,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { loginSchema } from "@/lib/zod"
 
-export default function formLogin({
+export default function FormLogin({
   isVerified
 }: 
 {
