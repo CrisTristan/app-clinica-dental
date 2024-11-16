@@ -42,7 +42,7 @@ export default function PatientDetails({params} : {
             const url = `${pathName}?${searchParams}`
             console.log(url)
             try{
-              const res = await fetch(`http://localhost:3000/patients/api?id=${id}`)
+              const res = await fetch(`/patients/api?id=${id}`)
               const data = await res.json();
               console.log(data);
               setPatient(data);
