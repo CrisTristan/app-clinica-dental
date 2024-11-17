@@ -11,7 +11,7 @@ export default function Home() {
       <header className="bg-cover bg-center h-[40vh] w-full flex flex-col justify-center items-center text-white mb-10" style={{ backgroundImage: "url('https://cdn.pixabay.com/photo/2017/08/06/07/12/dentist-2589771_1280.jpg')" }}>
       <div className="bg-white rounded-full">
           <h1 className="text-4xl md:text-6xl font-bold text-sky-500 text-center">Bienvenido a Tu Clínica Dental</h1>
-        </div>
+      </div>
         <Image
             className="rounded-lg m-2"
             src={"https://pps.whatsapp.net/v/t61.24694-24/425259624_447106951131452_1908375958700733170_n.jpg?ccb=11-4&oh=01_Q5AaIBl1n_6am-6W69Zg_DUlvE0MxSAeppttaucIimeAMJNW&oe=6737BB74&_nc_sid=5e03e0&_nc_cat=101"}

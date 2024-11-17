@@ -200,7 +200,7 @@ export default function PatientManagement() {
       console.error('Error:', error);
       setErrorOnSavePatient(true)
     });  
-      setPatient({name: '', telefono: '998', apellido_pat: '', apellido_mat: ''})
+      //setPatient({name: '', telefono: '998', apellido_pat: '', apellido_mat: ''})
       console.log(patients);
       
   }
@@ -333,7 +333,7 @@ export default function PatientManagement() {
                         {errorPhone && <p className="text-red-500 text-sm">{errorPhone}</p>}
                       </div>
                   <DialogFooter>
-                    {errorOnSavePatient && <p className="text-red-500 text-sm">{`El paciente ${patient.name} no fue guardado debido a que el numero ${patient.telefono} ya existe`}</p>}
+                    {errorOnSavePatient && <p className="text-red-500 text-sm">{`El paciente ${patient.name} ${patient.apellido_pat} no fue guardado debido a que el numero ${patient.telefono} ya existe`}</p>}
                     <Button type="submit" onClick={handleSavePatient}>Guardar</Button>
                   </DialogFooter>
                   </DialogContent>

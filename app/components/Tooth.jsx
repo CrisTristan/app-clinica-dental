@@ -92,7 +92,7 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
 
     return (
         <>
-            {state &&
+            {true &&
                 (<svg className="tooth">
                     <g transform={translate}>
                         <ToothMenu location={"top"} dispatch={dispatch} carie={carie} extract={extract} crown={crown} fracture={fracture} ortodoncia={Ortodoncia}>

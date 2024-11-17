@@ -18,7 +18,7 @@ export default function NavBar(){
 
       // Solo activa el intervalo si UserSession es nulo o no está definido
       if (!UserSession) {
-          const intervalId = setInterval(fetchSession, 5000);
+          const intervalId = setInterval(fetchSession, 3000);
 
           // Limpia el intervalo cuando el componente se desmonta o si UserSession cambia
           return () => clearInterval(intervalId);
