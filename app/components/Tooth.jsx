@@ -2,21 +2,7 @@ import React, { useEffect, useReducer, useRef } from 'react';
 import useContextMenu from 'contextmenu';
 import 'contextmenu/ContextMenu.css';
 import '../styles/Tooth.css';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuGroup,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuPortal,
-    DropdownMenuSeparator,
-    DropdownMenuShortcut,
-    DropdownMenuSub,
-    DropdownMenuSubContent,
-    DropdownMenuSubTrigger,
-    DropdownMenuTrigger,
-  } from "@/components/ui/dropdown-menu"
-  import { Plus, LogOut } from 'lucide-react';
+import ToothMenu from './toothMenu';
 
 function Tooth({ number, positionX, positionY, onChange, state }) {
 
@@ -56,20 +42,6 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
         }
     }
 
-    // state = {
-    //     Cavities: {   //Caries
-    //         center: 1,
-    //         top: 2,
-    //         bottom: 1,
-    //         left: 2,
-    //         right: 1
-    //     },
-    //     Extract: 2, //extraido
-    //     Crown: 0,  //corona
-    //     Ortodoncia: 0, 
-    //     Fracture: 0
-    // }
-
     useEffect(() => {
         if (state) {
             //console.log(number, state)
@@ -103,40 +75,6 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
         onChange(number, toothState);
     }, [toothState]);
 
-    // Done SubMenu
-    const doneSubMenu = (place, value) => {
-        return {
-            'Cavity': () => {
-                dispatch(carie(place, value));
-            },
-            'Cavities All': () => dispatch(carie('all', value)),
-            'Absent': () => dispatch(extract(value)),
-            'Crown': () => dispatch(crown(value)),
-        }
-    }
-
-    // Todo SubMenu
-    const todoSubMenu = (place, value) => {
-        return {
-            'Carie': () => dispatch(carie(place, value)),
-            'Carie Todo': () => dispatch(carie('all', value)),
-            'Ausente': () => dispatch(extract(value)),
-            'Corona': () => dispatch(crown(value)),
-            'Ortodoncia': () => dispatch(Ortodoncia(value)),
-            'Fracturado': () => dispatch(fracture(value))
-        }
-    }
-
-    // Main ContextMenu
-    const menuConfig = state
-        ? (place) => ({
-            'Hecho': doneSubMenu(place, 1),
-            'Tarea Pendiente': todoSubMenu(place, 2),
-            'JSX line': <hr />,
-            'Limpiar': () => dispatch(clear()),
-        })
-        : null;
-
     let getClassNamesByZone = (zone) => {
         if (toothState && toothState.Cavities) {
             if (toothState && toothState.Cavities[zone] === 1) {
@@ -157,72 +95,42 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
             {state &&
                 (<svg className="tooth">
                     <g transform={translate}>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                        <ToothMenu location={"top"} dispatch={dispatch} carie={carie} extract={extract} crown={crown} fracture={fracture} ortodoncia={Ortodoncia}>
                                 <polygon
                                     points="0,0 20,0 15,5 5,5"
                                     //onClick={state ? useCM(menuConfig('top')) : undefined} //El context menu ahora se abre con click normal
                                     // onContextMenu={useCM(menuConfig('top'))} 
                                     className={getClassNamesByZone('top')}
                                 />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-56">
-                                <DropdownMenuLabel>Estado del diente</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuGroup>
-                                    <DropdownMenuItem onClick={() => dispatch(carie('top', 2))}>
-                                        <span>Carie</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => dispatch(extract(2))}>
-                                        <Plus />
-                                        <span>Extraido</span>
-                                        <DropdownMenuShortcut>⌘+T</DropdownMenuShortcut>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => dispatch(crown(2))}>
-                                        <Plus />
-                                        <span>Corona</span>
-                                        <DropdownMenuShortcut>⌘+T</DropdownMenuShortcut>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => dispatch(Ortodoncia(2))}>
-                                        <Plus />
-                                        <span>Ortodoncia</span>
-                                        <DropdownMenuShortcut>⌘+T</DropdownMenuShortcut>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => dispatch(fracture(2))}>
-                                        <Plus />
-                                        <span>Fracturado</span>
-                                        <DropdownMenuShortcut>⌘+T</DropdownMenuShortcut>
-                                    </DropdownMenuItem>
-                                </DropdownMenuGroup>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleMenuClick()}>
-                                    <LogOut />
-                                    <span>Log out</span>
-                                    <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        </ToothMenu>
+                        <ToothMenu location={"bottom"} dispatch={dispatch} carie={carie} extract={extract} crown={crown} fracture={fracture} ortodoncia={Ortodoncia}>  
                         <polygon
                             points="5,15 15,15 20,20 0,20"
-                            onClick={useCM(menuConfig('bottom'))}
                             // onClick={state ? useCM(menuConfig('bottom')) : undefined}
                             className={getClassNamesByZone('bottom')}
                         />
+                        </ToothMenu>
+                        <ToothMenu location={"left"} dispatch={dispatch} carie={carie} extract={extract} crown={crown} fracture={fracture} ortodoncia={Ortodoncia}> 
                         <polygon
                             points="15,5 20,0 20,20 15,15"
-                            onClick={state ? useCM(menuConfig('left')) : undefined}
+                            // onClick={state ? useCM(menuConfig('left')) : undefined}
                             className={getClassNamesByZone('left')}
                         />
+                        </ToothMenu>
+                        <ToothMenu location={"right"} dispatch={dispatch} carie={carie} extract={extract} crown={crown} fracture={fracture} ortodoncia={Ortodoncia}>
                         <polygon
                             points="0,0 5,5 5,15 0,20"
-                            onClick={state ? useCM(menuConfig('right')) : undefined}
+                            // onClick={state ? useCM(menuConfig('right')) : undefined}
                             className={getClassNamesByZone('right')}
                         />
+                        </ToothMenu>
+                        <ToothMenu location={"center"} dispatch={dispatch} carie={carie} extract={extract} crown={crown} fracture={fracture} ortodoncia={Ortodoncia}>
                         <polygon
                             points="5,5 15,5 15,15 5,15"
-                            onClick={state ? useCM(menuConfig('center')) : undefined}
+                            // onClick={state ? useCM(menuConfig('center')) : undefined}
                             className={getClassNamesByZone('center')}
                         />
+                        </ToothMenu> 
                         {drawToothActions()}
                         <text
                             x="6"

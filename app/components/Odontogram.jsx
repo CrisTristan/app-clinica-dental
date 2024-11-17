@@ -2,8 +2,11 @@ import React, {useEffect, useState}from 'react';
 import Teeth from './Teeth';
 import "../styles/Odontogram.css"
 import { useSearchParams } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Odontogram() {
+  
+  const { toast } = useToast();
 
   const searchParams = useSearchParams()
   const id =searchParams.get('id');
@@ -98,19 +101,24 @@ export default function Odontogram() {
         height="100%"
         width="100%"
       >
-        <Teeth start={18} end={11} x={60} y={0} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={21} end={28} x={60} y={40} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={18} end={11} x={30} y={0} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={21} end={28} x={30} y={40} handleChange={handleToothUpdate} teethState={teethState}/>
 
-        <Teeth start={55} end={51} x={30} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={61} end={65} x={160} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={55} end={51} x={10} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={61} end={65} x={140} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
 
-        <Teeth start={85} end={81} x={30} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={71} end={75} x={160} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={85} end={81} x={10} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={71} end={75} x={140} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
 
-        <Teeth start={48} end={41} x={60} y={160} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={31} end={38} x={60} y={200} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={48} end={41} x={30} y={160} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={31} end={38} x={30} y={200} handleChange={handleToothUpdate} teethState={teethState}/>
       </svg>
-      <button onClick={()=>handleSaveTeeth()} className='bg-cyan-300 p-4'>Guardar Dientes</button>
+      <button onClick={()=>{
+        handleSaveTeeth()
+        toast({
+          title: 'Dientes Guardados'
+        })
+      } } className='bg-cyan-300 p-4'>Guardar Dientes</button>
     </div>
   </div>
   );

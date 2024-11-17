@@ -16,7 +16,6 @@ import { getAllPatientImages } from '../actions/getAllImages'
 import { deleteOneImage } from '../actions/deleteOneImage'
 import DeleteButtonNotify from './deleteButtonNotify'
 import ManageBudgets from './ManageBudgets'
-
 /*interface Paciente {
   id: string
   nombre: string
