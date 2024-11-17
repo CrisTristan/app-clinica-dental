@@ -2,21 +2,36 @@ import React, { useEffect, useReducer, useRef } from 'react';
 import useContextMenu from 'contextmenu';
 import 'contextmenu/ContextMenu.css';
 import '../styles/Tooth.css';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuGroup,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuPortal,
+    DropdownMenuSeparator,
+    DropdownMenuShortcut,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu"
+  import { Plus, LogOut } from 'lucide-react';
 
 function Tooth({ number, positionX, positionY, onChange, state }) {
-    
+
     let initialState = {
-            Cavities: {   //Caries
-                center: 0,
-                top: 0,
-                bottom: 0,
-                left: 0,
-                right: 0
-            },
-            Extract: 0, //extraido
-            Crown: 0,  //corona
-            Ortodoncia: 0, 
-            Fracture: 0
+        Cavities: {   //Caries
+            center: 0,
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0
+        },
+        Extract: 0, //extraido
+        Crown: 0,  //corona
+        Ortodoncia: 0,
+        Fracture: 0
     };
 
     function reducer(toothState, action) {
@@ -34,7 +49,7 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
             case 'clear':
                 return initialState;
             case 'set_data':
-                return {...action.payload};
+                return { ...action.payload };
             default:
                 console.log(toothState);
                 throw new Error();
@@ -54,14 +69,14 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
     //     Ortodoncia: 0, 
     //     Fracture: 0
     // }
-    
-    useEffect(()=>{
-         if(state){
-        //console.log(number, state)
-        const isDifferent = JSON.stringify(state) !== JSON.stringify(toothState);
-        if(isDifferent){
-            dispatch({type: 'set_data', payload: state}) //evitar despachos innecesarios
-        }  
+
+    useEffect(() => {
+        if (state) {
+            //console.log(number, state)
+            const isDifferent = JSON.stringify(state) !== JSON.stringify(toothState);
+            if (isDifferent) {
+                dispatch({ type: 'set_data', payload: state }) //evitar despachos innecesarios
+            }
         }
     }, [state])
 
@@ -72,13 +87,13 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
     const carie = (z, val) => ({ type: "carie", value: val, zone: z });
     const clear = () => ({ type: "clear" });
 
-    const [toothState, dispatch] = useReducer(reducer, state, (initialArg)=>{ return initialArg || initialState});
+    const [toothState, dispatch] = useReducer(reducer, state, (initialArg) => { return initialArg || initialState });
 
-    const [contextMenu, useCM] = useContextMenu({ submenuSymbol: '>', positionX: 20, positionY: 20});
+    const [contextMenu, useCM] = useContextMenu({ submenuSymbol: '>', positionX: 20, positionY: 20 });
 
 
     const firstUpdate = useRef(true);
-    
+
 
     useEffect(() => {
         if (firstUpdate.current) {
@@ -114,13 +129,13 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
 
     // Main ContextMenu
     const menuConfig = state
-    ? (place) => ({
-        'Hecho': doneSubMenu(place, 1),
-        'Tarea Pendiente': todoSubMenu(place, 2),
-        'JSX line': <hr />,
-        'Limpiar': () => dispatch(clear()),
-    })
-    : null;
+        ? (place) => ({
+            'Hecho': doneSubMenu(place, 1),
+            'Tarea Pendiente': todoSubMenu(place, 2),
+            'JSX line': <hr />,
+            'Limpiar': () => dispatch(clear()),
+        })
+        : null;
 
     let getClassNamesByZone = (zone) => {
         if (toothState && toothState.Cavities) {
@@ -139,50 +154,89 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
 
     return (
         <>
-        { state && 
-        (<svg className="tooth">
-            <g transform={translate}>
-                <polygon
-                    points="0,0 20,0 15,5 5,5"
-                    onClick={state ? useCM(menuConfig('top')) : undefined} //El context menu ahora se abre con click normal
-                    // onContextMenu={useCM(menuConfig('top'))} 
-                    className={getClassNamesByZone('top')}
-                />
-                <polygon
-                    points="5,15 15,15 20,20 0,20"
-                    onClick={useCM(menuConfig('bottom'))}
-                    // onClick={state ? useCM(menuConfig('bottom')) : undefined}
-                    className={getClassNamesByZone('bottom')}
-                />
-                <polygon
-                    points="15,5 20,0 20,20 15,15"
-                    onClick={state ? useCM(menuConfig('left')) : undefined}
-                    className={getClassNamesByZone('left')}
-                />
-                <polygon
-                    points="0,0 5,5 5,15 0,20"
-                    onClick={state ? useCM(menuConfig('right')) : undefined}
-                    className={getClassNamesByZone('right')}
-                />
-                <polygon
-                    points="5,5 15,5 15,15 5,15"
-                    onClick={state ? useCM(menuConfig('center')) : undefined}
-                    className={getClassNamesByZone('center')}
-                />
-                {drawToothActions()}
-                <text
-                    x="6"
-                    y="30"
-                    stroke="navy"
-                    fill="navy"
-                    strokeWidth="0.1"
-                    className="tooth">
-                    {number}
-                </text>
-            </g>
-            {contextMenu}
-        </svg>)
-        }
+            {state &&
+                (<svg className="tooth">
+                    <g transform={translate}>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <polygon
+                                    points="0,0 20,0 15,5 5,5"
+                                    //onClick={state ? useCM(menuConfig('top')) : undefined} //El context menu ahora se abre con click normal
+                                    // onContextMenu={useCM(menuConfig('top'))} 
+                                    className={getClassNamesByZone('top')}
+                                />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-56">
+                                <DropdownMenuLabel>Estado del diente</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuGroup>
+                                    <DropdownMenuItem onClick={() => dispatch(carie('top', 2))}>
+                                        <span>Carie</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => dispatch(extract(2))}>
+                                        <Plus />
+                                        <span>Extraido</span>
+                                        <DropdownMenuShortcut>⌘+T</DropdownMenuShortcut>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => dispatch(crown(2))}>
+                                        <Plus />
+                                        <span>Corona</span>
+                                        <DropdownMenuShortcut>⌘+T</DropdownMenuShortcut>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => dispatch(Ortodoncia(2))}>
+                                        <Plus />
+                                        <span>Ortodoncia</span>
+                                        <DropdownMenuShortcut>⌘+T</DropdownMenuShortcut>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => dispatch(fracture(2))}>
+                                        <Plus />
+                                        <span>Fracturado</span>
+                                        <DropdownMenuShortcut>⌘+T</DropdownMenuShortcut>
+                                    </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleMenuClick()}>
+                                    <LogOut />
+                                    <span>Log out</span>
+                                    <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <polygon
+                            points="5,15 15,15 20,20 0,20"
+                            onClick={useCM(menuConfig('bottom'))}
+                            // onClick={state ? useCM(menuConfig('bottom')) : undefined}
+                            className={getClassNamesByZone('bottom')}
+                        />
+                        <polygon
+                            points="15,5 20,0 20,20 15,15"
+                            onClick={state ? useCM(menuConfig('left')) : undefined}
+                            className={getClassNamesByZone('left')}
+                        />
+                        <polygon
+                            points="0,0 5,5 5,15 0,20"
+                            onClick={state ? useCM(menuConfig('right')) : undefined}
+                            className={getClassNamesByZone('right')}
+                        />
+                        <polygon
+                            points="5,5 15,5 15,15 5,15"
+                            onClick={state ? useCM(menuConfig('center')) : undefined}
+                            className={getClassNamesByZone('center')}
+                        />
+                        {drawToothActions()}
+                        <text
+                            x="6"
+                            y="30"
+                            stroke="navy"
+                            fill="navy"
+                            strokeWidth="0.1"
+                            className="tooth">
+                            {number}
+                        </text>
+                    </g>
+                    {contextMenu}
+                </svg>)
+            }
         </>
     )
 
@@ -219,7 +273,7 @@ function Tooth({ number, positionX, positionY, onChange, state }) {
                 <line x1="0" y1="10" x2="20" y2="10" strokeWidth="2"></line>
             </g>
         }
-                        //Filter
+        //Filter
         if (toothState && toothState.Ortodoncia > 0) {
             otherFigures = <g stroke={toothState.Fracture === 1 ? "red" : "blue"}>
                 <line x1="0" y1="20" x2="0" y2="0" strokeWidth="2" />

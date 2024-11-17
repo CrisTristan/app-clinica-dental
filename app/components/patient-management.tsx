@@ -194,6 +194,7 @@ export default function PatientManagement() {
       setPatients(prev => [...prev, {...patient}])
       setNewPatient(false)
       setErrorOnSavePatient(false)
+      location.reload();
     })
     .catch(error => {
       console.error('Error:', error);
@@ -201,6 +202,7 @@ export default function PatientManagement() {
     });  
       setPatient({name: '', telefono: '998', apellido_pat: '', apellido_mat: ''})
       console.log(patients);
+      
   }
 
   return (

@@ -8,7 +8,8 @@ const publicRoutes = [
   "/",
   "/login",
   "/register",
-  "/api/auth/verify-email"
+  "/api/auth/verify-email",
+  "/testing"
 ]
 
 export default middleware((req)=>{ //se le pone export al principio
