@@ -64,7 +64,10 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
       console.log(data);
       const JSONObject= JSON.parse(data);
       console.log(JSONObject.response);
-      setMessageStatus(JSONObject.response);
+      // toast({
+      //   title: 'Mensaje Enviado',
+      //   description: JSONObject.response,
+      // })
       return data.response;
     }).catch(error => {
       console.log(error);
@@ -137,12 +140,11 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
                       </DialogHeader>
                       <Textarea name="message" value={message} placeholder='ingrese el mensaje a enviar' onChange={(e)=> handleChangeMessage(e)}/>
                       <Button onClick={()=>{
-                       
                         sendMessage(cita.name.telefono);
                         toast({
                             title: 'Mensaje Enviado',
                             description: messageStatus,
-                          })
+                        })
                         }}>Enviar</Button>
                     </DialogContent>
                   </Dialog>

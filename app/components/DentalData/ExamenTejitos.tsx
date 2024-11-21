@@ -16,6 +16,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
+import { useEffect, useState } from "react"
  
 const duros = [
   {
@@ -100,37 +101,80 @@ const FormSchema = z.object({
   oclusion: z.array(z.string())
 })
  
-export default function CheckboxReactHookFormMultiple() {
+export default function ExamenTejidos({ id }:{ id: string | null}) {
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       duros: [],
       blandos: [],
-      oclusion: []
+      oclusion: [],
     },
   })
- 
-  function onSubmit(data: z.infer<typeof FormSchema>) {
-    toast({
-      title: "You submitted the following values:",
-      description: (
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
+
+  useEffect(()=>{
+    const fetchData = async ()=>{
+      if (id) {
+        try {
+            const response = await fetch(`/DentalData/api?id=${id}`);
+            if (!response.ok) {
+                throw new Error('Error en la solicitud');
+            }
+            const data = await response.json();
+            console.log(data);
+            // console.log(data.blandos)
+            form.reset(data.examenTejidos)
+        } catch (error) {
+            console.log(error);
+        }
+    }
+    }
+    
+    fetchData();
+  },[]);
+
+  async function onSubmit(data: z.infer<typeof FormSchema>) {
+    
+    fetch('/DentalData/api', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        // Datos que enviarás en el cuerpo de la solicitud
+        examenTejidos: data,
+        id: id
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Error en la solicitud');
+      }
+
+      toast({
+        title: "Se han guardado los datos",
+        description: (
+          <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
+            <code className="text-white">{JSON.stringify(data, null, 2)}</code>
+          </pre>
+        ),
+      })
+
+      return response.json();
+    }).catch(error => {
+      console.log(error);
     })
   }
  
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
         <FormField
           control={form.control}
           name="duros"
           render={() => (
             <FormItem>
               <div className="mb-4">
-                <FormLabel className="text-base">Examen de Tejidos</FormLabel>
                 <FormDescription>
                   Duros
                 </FormDescription>
@@ -144,7 +188,7 @@ export default function CheckboxReactHookFormMultiple() {
                     return (
                       <FormItem
                         key={item.id}
-                        className="flex flex-row items-start space-x-3 space-y-0"
+                        className="flex flex-row items-start space-x-2 space-y-0"
                       >
                         <FormControl>
                           <Checkbox

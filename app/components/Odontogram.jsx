@@ -104,11 +104,11 @@ export default function Odontogram() {
         <Teeth start={18} end={11} x={30} y={0} handleChange={handleToothUpdate} teethState={teethState}/>
         <Teeth start={21} end={28} x={30} y={40} handleChange={handleToothUpdate} teethState={teethState}/>
 
-        <Teeth start={55} end={51} x={10} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={61} end={65} x={140} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={55} end={51} x={6} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={61} end={65} x={136} y={80} handleChange={handleToothUpdate} teethState={teethState}/>
 
-        <Teeth start={85} end={81} x={10} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
-        <Teeth start={71} end={75} x={140} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={85} end={81} x={6} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
+        <Teeth start={71} end={75} x={136} y={120} handleChange={handleToothUpdate} teethState={teethState}/>
 
         <Teeth start={48} end={41} x={30} y={160} handleChange={handleToothUpdate} teethState={teethState}/>
         <Teeth start={31} end={38} x={30} y={200} handleChange={handleToothUpdate} teethState={teethState}/>

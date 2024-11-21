@@ -24,16 +24,17 @@ model Appointment {
 
 model Patient {
   id           Int           @id @default(autoincrement())
-  name         String        
+  name         String
   apellido_pat String?
   apellido_mat String?
-  telefono     String       @unique
+  telefono     String        @unique
   edad         Int?
   domicilio    String?
   sexo         Gender?
   Appointment  Appointment[]
   teethState   Teeth?
-  servicios Json?
+  servicios    Json?
+  DentalData   DentalData?
 }
 
 enum Gender {
@@ -47,57 +48,47 @@ enum Role {
 }
 
 model User {
-  id            String          @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String?
-  email         String          @unique
+  email         String    @unique
   emailVerified DateTime?
   password      String?
   image         String?
-  role          Role        @default(user)
-  accounts      Account[]
-   
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Account {
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
- 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
- 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
-  @@id([provider, providerAccountId])
+  role          Role      @default(user)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model VerificationToken {
-  identifier String @unique
+  identifier String   @unique
   token      String
   expires    DateTime
- 
+
   @@id([identifier])
 }
 
 model Teeth {
-  id      Int      @id @default(autoincrement())
-  teethState   Json
-  name      Patient  @relation(fields: [nameId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  nameId    Int @unique
+  id         Int     @id @default(autoincrement())
+  teethState Json
+  name       Patient @relation(fields: [nameId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  nameId     Int     @unique
 }
 
 model Service {
-  id      Int      @id @default(autoincrement())
-  name   String
-  price   Int
+  id    Int    @id @default(autoincrement())
+  name  String
+  price Int
+}
+
+model DentalData {
+  id            Int     @id @default(autoincrement())
+  motivoConsulta Json?
+  examenTejidos Json?
+  habitos Json?
+  enfermedadesPersonales Json?
+  higieneBucal String? @db.VarChar(200)
+  alergias String? @db.VarChar(200)
+  alimentacion String? @db.VarChar(200)
+  name          Patient @relation(fields: [nameId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  nameId        Int     @unique
 }

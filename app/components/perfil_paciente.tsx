@@ -6,16 +6,24 @@ import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useState, useCallback, useEffect, useRef, useTransition } from 'react'
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { X, Save } from "lucide-react"
 import Odontogram from './Odontogram'
 import { Patient } from '../types/types'
 import { getProfilePhoto } from '../actions/getProfilePhoto'
-import {CldUploadWidget, CldImage} from "next-cloudinary"
+import { CldUploadWidget, CldImage } from "next-cloudinary"
 import { getAllPatientImages } from '../actions/getAllImages'
 import { deleteOneImage } from '../actions/deleteOneImage'
 import DeleteButtonNotify from './deleteButtonNotify'
 import ManageBudgets from './ManageBudgets'
+import { Textarea } from '@/components/ui/textarea'
+import ExamenTejidos from "./DentalData/ExamenTejitos"
+import HabitosForm from "./DentalData/HabitosForm"
+import EnfermedadesPersonales from './DentalData/EnfermedaesPersonales'
+import MotivoConsulta from './DentalData/MotivoConsulta'
+import HigieneBucal from './DentalData/HigieneBucal'
+import Alergias from './DentalData/Alergias'
+import Alimentacion from './DentalData/Alimentacion'
 /*interface Paciente {
   id: string
   nombre: string
@@ -29,25 +37,25 @@ import ManageBudgets from './ManageBudgets'
   presupuestos: { servicio: string; precio: number }[]
 }*/
 
-export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Patient | undefined, nombre: string | null, id: string | null}) {
+export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Patient | undefined, nombre: string | null, id: string | null }) {
 
-  const pathPatientFolder = `/pacientes/${nombre+"_"+id}`
+  const pathPatientFolder = `/pacientes/${nombre + "_" + id}`
   useEffect(() => {
 
-    
+
     if (paciente) { // Verifica que paciente no sea undefined o null
       setPatient(paciente);
       const entries = Object.entries(paciente);
       console.log(entries);
       const url = getProfilePhoto(nombre, id)
-      url.then(res=> setPatient(prev => ({...prev, foto: res})));
+      url.then(res => setPatient(prev => ({ ...prev, foto: res })));
       const images = getAllPatientImages(nombre, id)
       images.then(res => setArchivos(res))
     }
 
   }, [paciente]);
 
-  
+
 
   const [patient, setPatient] = useState<Patient>(); //estado del paciente, contiente todos los datos del mismo.
   const [archivos, setArchivos] = useState<string[]>([]) //se hizo un cambio en el tipo useState()
@@ -59,8 +67,8 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
   //const [fullNameNoSpaces, setFullNameNoSpaces] = useState("")
 
 
-  const handleInputDataPatient = (e)=>{
-    const { name, value} = e.target;
+  const handleInputDataPatient = (e) => {
+    const { name, value } = e.target;
     const listId = e.target.getAttribute('list');
 
     setPatient((prevPatient) => ({
@@ -69,7 +77,7 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
     }));
   }
 
-  const handleDeleteImage = (url)=>{
+  const handleDeleteImage = (url) => {
     deleteOneImage(url)
   }
 
@@ -82,11 +90,11 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
     setImagenSeleccionada(url)
   }
 
-  const handleEditClick= ()=>{
+  const handleEditClick = () => {
     setEditPatientProfile(prev => !prev)
   }
 
-  const handleSaveClick = ()=>{
+  const handleSaveClick = () => {
     console.log(patient);
     fetch('/patients/api', {
       method: 'PUT',
@@ -104,14 +112,14 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
         sexo: patient?.sexo
       })
     })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Error en la solicitud');
-      }
-      return response.json();
-    }).catch(error => {
-      console.log(error);
-    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Error en la solicitud');
+        }
+        return response.json();
+      }).catch(error => {
+        console.log(error);
+      })
 
 
   }
@@ -119,14 +127,14 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
   const onPhotoChange = (url: URL) => {
 
     if (url) {
-        setPatient(prev => ({ ...prev, foto: url })) //Actualizamos el estado 
+      setPatient(prev => ({ ...prev, foto: url })) //Actualizamos el estado 
     }
   }
 
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-6 text-center">Perfil del Paciente</h1>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Sección 1: Foto del paciente */}
         <Card className='grid place-content-center'>
@@ -142,19 +150,19 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
               className="rounded-full"
             />
             <CldUploadWidget signatureEndpoint="/api/sign-cloudinary-params"
-            options={{sources: ['local', 'url', 'google_drive', 'camera'], folder: pathPatientFolder+"/fotoPerfil", tags: ['encias']}}
-            onSuccess={(results)=> onPhotoChange(results.info?.url)}
+              options={{ sources: ['local', 'url', 'google_drive', 'camera'], folder: pathPatientFolder + "/fotoPerfil", tags: ['encias'] }}
+              onSuccess={(results) => onPhotoChange(results.info?.url)}
             >
               {({ open }) => {
-              return (
-                <button 
-                  className='bg-cyan-400 rounded-lg py-2'
-                  onClick={() => open()}>
-                  Cambiar foto Perfil
-                </button>
-              );
+                return (
+                  <button
+                    className='bg-cyan-400 rounded-lg py-2'
+                    onClick={() => open()}>
+                    Cambiar foto Perfil
+                  </button>
+                );
               }}
-          </CldUploadWidget>
+            </CldUploadWidget>
           </CardContent>
         </Card>
 
@@ -166,29 +174,29 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
           <CardContent>
             <Table>
               <TableBody>
-              {patient && Object.entries(patient).map(([key, value]) => {
+                {patient && Object.entries(patient).map(([key, value]) => {
                   if (['id', 'foto', 'historialClinico', 'servicios'].includes(key)) return null
                   return (
                     <TableRow key={key}>
                       <TableCell className="font-medium">{key.charAt(0).toUpperCase() + key.slice(1)}</TableCell>
                       <TableCell>
-                          {key === 'telefono' ? <Input disabled={true} name={key} value={value}/> :
+                        {key === 'telefono' ? <Input disabled={true} name={key} value={value} /> :
                           key === 'sexo' ?
-                          <div> 
-                          <input list="sexo" onChange={handleInputDataPatient} value={value}/> 
-                          <datalist id="sexo">
-                            <option value='Masculino'/>
-                            <option value='Femenino'/>
-                          </datalist>
-                          </div>
-                          :
-                          <Input
-                            //disabled={!editPatientProfile}
-                            name={key}
-                            value={value}
-                            onChange={handleInputDataPatient}
-                          />
-                          }
+                            <div>
+                              <input list="sexo" onChange={handleInputDataPatient} value={value} />
+                              <datalist id="sexo">
+                                <option value='Masculino' />
+                                <option value='Femenino' />
+                              </datalist>
+                            </div>
+                            :
+                            <Input
+                              //disabled={!editPatientProfile}
+                              name={key}
+                              value={value}
+                              onChange={handleInputDataPatient}
+                            />
+                        }
                       </TableCell>
                     </TableRow>
                   )
@@ -196,12 +204,12 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
               </TableBody>
             </Table>
             <div className='mt-4 flex space-between'>
-            {/* <Button onClick={handleEditClick} variant="outline" size="sm"> */}
-                {/* <Edit className="w-4 h-4 mr-2" /> Editar */}
-            {/* </Button> */}
-            <Button onClick={handleSaveClick} variant="outline" size="sm">
+              {/* <Button onClick={handleEditClick} variant="outline" size="sm"> */}
+              {/* <Edit className="w-4 h-4 mr-2" /> Editar */}
+              {/* </Button> */}
+              <Button onClick={handleSaveClick} variant="outline" size="sm">
                 <Save className="w-4 h-4 mr-2" /> Guardar
-            </Button>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -220,57 +228,111 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
           </CardContent>
         </Card>
         <Card className="md:col-span-3 h-80">
-        <Odontogram/>
+          <Odontogram />
         </Card>
         {/* Sección 4: Presupuestos */}
         <Card className="md:col-span-2 mt-8">
-          {/* <CardHeader>
-            <CardTitle>Presupuestos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Servicio</TableHead>
-                  <TableHead className="text-right">Precio</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paciente?.presupuestos?.map((presupuesto, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{presupuesto.servicio}</TableCell>
-                    <TableCell className="text-right">{presupuesto.precio.toFixed(2)} €</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent> */}
-          <ManageBudgets id={id}/>
+          <ManageBudgets id={id} />
         </Card>
 
-        {/* Sección 5: Archivos */}
+        {/* Sección 5: Otros datos dentales */}
+        <div className='md:col-span-2 text-center'>
+          <Card>
+            <div>
+              <h1>Motivo Consulta</h1>
+                  <MotivoConsulta id={id}/>
+            </div>
+          </Card>
+          <Card className="mt-5">
+            <div>
+              <h1>Examen de Tejidos</h1>
+              <Dialog>
+                <DialogTrigger>
+                  <Button>Ver</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Examen de Tejidos</DialogTitle>
+                    <DialogDescription>
+                      Visualizar los campos de examen de tejidos.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <ExamenTejidos id={id} />
+                </DialogContent>
+              </Dialog>
+            </div>
+          </Card>
+          <Card className='mt-5'>
+            <div className=''>
+              <h1>Habitos</h1>
+              <Dialog>
+                <DialogTrigger>
+                  <Button>Ver</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Habitos</DialogTitle>
+                    <DialogDescription>
+                      Visualizar los campos de Habitos
+                    </DialogDescription>
+                  </DialogHeader>
+                  <HabitosForm id={id} />
+                </DialogContent>
+              </Dialog>
+            </div>
+          </Card>
+
+          <Card className='mt-5'>
+            <div>
+              Enfermedades Personales
+            </div>
+            <Dialog>
+              <DialogTrigger>
+                <Button>Ver</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Enfermedades Personales</DialogTitle>
+                  <DialogDescription>
+                    Toque los campos validos
+                  </DialogDescription>
+                </DialogHeader>
+                <EnfermedadesPersonales id={id}/>
+              </DialogContent>
+            </Dialog>
+          </Card>
+
+          <Card className='md:col-span-2 mt-5'>
+            <div className='flex justify-between'>
+              <HigieneBucal id={id}/>
+              <Alergias id={id}/>
+              <Alimentacion id={id}/>
+            </div>
+          </Card>
+        </div>
+        {/* Sección 6: Archivos */}
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>Archivos</CardTitle>
           </CardHeader>
           <CardContent>
-          <div className='grid place-content-center mb-5'>
-          <CldUploadWidget signatureEndpoint="/api/sign-cloudinary-params"
-            onSuccess={(results)=> setArchivos(prev=> [...prev,results.info?.url])}
-            options={{sources: ['local', 'url', 'google_drive', 'camera'], folder: pathPatientFolder, tags: ['encias']}}
-          >
-              {({ open }) => {
-              return (
-                <button 
-                  className='bg-cyan-400 rounded-lg px-20 py-5'
-                  onClick={() => open()}>
-                  Guardar Imagen
-                </button>
-              );
-              }}
-          </CldUploadWidget>
-          
-          </div>
+            <div className='grid place-content-center mb-5'>
+              <CldUploadWidget signatureEndpoint="/api/sign-cloudinary-params"
+                onSuccess={(results) => setArchivos(prev => [...prev, results.info?.url])}
+                options={{ sources: ['local', 'url', 'google_drive', 'camera'], folder: pathPatientFolder, tags: ['encias'] }}
+              >
+                {({ open }) => {
+                  return (
+                    <button
+                      className='bg-cyan-400 rounded-lg px-20 py-5'
+                      onClick={() => open()}>
+                      Guardar Imagen
+                    </button>
+                  );
+                }}
+              </CldUploadWidget>
+
+            </div>
             <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {archivos.map((URL, index) => (
                 <Dialog key={index}>
@@ -283,7 +345,7 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
                         height={200}
                         className="rounded-lg object-cover w-full h-40"
                       />
-                      <p className="mt-2 text-sm text-center truncate">{}</p>
+                      <p className="mt-2 text-sm text-center truncate">{ }</p>
                     </div>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[1500px] sm:max-h-[120vh]">
@@ -297,11 +359,11 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
                         objectFit="contain"
                       />
                       {/* <Button  */}
-                        {/* variant="destructive" */}
-                        {/* onClick={()=> handleDeleteImage(URL)}> */}
-                         {/* Borrar Imagen */}
+                      {/* variant="destructive" */}
+                      {/* onClick={()=> handleDeleteImage(URL)}> */}
+                      {/* Borrar Imagen */}
                       {/* </Button> */}
-                      <DeleteButtonNotify onDelete={()=> deleteOneImage(URL)} nextAction={()=> setImagenSeleccionada}/>
+                      <DeleteButtonNotify onDelete={() => deleteOneImage(URL)} nextAction={() => setImagenSeleccionada} />
                     </div>
                     <button
                       onClick={() => setImagenSeleccionada(null)}

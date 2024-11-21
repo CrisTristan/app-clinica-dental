@@ -12,13 +12,13 @@ export default function NavBar(){
     useEffect(() => {
       const fetchSession = async () => {
           const session = await authentication();
-          console.log(session);
+          //console.log(session);
           setUserSession(session);
       };
 
       // Solo activa el intervalo si UserSession es nulo o no está definido
       if (!UserSession) {
-          const intervalId = setInterval(fetchSession, 3000);
+          const intervalId = setInterval(fetchSession, 2000);
 
           // Limpia el intervalo cuando el componente se desmonta o si UserSession cambia
           return () => clearInterval(intervalId);
