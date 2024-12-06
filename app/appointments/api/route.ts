@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     // Parseamos la URL para extraer los parámetros de consulta
     const url = new URL(req.url);
     const startDate = url.searchParams.get('startDate');
-
+    //console.log(startDate);
     if (!startDate) {
         const Appointments = await prisma.appointment.findMany({
                     include: {

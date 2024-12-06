@@ -44,3 +44,10 @@ export interface Tooth {
     Ortodoncia: number, 
     Fracture: number
 }
+
+export interface PatientService {
+    name: string;
+    activeService: string;
+    totalCost: number;
+    balance: number;
+  }

@@ -15,15 +15,14 @@ export default function AgendarCitaBoton() {
   return (
     <Button
       onClick={() => router.push(whatsappUrl)}
-      className="px-4 py-6 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600 transition duration-300"
+      className="fixed bottom-4 right-4 bg-green-500 hover:bg-green-600 text-white p-6 rounded-full shadow-lg transition transform hover:scale-150 z-50"
     >
       <Image
         src={WhatsappIcon}
-        width={25}
-        height={25}
-        alt=""
+        width={50}
+        height={50}
+        alt="whatsapp"
       />
-      Agendar Cita
     </Button>
   );
 }

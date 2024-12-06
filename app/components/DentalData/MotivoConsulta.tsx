@@ -129,7 +129,7 @@ export default function MotivoConsulta({id}: {id: string | null}) {
             <FormItem>
               <div className="mb-4">
               </div>
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <FormField
                   key={item.id}
                   control={form.control}

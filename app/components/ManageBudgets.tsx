@@ -219,7 +219,7 @@ export default function ManageBudgets({id}) {
                   </DialogHeader>
                    {budget.paymentHistory.map((payment: payment, index)=>(
                     <div key={index} className='flex'>
-                    <p>{ payment.fecha ? `${new Date(payment?.fecha).getFullYear()}-${new Date(payment?.fecha).getMonth()}-${new Date(payment?.fecha).getDate()}`: ""}</p>
+                    <p>{ payment.fecha ? `${new Date(payment?.fecha).getFullYear()}-${new Date(payment?.fecha).getMonth()+1}-${new Date(payment?.fecha).getDate()}`: ""}</p>
                     <p>{ payment.abono ? "$"+payment.abono: " "}</p>
                     </div>
                    ))}

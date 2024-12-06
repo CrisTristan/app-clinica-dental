@@ -303,7 +303,7 @@ export default function PerfilPaciente({ paciente, nombre, id }: { paciente: Pat
           </Card>
 
           <Card className='md:col-span-2 mt-5'>
-            <div className='flex justify-between'>
+            <div className=''>
               <HigieneBucal id={id}/>
               <Alergias id={id}/>
               <Alimentacion id={id}/>

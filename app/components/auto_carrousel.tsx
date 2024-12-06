@@ -71,54 +71,73 @@ export default function AutoCarrousel() {
     setCurrentIndex((prevIndex) => (prevIndex - 1 + Addvertisments?.length) % Addvertisments?.length)
   }
 
+  // Variables para manejar gestos táctiles
+  let startX = 0;
+
+  const handleTouchStart = (e) => {
+    startX = e.touches[0].clientX; // Captura la posición inicial
+  };
+
+  const handleTouchEnd = (e) => {
+    const endX = e.changedTouches[0].clientX; // Captura la posición final
+    const diffX = endX - startX;
+
+    if (Math.abs(diffX) > 50) {
+      // Determina la dirección del deslizamiento
+      if (diffX > 0) {
+        prevSlide(); // Desliza a la derecha
+      } else {
+        nextSlide(); // Desliza a la izquierda
+      }
+    }
+  };
+
   return (
-    <div className="relative w-full max-w-xl mx-auto">
+    <div
+      className="relative w-full max-w-xl mx-auto"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <div className="overflow-hidden rounded-lg shadow-lg">
-        <div 
-          className="flex transition-transform duration-500 ease-in-out" 
+        <div
+          className="flex transition-transform duration-500 ease-in-out"
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
-          {Addvertisments?.map(({url, width, height}, index) => (
+          {Addvertisments.map(({ url, width, height }, index) => (
             <Dialog key={url}>
-            <DialogTrigger asChild>
-              <Image
-                  className='h-[40vh]'
+              <DialogTrigger asChild>
+                <Image className="h-[40vh]" src={url} width={width} height={height} alt="" />
+              </DialogTrigger>
+              <DialogContent className="flex justify-center items-center sm:max-w-[850px] p-4">
+                <Image
+                  className="h-[60vh]"
                   src={url}
-                  width={width}
-                  height={height} 
-                  alt={''}
-              />
-            </DialogTrigger>
-            <DialogContent className="flex justify-center items-center sm:max-w-[850px] p-4">
-            <Image
-              className='h-[60vh]'
-              src={url}
-              width={width * 2} // Doble del ancho original
-              height={height * 2} // Doble de la altura original
-              alt=""
-            />
-          </DialogContent>
-          </Dialog>
+                  width={width * 2}
+                  height={height * 2}
+                  alt=""
+                />
+              </DialogContent>
+            </Dialog>
           ))}
         </div>
       </div>
-      
-      <button 
-        onClick={prevSlide} 
+
+      <button
+        onClick={prevSlide}
         className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 rounded-full p-2 shadow-md"
         aria-label="Previous slide"
       >
-       <SlArrowLeft />
+        <SlArrowLeft />
       </button>
-      <button 
-        onClick={nextSlide} 
+      <button
+        onClick={nextSlide}
         className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 rounded-full p-2 shadow-md"
         aria-label="Next slide"
       >
         <SlArrowRight />
       </button>
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 mb-10">
-        {Addvertisments?.map((_, index) => (
+        {Addvertisments.map((_, index) => (
           <button
             key={index}
             onClick={() => setCurrentIndex(index)}
@@ -129,24 +148,6 @@ export default function AutoCarrousel() {
           />
         ))}
       </div>
-      <div className='grid place-content-center mt-10'>
-      {
-          isAdmin && <CldUploadWidget signatureEndpoint="/api/sign-cloudinary-params"
-          options={{sources: ['local', 'url', 'google_drive', 'camera'], folder: "/anuncios", tags: []}}
-          onSuccess={(results)=> handleAddAdvertisment(results.info?.url)}
-          >
-            {({ open }) => {
-            return (
-              <Button 
-                className='bg-cyan-400 rounded-lg px-20 py-5'
-                onClick={() => open()}>
-                Agregar Un Anuncio
-              </Button>
-            );
-            }}
-        </CldUploadWidget>
-        }
-        </div>
     </div>
-  )
+  );
 }

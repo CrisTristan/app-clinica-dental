@@ -15,6 +15,9 @@ const nextConfig = {
         },
         {
           hostname: 'pps.whatsapp.net'
+        },
+        {
+          hostname: 'i.pravatar.cc'
         }
       ],
     },
@@ -23,7 +26,8 @@ const nextConfig = {
     },
     eslint: {
       ignoreDuringBuilds: true,
-    }
+    },
+    reactStrictMode: false
 };
 
 export default nextConfig;

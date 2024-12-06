@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Users, Calendar, FileText, Menu, Plus, Search, ChartColumnBig } from 'lucide-react'
+import { Users, Calendar, FileText, Menu, Plus, Search, ChartColumnBig, LayoutDashboard, ListPlus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
   Dialog,
@@ -34,39 +34,39 @@ export default function PatientManagement() {
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const [patients, setPatients] = useState<Patient[]>([])
 
-  useEffect(()=>{
-      console.log(patients)
+  useEffect(() => {
+    console.log(patients)
   }, [patients])
 
-  useEffect(()=>{
-      const getAllPatients = ()=>{
-          const response = fetch('/patients/api')
-          response.then(data =>{
-            return data.json()
-          })
-          .then(patients =>{
-            console.log(patients)
-            setPatients(patients)
-          })
-          .catch(error =>{
-            console.log(error)
-          })
-      }
+  useEffect(() => {
+    const getAllPatients = () => {
+      const response = fetch('/patients/api')
+      response.then(data => {
+        return data.json()
+      })
+        .then(patients => {
+          console.log(patients)
+          setPatients(patients)
+        })
+        .catch(error => {
+          console.log(error)
+        })
+    }
 
-      getAllPatients()
+    getAllPatients()
   }, []);
-  
+
   const [currentPage, setCurrentPage] = useState('Pacientes')
   const [searchTerm, setSearchTerm] = useState('')
   const [newPatient, setNewPatient] = useState(false);
 
-  const [patient, setPatient] = useState({name: '', telefono: '998', apellido_pat: '', apellido_mat: ''})
+  const [patient, setPatient] = useState({ name: '', telefono: '998', apellido_pat: '', apellido_mat: '' })
   const [errorPhone, setErrorPhone] = useState("");
   const [errorName, setErrorName] = useState("");
   const [errorOnSavePatient, setErrorOnSavePatient] = useState(false)
   const [viewMenu, setViewMenu] = useState(false);
   const router = useRouter()
-  
+
 
   const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { id, checked } = event.target;
@@ -90,14 +90,14 @@ export default function PatientManagement() {
         body: JSON.stringify({ ids: checkedItems })
       });
       if (!response.ok) throw new Error('Error en la solicitud');
-  
+
       //const data = await response.json();
       //console.log('Respuesta:', data);
-  
+
       setCheckedItems([]); // Limpiar los seleccionados
       const updatedPatients = patients.filter(
         (patient) => !checkedItems.map(Number).includes(patient.id)
-      );      
+      );
 
       setPatients(updatedPatients); // Actualiza la lista sin hacer refresh
     } catch (error) {
@@ -130,8 +130,8 @@ export default function PatientManagement() {
     { name: 'Pacientes', icon: <Users className="mr-2 h-4 w-4" /> },
     { name: 'Proximas Citas', icon: <Calendar className="mr-2 h-4 w-4" /> },
     { name: 'Anuncios', icon: <FileText className="mr-2 h-4 w-4" /> },
-    // { name: 'Servicios', icon: <Settings className="mr-2 h-4 w-4" /> },
-    { name: 'Productividad', icon: <ChartColumnBig className='mr-2 h-4 w-4'/>}
+    { name: 'ServiciosActivos', icon: <ListPlus className="mr-2 h-4 w-4" /> },
+    { name: 'Panel de Control', icon: <LayoutDashboard className='mr-2 h-4 w-4' /> }
   ]
 
   /*const patients = [
@@ -152,22 +152,22 @@ export default function PatientManagement() {
     router.push(`/pacientes/${encodeURIComponent(patientId)}/?id=${patientId}&name=${patientName}`)
   }
 
-  const handleNewPatient = ()=>{
+  const handleNewPatient = () => {
     console.log(checkedItems);
     setNewPatient(true);
     setCheckedItems([]);
   }
 
-  const handleSavePatient = ()=>{  //Logica para guardar el paciente en la BD
+  const handleSavePatient = () => {  //Logica para guardar el paciente en la BD
     console.log("Nombre:", patient.name);
     console.log("Teléfono:", patient.telefono);
-    if(errorName.length > 0 || errorPhone.length>0){
-        return;
+    if (errorName.length > 0 || errorPhone.length > 0) {
+      return;
     }
 
-    if(patient.telefono.length<10){
-        setErrorPhone("Numero de telefono de 10 digitos")
-        return;
+    if (patient.telefono.length < 10) {
+      setErrorPhone("Numero de telefono de 10 digitos")
+      return;
     }
 
     fetch('/patients/api', {
@@ -183,26 +183,26 @@ export default function PatientManagement() {
         apellidoMat: patient.apellido_mat
       })
     })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Error en la solicitud');
-      }
-      return response.json();
-    })
-    .then(data => {
-      console.log('Respuesta:', data);
-      setPatients(prev => [...prev, {...patient}])
-      setNewPatient(false)
-      setErrorOnSavePatient(false)
-      location.reload();
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      setErrorOnSavePatient(true)
-    });  
-      //setPatient({name: '', telefono: '998', apellido_pat: '', apellido_mat: ''})
-      console.log(patients);
-      
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Error en la solicitud');
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Respuesta:', data);
+        setPatients(prev => [...prev, { ...patient }])
+        setNewPatient(false)
+        setErrorOnSavePatient(false)
+        location.reload();
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        setErrorOnSavePatient(true)
+      });
+    //setPatient({name: '', telefono: '998', apellido_pat: '', apellido_mat: ''})
+    console.log(patients);
+
   }
 
   return (
@@ -233,21 +233,21 @@ export default function PatientManagement() {
         <div className="max-w-6xl mx-auto">
           <header className="flex justify-between items-center mb-8">
             <h1 className="text-3xl font-bold">{currentPage}</h1>
-            <Button variant="outline" className="md:hidden" onClick={()=>setViewMenu(prev=> !prev)}>
+            <Button variant="outline" className="md:hidden" onClick={() => setViewMenu(prev => !prev)}>
               <Menu className="h-4 w-4" />
             </Button>
-            <div className={`${viewMenu ? "": "hidden"} md:hiden`}>
+            <div className={`${viewMenu ? "" : "hidden"} md:hiden`}>
               {navItems.map((item) => (
-              <li key={item.name} className="mb-2">
-                <Button
-                  variant={currentPage === item.name ? "default" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setCurrentPage(item.name)}
-                >
-                  {item.icon}
-                  {item.name}
-                </Button>
-              </li>
+                <li key={item.name} className="mb-2">
+                  <Button
+                    variant={currentPage === item.name ? "default" : "ghost"}
+                    className="w-full justify-start"
+                    onClick={() => setCurrentPage(item.name)}
+                  >
+                    {item.icon}
+                    {item.name}
+                  </Button>
+                </li>
               ))}
             </div>
           </header>
@@ -265,22 +265,22 @@ export default function PatientManagement() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-            
-              <div className='flex space-x-4'>
-                 {checkedItems.length > 0 && (<DeleteButtonNotify onDelete={handleDeletePatient} text='Eliminar Pacientes' size='lg'/>)}
-                <Dialog open={newPatient} onOpenChange={setNewPatient}>
-                  <DialogTrigger asChild>
-                    <Button onClick={handleNewPatient}>
+
+                <div className='flex space-x-4'>
+                  {checkedItems.length > 0 && (<DeleteButtonNotify onDelete={handleDeletePatient} text='Eliminar Pacientes' size='lg' />)}
+                  <Dialog open={newPatient} onOpenChange={setNewPatient}>
+                    <DialogTrigger asChild>
+                      <Button onClick={handleNewPatient}>
                         <Plus className="mr-2 h-4 w-4" /> Nuevo Paciente
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle>Crear Paciente</DialogTitle>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Crear Paciente</DialogTitle>
                         <DialogDescription>
-                            Crea un nuevo Paciente.
+                          Crea un nuevo Paciente.
                         </DialogDescription>
-                    </DialogHeader>
+                      </DialogHeader>
                       <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                           <Label htmlFor="nombre" className="text-right">
@@ -296,7 +296,7 @@ export default function PatientManagement() {
                           {errorName && <p className="text-red-500 text-sm">{errorName}</p>}
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="nombre" className="text-right">
+                          <Label htmlFor="nombre" className="text-right">
                             Apellido Paterno
                           </Label>
                           <Input
@@ -308,7 +308,7 @@ export default function PatientManagement() {
                           />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="nombre" className="text-right">
+                          <Label htmlFor="nombre" className="text-right">
                             Apellido Paterno
                           </Label>
                           <Input
@@ -321,7 +321,7 @@ export default function PatientManagement() {
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                           <Label htmlFor="telefono" className="text-right">
-                          Telefono
+                            Telefono
                           </Label>
                           <Input
                             name='telefono'
@@ -332,13 +332,13 @@ export default function PatientManagement() {
                         </div>
                         {errorPhone && <p className="text-red-500 text-sm">{errorPhone}</p>}
                       </div>
-                  <DialogFooter>
-                    {errorOnSavePatient && <p className="text-red-500 text-sm">{`El paciente ${patient.name} ${patient.apellido_pat} no fue guardado debido a que el numero ${patient.telefono} ya existe`}</p>}
-                    <Button type="submit" onClick={handleSavePatient}>Guardar</Button>
-                  </DialogFooter>
-                  </DialogContent>
-              </Dialog>
-              </div>
+                      <DialogFooter>
+                        {errorOnSavePatient && <p className="text-red-500 text-sm">{`El paciente ${patient.name} ${patient.apellido_pat} no fue guardado debido a que el numero ${patient.telefono} ya existe`}</p>}
+                        <Button type="submit" onClick={handleSavePatient}>Guardar</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
               <Table>
                 <TableHeader>
@@ -348,39 +348,60 @@ export default function PatientManagement() {
                     <TableHead>Teléfono</TableHead>
                     <TableHead>Última Visita</TableHead>
                     <TableHead>Próxima Cita</TableHead>
+                    <TableHead>Servicios por Pagar</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className=''>
-                  {filteredPatients.map(({id, name, apellido_pat, apellido_mat, telefono, Appointment}) => (
-                    <TableRow 
-                      key={id} 
-                      className="cursor-pointer border-b border-gray-200 size-10 hover:bg-gray-500 text-md"
-                    >
-                      <input id={""+id} onChange={handleCheckboxChange} type='checkbox' className='size-7'/>
-                      <TableCell onClick={() => handlePatientClick(id, name)} className="font-medium bg-cyan-500">{`${name} ${apellido_pat == null ? "": apellido_pat} ${apellido_mat == null ? "": apellido_mat}`}</TableCell>
-                      <TableCell onClick={() => handlePatientClick(id, name)} >{`${telefono}`}</TableCell>
-                      <TableCell onClick={() => handlePatientClick(id, name)} >{Appointment && Appointment?.length > 0 ? Appointment[0]?.startDate : "Sin citas"}</TableCell>
-                      <TableCell onClick={() => handlePatientClick(id, name)} >{Appointment?.length > 0 && Appointment?.length >= 2 ? Appointment[1]?.startDate : "Sin citas"}</TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
+                  {filteredPatients.map(({ id, name, apellido_pat, apellido_mat, telefono, Appointment, servicios }) => {
+
+                    const fechaHoy = new Date();
+                    // console.log(patient.Appointment)
+                    const ultimaVisita = Appointment?.filter((appointment) => {
+                      const fechaCita = new Date(appointment.startDate);
+                      return fechaCita < fechaHoy;
+                    });
+                    //console.log(ultimaVisita);
+                    const proximaCita = Appointment?.filter((appointment) => {
+                      const fechaCita = new Date(appointment.startDate);
+                      return fechaCita > fechaHoy;
+                    });
+                    console.log(proximaCita);
+                    return (
+                      <TableRow
+                        key={id}
+                        className="cursor-pointer border-b border-gray-200 size-10 hover:bg-gray-500 text-md"
+                      >
+                        <input id={"" + id} onChange={handleCheckboxChange} type='checkbox' className='size-7' />
+                        <TableCell onClick={() => handlePatientClick(id, name)} className="font-medium bg-cyan-500">{`${name} ${apellido_pat == null ? "" : apellido_pat} ${apellido_mat == null ? "" : apellido_mat}`}</TableCell>
+                        <TableCell onClick={() => handlePatientClick(id, name)} >{`${telefono}`}</TableCell>
+                        <TableCell onClick={() => handlePatientClick(id, name)} >{ultimaVisita[ultimaVisita.length - 1]?.startDate?.split("T")[0]}</TableCell>
+                        <TableCell onClick={() => handlePatientClick(id, name)} >{proximaCita[proximaCita.length -1 ]?.startDate?.split("T")[0]}</TableCell>
+                        <TableCell>{servicios?.length}</TableCell>
+                      </TableRow>
+                    )
+                  }
+                  )}
+                </TableBody>
               </Table>
             </>
           )}
           {
-            currentPage === 'Anuncios' && (<AdministradorAnuncios/>)
+            currentPage === 'Anuncios' && (<AdministradorAnuncios />)
           }
           {
-            currentPage === 'Proximas Citas' && (<ProximasCitas/>)
+            currentPage === 'Proximas Citas' && (<ProximasCitas />)
           }
           {
-            currentPage === 'Productividad' &&(<IncomeExpenseChart/>)
+            currentPage === 'ServiciosActivos' ? router.push("/servicios-activos") : (<></>)
+          }
+          {
+            currentPage === 'Panel de Control' ? router.push("/dashboard") : (<></>)
           }
           {currentPage !== 'Pacientes' && (
             <p className="text-gray-500">Contenido de {currentPage} en desarrollo.</p>
           )}
 
-          
+
         </div>
       </main>
     </div>
