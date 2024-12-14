@@ -26,188 +26,196 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 interface CustomEditorProps {
   scheduler: SchedulerHelpers;
 }
-const CustomEditor = ({ scheduler }: CustomEditorProps) => {
-  const event = scheduler.edited;
-
-  // Make your own form/state
-  const [state, setState] = useState({
-    id: nanoid(),
-    name: event?.title || "",
-    description: event?.description || "",
-    phone: event?.subtitle || 998
-  });
-
-  const [errorOnName, setErrorOnName] = useState("");
-  const [errorOnPhone, setErrorOnPhone] = useState("");
-
-  const handleChange = (value: string, name: string) => {
-    setState((prev) => {
-      return {
-        ...prev,
-        [name]: value,
-      };
-    });
-  };
-
-  const handleSubmit = async () => {
-    // Validaciones
-    if (state.name.length < 3) {
-      return setErrorOnName("Min 3 letters");
-    }
-
-    if (!Number.isInteger(Number.parseInt(state.phone))) {
-      return setErrorOnPhone("telefono debe ser Numerico")
-    }
-
-    if (state.phone.length < 10) {
-      console.log(typeof state.phone)
-      return setErrorOnPhone("telefono debe ser de 10 digitos")
-    }
-    //Validaciones
-    try {
-      scheduler.loading(true);
-
-      /**Simulate remote data saving */
-      const added_updated_event = (await new Promise((resolve, reject) => {
-        /**
-         * Make sure the event have 4 mandatory fields
-         * event_id: string|number
-         * title: string
-         * start: Date|string
-         * end: Date|string
-         */
-        if (event?.event_id) {
-          const update = onUpdateSomeField(event, state)
-          update.then(() => {
-            resolve({
-              event_id: event?.event_id,
-              title: state.name,
-              subtitle: state.phone,
-              start: event.start,
-              end: event.end,
-              description: state.description
-            });
-          })
-
-          return;
-        }
-
-        fetch('/appointments/api', {
-          method: "POST",
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            "id": state.id,
-            "name": state.name,
-            "description": state.description,
-            "phone": state.phone,
-            "startDate": new Date(scheduler.state.start.value),
-            "endDate": new Date(new Date(scheduler.state.end.value)),
-          })
-        })
-          .then(response => {
-            if (!response.ok) {
-              throw new Error('Network response was not ok');
-
-            }
-            return response.json();
-          })
-          .then(data => {
-            console.log(data);
-            resolve({
-              event_id: event?.event_id || state.id,
-              title: state.name,
-              subtitle: state.phone,
-              start: scheduler.state.start.value,
-              end: scheduler.state.end.value,
-              description: state.description
-            }); // Resuelve la promesa con los datos obtenidos
-          })
-          .catch(error => {
-            console.error('Error fetching data:', error);
-            reject(error); // Rechaza la promesa en caso de error
-          });
-      })) as ProcessedEvent;
-
-      scheduler.onConfirm(added_updated_event, event ? "edit" : "create");
-      scheduler.close();
-    } finally {
-      scheduler.loading(false);
-    }
-  };
-
-  return (
-    <div>
-      <div style={{ padding: "1rem" }}>
-        <p>Proxima Cita</p>
-        <TextField
-          label="Paciente"
-          value={state.name}
-          onChange={(e) => handleChange(e.target.value, "name")}
-          error={!!errorOnName}
-          helperText={errorOnName}
-          fullWidth
-        />
-        <TextField
-          label="Description"
-          value={state.description}
-          onChange={(e) => handleChange(e.target.value, "description")}
-          fullWidth
-        />
-        <TextField
-          label="Telefono"
-          value={state.phone}
-          onChange={(e) => handleChange(e.target.value, "phone")}
-          error={!!errorOnPhone}
-          helperText={errorOnPhone}
-          fullWidth
-        />
-        <RadioGroup
-          defaultValue={
-            event.color === "#50b500"
-              ? "Confirmar"
-              : event.color === "#900000"
-              ? "Cancelar"
-              : "Por Confirmar"
-          }
-          onValueChange={(value) => {
-            const newColor =
-              value === "Confirmar"
-                ? "#50b500"
-                : value === "Cancelar"
-                ? "#900000"
-                : "#cccccc"; // Color predeterminado para "Por Confirmar"
-            handleColorChange(event.event_id, newColor);
-            scheduler.close(); // Cerrar el editor después del cambio
-          }}
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="Confirmar" id="r1" />
-            <Label htmlFor="r1">Confirmar</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="Por Confirmar" id="r2" />
-            <Label htmlFor="r2">Por Confirmar</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="Cancelar" id="r3" />
-            <Label htmlFor="r3">Cancelar</Label>
-          </div>
-        </RadioGroup>
-      </div>
-      <DialogActions>
-        <Button onClick={scheduler.close}>Cancel</Button>
-        <Button onClick={handleSubmit}>Confirm</Button>
-      </DialogActions>
-    </div>
-  );
-};
 
 function App() {
 
   const [events, setEvents] = useState<ProcessedEvent[]>([]);
 
+  const handleColorChange = (eventId: string | number, color: string) => {
+    console.log(eventId, color);
+    const updatedEvents = events.map((e) =>
+      e.event_id === eventId ? { ...e, color } : e
+    );
+    setEvents(updatedEvents); // Actualizamos el estado
+  };
+
+  const CustomEditor = ({ scheduler }: CustomEditorProps) => {
+    const event = scheduler.edited;
+  
+    // Make your own form/state
+    const [state, setState] = useState({
+      id: nanoid(),
+      name: event?.title || "",
+      description: event?.description || "",
+      phone: event?.subtitle || 998
+    });
+  
+    const [errorOnName, setErrorOnName] = useState("");
+    const [errorOnPhone, setErrorOnPhone] = useState("");
+  
+    const handleChange = (value: string, name: string) => {
+      setState((prev) => {
+        return {
+          ...prev,
+          [name]: value,
+        };
+      });
+    };
+  
+    const handleSubmit = async () => {
+      // Validaciones
+      if (state.name.length < 3) {
+        return setErrorOnName("Min 3 letters");
+      }
+  
+      if (!Number.isInteger(Number.parseInt(state.phone))) {
+        return setErrorOnPhone("telefono debe ser Numerico")
+      }
+  
+      if (state.phone.length < 10) {
+        console.log(typeof state.phone)
+        return setErrorOnPhone("telefono debe ser de 10 digitos")
+      }
+      //Validaciones
+      try {
+        scheduler.loading(true);
+  
+        /**Simulate remote data saving */
+        const added_updated_event = (await new Promise((resolve, reject) => {
+          /**
+           * Make sure the event have 4 mandatory fields
+           * event_id: string|number
+           * title: string
+           * start: Date|string
+           * end: Date|string
+           */
+          if (event?.event_id) {
+            const update = onUpdateSomeField(event, state)
+            update.then(() => {
+              resolve({
+                event_id: event?.event_id,
+                title: state.name,
+                subtitle: state.phone,
+                start: event.start,
+                end: event.end,
+                description: state.description
+              });
+            })
+  
+            return;
+          }
+  
+          fetch('/appointments/api', {
+            method: "POST",
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              "id": state.id,
+              "name": state.name,
+              "description": state.description,
+              "phone": state.phone,
+              "startDate": new Date(scheduler.state.start.value),
+              "endDate": new Date(new Date(scheduler.state.end.value)),
+            })
+          })
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('Network response was not ok');
+  
+              }
+              return response.json();
+            })
+            .then(data => {
+              console.log(data);
+              resolve({
+                event_id: event?.event_id || state.id,
+                title: state.name,
+                subtitle: state.phone,
+                start: scheduler.state.start.value,
+                end: scheduler.state.end.value,
+                description: state.description
+              }); // Resuelve la promesa con los datos obtenidos
+            })
+            .catch(error => {
+              console.error('Error fetching data:', error);
+              reject(error); // Rechaza la promesa en caso de error
+            });
+        })) as ProcessedEvent;
+  
+        scheduler.onConfirm(added_updated_event, event ? "edit" : "create");
+        scheduler.close();
+      } finally {
+        scheduler.loading(false);
+      }
+    };
+  
+    return (
+      <div>
+        <div style={{ padding: "1rem" }}>
+          <p>Proxima Cita</p>
+          <TextField
+            label="Paciente"
+            value={state.name}
+            onChange={(e) => handleChange(e.target.value, "name")}
+            error={!!errorOnName}
+            helperText={errorOnName}
+            fullWidth
+          />
+          <TextField
+            label="Description"
+            value={state.description}
+            onChange={(e) => handleChange(e.target.value, "description")}
+            fullWidth
+          />
+          <TextField
+            label="Telefono"
+            value={state.phone}
+            onChange={(e) => handleChange(e.target.value, "phone")}
+            error={!!errorOnPhone}
+            helperText={errorOnPhone}
+            fullWidth
+          />
+          <RadioGroup
+            defaultValue={
+              event?.color === "#50b500"
+                ? "Confirmar"
+                : event?.color === "#900000"
+                ? "Cancelar"
+                : "Por Confirmar"
+            }
+            onValueChange={(value) => {
+              const newColor =
+                value === "Confirmar"
+                  ? "#50b500"
+                  : value === "Cancelar"
+                  ? "#900000"
+                  : "#cccccc"; // Color predeterminado para "Por Confirmar"
+              handleColorChange(event?.event_id, newColor);
+              //scheduler.close(); // Cerrar el editor después del cambio
+            }}
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="Confirmar" id="r1" />
+              <Label htmlFor="r1">Confirmar</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="Por Confirmar" id="r2" />
+              <Label htmlFor="r2">Por Confirmar</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="Cancelar" id="r3" />
+              <Label htmlFor="r3">Cancelar</Label>
+            </div>
+          </RadioGroup>
+        </div>
+        <DialogActions>
+          <Button onClick={scheduler.close}>Cancel</Button>
+          <Button onClick={handleSubmit}>Confirm</Button>
+        </DialogActions>
+      </div>
+    );
+  };
 
   const fetchRemoteData = async (query: RemoteQuery): Promise<ProcessedEvent[]> => {
     console.log({ query });
@@ -312,6 +320,7 @@ function App() {
 
   return (
     <Scheduler
+      events={events}
       getRemoteEvents={fetchRemoteData}
       onEventDrop={onEventDrop}
       onDelete={onDelete}
@@ -349,21 +358,9 @@ function App() {
       customEditor={(scheduler) => <CustomEditor scheduler={scheduler} />}
       viewerExtraComponent={(fields, event) => {
         return (
-          <RadioGroup defaultValue="Por Confirmar" onValueChange={(value) => event.color=== "#900000"}>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="Confirmar" id="r1" />
-              <Label htmlFor="r1">Confirmar</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="Por Confirmar" id="r2" />
-              <Label htmlFor="r2">Por Confirmar</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="Cancelar" id="r3" />
-              <Label htmlFor="r3">Cancelar</Label>
-            </div>
-            <p>{event.color}</p>
-          </RadioGroup>
+          <div>
+            <p>Hola</p>
+          </div>
         );
       }}
     />
