@@ -41,7 +41,7 @@ function App() {
 
   const CustomEditor = ({ scheduler }: CustomEditorProps) => {
     const event = scheduler.edited;
-  
+
     // Make your own form/state
     const [state, setState] = useState({
       id: nanoid(),
@@ -49,10 +49,10 @@ function App() {
       description: event?.description || "",
       phone: event?.subtitle || 998
     });
-  
+
     const [errorOnName, setErrorOnName] = useState("");
     const [errorOnPhone, setErrorOnPhone] = useState("");
-  
+
     const handleChange = (value: string, name: string) => {
       setState((prev) => {
         return {
@@ -61,17 +61,17 @@ function App() {
         };
       });
     };
-  
+
     const handleSubmit = async () => {
       // Validaciones
       if (state.name.length < 3) {
         return setErrorOnName("Min 3 letters");
       }
-  
+
       if (!Number.isInteger(Number.parseInt(state.phone))) {
         return setErrorOnPhone("telefono debe ser Numerico")
       }
-  
+
       if (state.phone.length < 10) {
         console.log(typeof state.phone)
         return setErrorOnPhone("telefono debe ser de 10 digitos")
@@ -79,7 +79,7 @@ function App() {
       //Validaciones
       try {
         scheduler.loading(true);
-  
+
         /**Simulate remote data saving */
         const added_updated_event = (await new Promise((resolve, reject) => {
           /**
@@ -101,10 +101,10 @@ function App() {
                 description: state.description
               });
             })
-  
+
             return;
           }
-  
+
           fetch('/appointments/api', {
             method: "POST",
             headers: {
@@ -122,7 +122,7 @@ function App() {
             .then(response => {
               if (!response.ok) {
                 throw new Error('Network response was not ok');
-  
+
               }
               return response.json();
             })
@@ -142,14 +142,14 @@ function App() {
               reject(error); // Rechaza la promesa en caso de error
             });
         })) as ProcessedEvent;
-  
+
         scheduler.onConfirm(added_updated_event, event ? "edit" : "create");
         scheduler.close();
       } finally {
         scheduler.loading(false);
       }
     };
-  
+
     return (
       <div>
         <div style={{ padding: "1rem" }}>
@@ -171,43 +171,12 @@ function App() {
           <TextField
             label="Telefono"
             value={state.phone}
+            disabled={state.phone.toString.length === 10 ? true: false}
             onChange={(e) => handleChange(e.target.value, "phone")}
             error={!!errorOnPhone}
             helperText={errorOnPhone}
             fullWidth
           />
-          <RadioGroup
-            defaultValue={
-              event?.color === "#50b500"
-                ? "Confirmar"
-                : event?.color === "#900000"
-                ? "Cancelar"
-                : "Por Confirmar"
-            }
-            onValueChange={(value) => {
-              const newColor =
-                value === "Confirmar"
-                  ? "#50b500"
-                  : value === "Cancelar"
-                  ? "#900000"
-                  : "#cccccc"; // Color predeterminado para "Por Confirmar"
-              handleColorChange(event?.event_id, newColor);
-              //scheduler.close(); // Cerrar el editor después del cambio
-            }}
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="Confirmar" id="r1" />
-              <Label htmlFor="r1">Confirmar</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="Por Confirmar" id="r2" />
-              <Label htmlFor="r2">Por Confirmar</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="Cancelar" id="r3" />
-              <Label htmlFor="r3">Cancelar</Label>
-            </div>
-          </RadioGroup>
         </div>
         <DialogActions>
           <Button onClick={scheduler.close}>Cancel</Button>
@@ -233,12 +202,14 @@ function App() {
           event_id: event.id,
           title: event.name.name,
           description: event.desc,
-          subtitle: event.desc, //event.name.telefono
+          subtitle: event.name.telefono, //event.name.telefono
           status: event.status,
           color: event.status === 'Confirmed' ? "#50b500" : event.status === "Cancelled" ? "#900000" : "",
           start: new Date(event.startDate), // Asegúrate de que 'start' sea la clave correcta
           end: new Date(event.endDate)      // Asegúrate de que 'end' sea la clave correcta
         }));
+
+        setEvents(formattedEvents);
 
         return res(formattedEvents)
       } catch (err) {
@@ -252,6 +223,27 @@ function App() {
 
 
 
+  const handleStatusChange = (eventId: number | string, newStatus: string, phone: number) => {
+
+    const update = onUpdateSomeField(undefined,undefined, eventId, newStatus, phone);
+    update.then(() => {
+      // Determinar el color basado en el estado
+      const newColor =
+        newStatus === "Confirmar"
+          ? "#50b500"
+          : newStatus === "Cancelar"
+            ? "#900000"
+            : "";
+
+      // Actualizar el evento específico en el estado
+      setEvents((prevEvents) =>
+        prevEvents.map((event) =>
+          event.event_id === eventId ? { ...event, color: newColor } : event
+        )
+      );
+    })
+
+  };
 
   const onEventDrop = async (
     event: React.DragEvent<HTMLButtonElement>,
@@ -359,8 +351,25 @@ function App() {
       viewerExtraComponent={(fields, event) => {
         return (
           <div>
-            <p>Hola</p>
-          </div>
+          <p>{event.description}</p>
+          <RadioGroup
+            defaultValue={event.status || "Por Confirmar"}
+            onValueChange={(value) => handleStatusChange(event.event_id, value, event.subtitle)}
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="Confirmar" id={`confirm-${event.event_id}`} />
+              <Label htmlFor={`confirm-${event.event_id}`}>Confirmar</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="Por Confirmar" id={`pending-${event.event_id}`} />
+              <Label htmlFor={`pending-${event.event_id}`}>Por Confirmar</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="Cancelar" id={`cancel-${event.event_id}`} />
+              <Label htmlFor={`cancel-${event.event_id}`}>Cancelar</Label>
+            </div>
+          </RadioGroup>
+        </div>
         );
       }}
     />

@@ -119,6 +119,7 @@ export async function PUT(req: Request) {
                     telefono: appointment.phone
                 }
             },
+            status: appointment.status,
             desc : appointment.description,
             startDate: appointment.startDate,
             endDate: appointment.endDate

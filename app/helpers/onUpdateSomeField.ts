@@ -1,21 +1,22 @@
 import { ProcessedEvent } from "@aldabil/react-scheduler/types";
 import {Appointment} from "../types/types"
 
-export const onUpdateSomeField = async(event: ProcessedEvent, state : Appointment)=>{
+export const onUpdateSomeField = async(event?: ProcessedEvent, state? : Appointment, eventId?: number, newStatus?: string, phone?: number)=>{
 
     console.log(event);
     console.log(state);
-
-    fetch('http://localhost:3000/appointments/api', {
+    console.log(eventId, newStatus, phone);
+    fetch('/appointments/api', {
         method: "PUT",
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            "id": event?.event_id,
-            "name": state.name,
-            "description": state.description,
-            "phone": state.phone,
+            "id": event?.event_id || eventId,
+            "name": state?.name,
+            "description": state?.description,
+            "phone": state?.phone || phone,
+            "status": newStatus === "Confirmar"? "Confirmed" : newStatus === "Cancelar" ? "Cancelled" : "toBeConfirmed",
             "startDate": event?.start,
             "endDate": event?.end
         }) 
