@@ -44,6 +44,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDate, setFilterDate] = useState<Date>(new Date());
+  const [todayAppointments, setTodayAppointments ] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
   const [pendingCollectionMoney, setPendingCollectionMoney] = useState(0);
@@ -61,6 +62,8 @@ export default function DashboardPage() {
         const appointments = await data.json();
         console.log("citas", appointments)
         setAppointments(appointments)
+        console.log(appointments.filter(appointment => new Date(appointment.startDate).getDate() === today.getDate()));
+        setTodayAppointments(appointments.filter(appointment => new Date(appointment.startDate).getDate() === today.getDate()));
       } catch (error) {
         console.log(error)
       }
@@ -98,8 +101,8 @@ export default function DashboardPage() {
 
     patients.map((patient) => {
       //console.log("servicios ", patient.servicios);
-      if (patient.servicios.length > 0) {
-        patient.servicios.map((service) => {
+      if (patient.servicios?.length > 0) {
+        patient.servicios?.map((service) => {
           pendingCollection += service.balance;
           console.log("Cobros Pendientes", pendingCollection);
           // monthIncome+=service.price - service.balance;
@@ -267,7 +270,7 @@ export default function DashboardPage() {
             <h2 className="text-xl font-semibold">Citas de Hoy</h2>
             <FaUserAlt className="text-blue-500" />
           </div>
-          <p className="text-3xl font-bold text-blue-600">{appointments.length}</p>
+          <p className="text-3xl font-bold text-blue-600">{todayAppointments?.length}</p>
         </div>
 
         {/* <div className="bg-white rounded-lg shadow-md p-6">
