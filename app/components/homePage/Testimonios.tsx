@@ -3,7 +3,7 @@ import Image from 'next/image'
 
 const testimonies = [
   {
-    name: "María Gómez",
+    name: "María Gómez Esto es un test",
     testimonie: "Llegué a Odontologia Cosmetica Integral con un fuerte dolor de muelas y salí completamente aliviado. La atención fue rápida, amable y efectiva. Son los mejores.",
     image: "https://i.pravatar.cc/400?img=49"
   },
