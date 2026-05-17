@@ -31,6 +31,8 @@
     "@radix-ui/react-scroll-area": "^1.2.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.2",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.105.4",
     "@syncfusion/ej2-react-grids": "^27.1.48",
     "@syncfusion/ej2-react-schedule": "^27.1.48",
     "bcryptjs": "^2.4.3",
