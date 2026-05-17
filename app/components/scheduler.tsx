@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { TextField, Button, DialogActions } from "@mui/material";
 import { Scheduler } from "@aldabil/react-scheduler";

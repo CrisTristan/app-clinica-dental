@@ -55,7 +55,7 @@ export default function AutoCarrousel() {
   
       return () => clearInterval(interval); // Limpiar el intervalo
     }
-  }, [Addvertisments]); // Escucha cambios en Addvertisments
+  }, []); // Escucha cambios en Addvertisments
 
   const handleAddAdvertisment = (url : URL)=>{
       console.log(url)
