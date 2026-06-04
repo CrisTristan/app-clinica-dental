@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { loginAction, registerAction } from "../actions/auth-actions"
+import { registerAction } from "../actions/auth-actions"
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { registerSchema } from "@/lib/zod"
@@ -46,7 +46,7 @@ export default function FormRegister() {
       if(response.error){
         setError(response.error);
       }else{
-        router.push("/dashboard");
+        router.push("/login");
       } 
     })
     

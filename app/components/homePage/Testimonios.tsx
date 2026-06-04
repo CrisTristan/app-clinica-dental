@@ -28,14 +28,14 @@ const Testimonios = () => {
   return (
     <div>
     {
-    testimonies.map((testimonie)=>(
-      <div className="max-w-xl mx-auto p-6 bg-gray-100 rounded-lg mb-3">
+    testimonies.map((testimonie, index)=>(
+      <div className="max-w-xl mx-auto p-6 bg-gray-100 rounded-lg mb-3" key={index}>
       {/* Imagen del cliente */}
       <div className="flex items-center space-x-4">
         <div className="w-12 h-12 rounded-full">
           <Image
             src={testimonie.image}
-            alt="Sophia Ramirez"
+            alt={testimonie.name}
             width={48}
             height={48}
             className=""

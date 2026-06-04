@@ -1,23 +1,27 @@
-import NextAuth from "next-auth"
-import { PrismaAdapter } from "@auth/prisma-adapter"
+import { getServerSession } from "next-auth"
+import type { NextAuthOptions } from "next-auth"
 import authConfig from "./auth.config"
-import { db } from "@/lib/db"
 
- 
-export const { handlers, signIn, signOut,auth } = NextAuth({
-  adapter: PrismaAdapter(db),
+export const authOptions: NextAuthOptions = {
   ...authConfig,
   session: { strategy: "jwt" },
+  pages: {
+    signIn: "/login",
+  },
   callbacks: {
     jwt({ token, user }) {
-      if (user) { // User is available during sign-in
-        token.role = user.role;
+      if (user) {
+        token.role = user.role
       }
       return token
     },
     session({ session, token }) {
-      session.user.role = token.role;
+      if (session.user) {
+        session.user.role = token.role
+      }
       return session
     },
   },
-})
+}
+
+export const auth = () => getServerSession(authOptions)

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -18,90 +17,96 @@ import { loginAction } from "../actions/auth-actions"
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { loginSchema } from "@/lib/zod"
+import { signIn } from "next-auth/react"
 
 export default function FormLogin({
-  isVerified
-}: 
-{
+  isVerified,
+}: {
   isVerified: boolean
 }) {
-
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
 
-  // 1. Define your form.
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
-      password: ""
+      password: "",
     },
   })
 
-  // 2. Define a submit handler.
   async function onSubmit(values: z.infer<typeof loginSchema>) {
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
     setError(null)
-    startTransition(async ()=>{
+
+    startTransition(async () => {
       const response = await loginAction(values)
-      console.log(response);
-      if(response.error){
-        setError(response.error);
-      }else{
-        router.push("/pacientes");
-      } 
+
+      if (response.error) {
+        setError(response.error)
+        return
+      }
+
+      const signInResponse = await signIn("credentials", {
+        email: values.email,
+        password: values.password,
+        redirect: false,
+      })
+
+      if (signInResponse?.error) {
+        setError(
+          signInResponse.error === "CredentialsSignin"
+            ? "Credenciales invalidas"
+            : signInResponse.error
+        )
+        return
+      }
+
+      router.push("/pacientes")
+      router.refresh()
     })
-    
   }
 
   return (
     <div className="max-w-52">
-    <h1>Login</h1>
-    {
-      isVerified && (
-      <p className="text-center bg-green-300">
-        Email Verificado ahora puedes ingresar
-      </p>
-      )
-    }
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="">
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Correo Electronico</FormLabel>
-              <FormControl>
-                <Input placeholder="email" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Contraseña</FormLabel>
-              <FormControl>
-                <Input placeholder="contraseña" {...field} 
-                 type="password"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        {
-          error && <FormMessage>{error}</FormMessage>
-        }
-        <Button type="submit" disabled={isPending}>Submit</Button>
-      </form>
-    </Form>
+      <h1>Login</h1>
+      {isVerified && (
+        <p className="text-center bg-green-300">
+          Email Verificado ahora puedes ingresar
+        </p>
+      )}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Correo Electronico</FormLabel>
+                <FormControl>
+                  <Input placeholder="email" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contrasena</FormLabel>
+                <FormControl>
+                  <Input placeholder="contrasena" {...field} type="password" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          {error && <FormMessage>{error}</FormMessage>}
+          <Button type="submit" disabled={isPending}>Submit</Button>
+        </form>
+      </Form>
     </div>
   )
 }

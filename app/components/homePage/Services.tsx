@@ -34,7 +34,7 @@ const Services = () => {
             <h2 className='text-2xl'>Nuestros Servicios</h2>
             {
                 services.map((service, index) => (
-                    <div className="w-full max-w-96 rounded-lg overflow-hidden shadow-md border bg-white md:grid-cols-2 m-2 md:max-w-50% mb-5">
+                    <div className="w-full max-w-96 rounded-lg overflow-hidden shadow-md border bg-white md:grid-cols-2 m-2 md:max-w-50% mb-5" key={index}>
                         {/* Imagen */}
                         <div className="relative w-full h-48">
                             <Image

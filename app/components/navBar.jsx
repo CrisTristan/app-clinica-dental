@@ -31,6 +31,7 @@ export default function NavBar(){
           <Link href="/" className="text-2xl font-bold">
             <Image
               src={"https://th.bing.com/th/id/OIP.SOLDwLuhaxavlwt3TOunUwHaHa?rs=1&pid=ImgDetMain"}
+              alt="Logo de la Clínica Dental"
               width={100}
               height={100}
             />

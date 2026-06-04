@@ -371,7 +371,9 @@ export default function PatientManagement() {
                         key={id}
                         className="cursor-pointer border-b border-gray-200 size-10 hover:bg-gray-500 text-md"
                       >
-                        <input id={"" + id} onChange={handleCheckboxChange} type='checkbox' className='size-7' />
+                        <TableCell>
+                          <input id={"" + id} onChange={handleCheckboxChange} type='checkbox' className='size-7' />
+                        </TableCell>
                         <TableCell onClick={() => handlePatientClick(id, name)} className="font-medium bg-cyan-500">{`${name} ${apellido_pat == null ? "" : apellido_pat} ${apellido_mat == null ? "" : apellido_mat}`}</TableCell>
                         <TableCell onClick={() => handlePatientClick(id, name)} >{`${telefono}`}</TableCell>
                         <TableCell onClick={() => handlePatientClick(id, name)} >{ultimaVisita[ultimaVisita.length - 1]?.startDate?.split("T")[0]}</TableCell>
