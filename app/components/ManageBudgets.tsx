@@ -160,15 +160,15 @@ export default function ManageBudgets({ id }) {
                 //   {service}
                 // </Button>
                 <Dialog>
-                  <DialogTrigger>
-                 <Button 
-                  key={service} 
-                  onClick={() => setNewService({name: service, price: 0})}
-                  className="w-full mb-2"
-                  variant="outline"
-                >
-                  {service}
-                </Button>
+                  <DialogTrigger asChild>
+                    <Button
+                      key={service}
+                      onClick={() => setNewService({name: service, price: 0})}
+                      className="w-full mb-2"
+                      variant="outline"
+                    >
+                      {service}
+                    </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>Costo de {service}</DialogHeader>
@@ -183,7 +183,7 @@ export default function ManageBudgets({ id }) {
         </Dialog>
 
         <Dialog>
-          <DialogTrigger>
+          <DialogTrigger asChild>
             <Button>Nuevo Servicio</Button>
           </DialogTrigger>
           <DialogContent>

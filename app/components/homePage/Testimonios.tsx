@@ -41,22 +41,22 @@ const Stars = ({ count }: { count: number }) => (
 
 const Testimonios = () => {
   return (
-    <section className="py-16 bg-white">
+    <section className="py-16 bg-white dark:bg-slate-900">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <span className="text-blue-600 font-semibold text-sm uppercase tracking-widest">Lo que dicen</span>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mt-2">Testimonios</h2>
-          <p className="text-gray-500 mt-3 max-w-xl mx-auto">
+          <span className="text-blue-600 dark:text-sky-400 font-semibold text-sm uppercase tracking-widest">Lo que dicen</span>
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-slate-100 mt-2">Testimonios</h2>
+          <p className="text-gray-500 dark:text-slate-400 mt-3 max-w-xl mx-auto">
             La satisfacción de nuestros pacientes es nuestra mayor recompensa.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {testimonies.map((t, index) => (
-            <div key={index} className="bg-gray-50 rounded-2xl p-6 border border-gray-100 hover:shadow-md transition-shadow flex flex-col">
+            <div key={index} className="bg-gray-50 dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-slate-700 hover:shadow-md transition-shadow flex flex-col">
               <Stars count={t.stars} />
-              <p className="text-gray-600 text-sm leading-relaxed flex-1">"{t.testimonie}"</p>
-              <div className="flex items-center gap-3 mt-5 pt-4 border-t border-gray-200">
+              <p className="text-gray-600 dark:text-slate-300 text-sm leading-relaxed flex-1">"{t.testimonie}"</p>
+              <div className="flex items-center gap-3 mt-5 pt-4 border-t border-gray-200 dark:border-slate-600">
                 <Image
                   src={t.image}
                   alt={t.name}
@@ -65,8 +65,8 @@ const Testimonios = () => {
                   className="rounded-full object-cover"
                 />
                 <div>
-                  <p className="font-semibold text-gray-800 text-sm">{t.name}</p>
-                  <p className="text-gray-400 text-xs">{t.role}</p>
+                  <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm">{t.name}</p>
+                  <p className="text-gray-400 dark:text-slate-500 text-xs">{t.role}</p>
                 </div>
               </div>
             </div>
