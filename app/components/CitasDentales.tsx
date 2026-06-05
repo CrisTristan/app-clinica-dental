@@ -28,13 +28,13 @@ type Cita = {
 }
 
 const STATUS_CFG: Record<string, { label: string; dot: string; badge: string }> = {
-  Confirmar:       { label: "Confirmada",    dot: "bg-green-500",  badge: "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"  },
-  "Por Confirmar": { label: "Por confirmar", dot: "bg-yellow-400", badge: "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800" },
-  Cancelar:        { label: "Cancelada",     dot: "bg-red-500",    badge: "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800"    },
+  Confirmed:     { label: "Confirmada",    dot: "bg-green-500",  badge: "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"  },
+  toBeConfirmed: { label: "Por confirmar", dot: "bg-yellow-400", badge: "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800" },
+  Cancelled:     { label: "Cancelada",     dot: "bg-red-500",    badge: "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800"    },
 }
 
 function getStatus(s?: string) {
-  return STATUS_CFG[s ?? ""] ?? STATUS_CFG["Por Confirmar"]
+  return STATUS_CFG[s ?? ""] ?? STATUS_CFG.toBeConfirmed
 }
 
 function initials(name: string, ap?: string | null) {
@@ -106,7 +106,7 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 p-3.5 shadow-sm col-span-2 sm:col-span-1">
           <p className="text-[10px] text-gray-400 dark:text-slate-500 uppercase tracking-wide font-medium">Pendientes</p>
           <p className="text-2xl font-bold text-yellow-500 mt-0.5">
-            {citas.filter(c => !c.status || c.status === "Por Confirmar").length}
+            {citas.filter(c => !c.status || c.status === "toBeConfirmed").length}
           </p>
           <p className="text-xs text-gray-400 dark:text-slate-500">por confirmar</p>
         </div>

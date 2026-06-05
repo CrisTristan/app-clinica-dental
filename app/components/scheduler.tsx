@@ -5,6 +5,7 @@ import { Scheduler } from "@aldabil/react-scheduler";
 import type { ProcessedEvent, SchedulerHelpers, RemoteQuery } from "@aldabil/react-scheduler/types";
 import { nanoid } from "nanoid";
 import { onUpdateSomeField } from "../helpers/onUpdateSomeField";
+import { toDbTimestamp } from "../helpers/dateTime";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { es } from "date-fns/locale";
@@ -14,11 +15,22 @@ interface CustomEditorProps {
   scheduler: SchedulerHelpers;
 }
 
-const STATUS_CONFIG = {
-  Confirmar:       { label: "Confirmada",    dot: "bg-green-500",  badge: "bg-green-100 text-green-700 border-green-200"  },
-  "Por Confirmar": { label: "Por confirmar", dot: "bg-yellow-500", badge: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-  Cancelar:        { label: "Cancelada",     dot: "bg-red-500",    badge: "bg-red-100 text-red-700 border-red-200"   },
+type AppointmentStatus = "Confirmed" | "toBeConfirmed" | "Cancelled";
+
+const DEFAULT_STATUS: AppointmentStatus = "toBeConfirmed";
+
+const STATUS_CONFIG: Record<AppointmentStatus, { label: string; dot: string; badge: string; color: string }> = {
+  Confirmed:     { label: "Confirmada",    dot: "bg-green-500",  badge: "bg-green-100 text-green-700 border-green-200",    color: "#16a34a" },
+  toBeConfirmed: { label: "Por confirmar", dot: "bg-yellow-500", badge: "bg-yellow-100 text-yellow-700 border-yellow-200", color: "#eab308" },
+  Cancelled:     { label: "Cancelada",     dot: "bg-red-500",    badge: "bg-red-100 text-red-700 border-red-200",          color: "#dc2626" },
 }
+
+const STATUS_OPTIONS = Object.keys(STATUS_CONFIG) as AppointmentStatus[];
+
+const normalizeStatus = (status?: string): AppointmentStatus =>
+  status === "Confirmed" || status === "Cancelled" || status === "toBeConfirmed"
+    ? status
+    : DEFAULT_STATUS;
 
 /* ─── Campo de texto del editor ─── */
 function Field({
@@ -88,6 +100,8 @@ function App() {
                 event_id: event.event_id, title: state.name,
                 subtitle: state.phone, start: event.start,
                 end: event.end, description: state.description,
+                status: normalizeStatus(event.status as string),
+                color: STATUS_CONFIG[normalizeStatus(event.status as string)].color,
               })
             );
             return;
@@ -98,8 +112,8 @@ function App() {
             body: JSON.stringify({
               id: state.id, name: state.name, description: state.description,
               phone: state.phone,
-              startDate: new Date(scheduler.state.start.value),
-              endDate:   new Date(scheduler.state.end.value),
+              startDate: toDbTimestamp(scheduler.state.start.value),
+              endDate:   toDbTimestamp(scheduler.state.end.value),
             }),
           })
             .then(r => { if (!r.ok) throw new Error(); return r.json(); })
@@ -107,6 +121,8 @@ function App() {
               event_id: state.id, title: state.name,
               subtitle: state.phone, start: scheduler.state.start.value,
               end: scheduler.state.end.value, description: state.description,
+              status: DEFAULT_STATUS,
+              color: STATUS_CONFIG[DEFAULT_STATUS].color,
             }))
             .catch(reject);
         });
@@ -173,16 +189,13 @@ function App() {
     if (!r.ok) throw new Error("Error al cargar citas");
     const data = await r.json();
 
-    const formatted: ProcessedEvent[] = data.map(ev => ({
+    const formatted: ProcessedEvent[] = data.map((ev: any) => ({
       event_id:    ev.id,
       title:       ev.name.name,
       description: ev.desc,
       subtitle:    ev.name.telefono,
       status:      ev.status,
-      color:
-        ev.status === "Confirmar" ? "#16a34a"
-        : ev.status === "Cancelar" ? "#dc2626"
-        : "#0ea5e9",
+      color:       STATUS_CONFIG[normalizeStatus(ev.status)].color,
       start: new Date(ev.startDate),
       end:   new Date(ev.endDate),
     }));
@@ -192,13 +205,12 @@ function App() {
   };
 
   /* ─── Cambio de estado ─── */
-  const handleStatusChange = (eventId: number | string, newStatus: string, phone: number) => {
+  const handleStatusChange = (eventId: number | string, newStatus: AppointmentStatus, phone: number | string) => {
     onUpdateSomeField(undefined, undefined, eventId, newStatus, phone).then(() => {
-      const colorMap = { Confirmar: "#16a34a", Cancelar: "#dc2626" };
       setEvents(prev =>
         prev.map(e =>
           e.event_id === eventId
-            ? { ...e, color: colorMap[newStatus] ?? "#0ea5e9" }
+            ? { ...e, status: newStatus, color: STATUS_CONFIG[newStatus].color }
             : e
         )
       );
@@ -221,7 +233,7 @@ function App() {
       body: JSON.stringify({
         id: updatedEvent.event_id, name: updatedEvent.name,
         phone: updatedEvent.subtitle, description: updatedEvent.description,
-        startDate: droppedOn, endDate: newEnd,
+        startDate: toDbTimestamp(droppedOn), endDate: toDbTimestamp(newEnd),
       }),
     });
 
@@ -279,8 +291,8 @@ function App() {
       }}
       customEditor={scheduler => <CustomEditor scheduler={scheduler} />}
       viewerExtraComponent={(_fields, event) => {
-        const status: string = event.status || "Por Confirmar";
-        const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG["Por Confirmar"];
+        const status = normalizeStatus(event.status as string);
+        const cfg = STATUS_CONFIG[status];
 
         return (
           <div className="mt-2 space-y-3">
@@ -298,10 +310,10 @@ function App() {
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Cambiar estado</p>
               <RadioGroup
                 defaultValue={status}
-                onValueChange={val => handleStatusChange(event.event_id, val, event.subtitle)}
+                onValueChange={val => handleStatusChange(event.event_id, normalizeStatus(val), String(event.subtitle ?? ""))}
                 className="space-y-1.5"
               >
-                {(["Confirmar", "Por Confirmar", "Cancelar"] as const).map(s => (
+                {STATUS_OPTIONS.map(s => (
                   <div key={s} className="flex items-center gap-2">
                     <RadioGroupItem value={s} id={`${s}-${event.event_id}`} />
                     <Label

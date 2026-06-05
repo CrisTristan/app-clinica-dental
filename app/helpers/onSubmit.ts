@@ -1,6 +1,7 @@
 import { Appointment } from "../types/types";
 import { onUpdateSomeField } from "./onUpdateSomeField";
 import { ProcessedEvent } from "@aldabil/react-scheduler/types";
+import { toDbTimestamp } from "./dateTime";
 
 export const onSubmit = async (state : Appointment, scheduler, event, setError) => {
     // Your own validation
@@ -44,8 +45,8 @@ export const onSubmit = async (state : Appointment, scheduler, event, setError) 
             "id": state.id,
             "name": state.name,
             "description": state.description,
-            "startDate" : new Date(scheduler.state.start.value),
-            "endDate": new Date(new Date(scheduler.state.end.value)), 
+            "startDate" : toDbTimestamp(scheduler.state.start.value),
+            "endDate": toDbTimestamp(scheduler.state.end.value), 
           }) 
         })
           .then(response => {

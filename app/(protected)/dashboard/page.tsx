@@ -39,11 +39,11 @@ function initials(name: string, ap?: string | null) {
 }
 
 const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  Confirmar:       { label: "Confirmada",    cls: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"  },
-  "Por Confirmar": { label: "Por confirmar", cls: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800" },
-  Cancelar:        { label: "Cancelada",     cls: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800"    },
+  Confirmed:     { label: "Confirmada",    cls: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"  },
+  toBeConfirmed: { label: "Por confirmar", cls: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800" },
+  Cancelled:     { label: "Cancelada",     cls: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800"    },
 }
-const getStatus = (s?: string) => STATUS_CFG[s ?? ""] ?? STATUS_CFG["Por Confirmar"]
+const getStatus = (s?: string) => STATUS_CFG[s ?? ""] ?? STATUS_CFG.toBeConfirmed
 
 /* ── Stat card ── */
 function StatCard({
