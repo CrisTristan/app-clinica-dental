@@ -1,30 +1,28 @@
 "use client"
-import Scheduler from "../../components/scheduler";
-import { useEffect, useState } from "react";
-import { authentication } from "@/app/actions/authentication";
+import Scheduler from "../../components/scheduler"
+import { useEffect, useState } from "react"
+import { authentication } from "@/app/actions/authentication"
+import { hasAccess } from "@/lib/roles"
 
-export default function Agenda(){
+export default function Agenda() {
+  const [canAccess, setCanAccess] = useState(false)
 
-    const [isAdmin, setIsAdmin] = useState(false)
-    useEffect(()=>{
-        const fetchSession = async () => {
+  useEffect(() => {
+    const fetchSession = async () => {
+      const session = await authentication()
+      if (hasAccess(session?.user?.role)) {
+        setCanAccess(true)
+      }
+    }
+    fetchSession()
+  }, [])
 
-            const session = await authentication();
-        
-            if (session?.user?.role === "admin") {
-              setIsAdmin(true);
-            }
-          };
-          fetchSession();
-    }, [])
-  
-    return(
-        <div>
-            {
-            isAdmin ?   
-            <Scheduler/> :
-            <p>usted no eres administrador</p>
-            }
-        </div>
-    );
+  return (
+    <div>
+      {canAccess
+        ? <Scheduler />
+        : <p>No tienes permiso para acceder a esta página</p>
+      }
+    </div>
+  )
 }

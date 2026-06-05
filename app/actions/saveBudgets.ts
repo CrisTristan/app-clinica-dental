@@ -1,21 +1,21 @@
 "use server"
-import { prisma } from "@/prisma"
 
-export const savePatientBudgets = async (id: number, budgets)=>{
-    console.log("servicios",budgets)
-    try {
-        const res = await prisma.patient.update({
-            where: {
-                id: Number(id)
-            },
-            data: {
-                servicios: budgets
-            }
-        })
+import { createAdminClient } from "@/lib/supabase/admin"
 
-        console.log(res);
-        return res;
-    } catch (error) {
-        console.log(error);
-    }   
+export const savePatientBudgets = async (id: number, budgets: unknown) => {
+  const supabase = createAdminClient()
+
+  const { data, error } = await supabase
+    .from('Patient')
+    .update({ servicios: budgets })
+    .eq('id', Number(id))
+    .select()
+    .single()
+
+  if (error) {
+    console.log(error)
+    return null
+  }
+
+  return data
 }

@@ -1,153 +1,122 @@
 "use client"
 
-import { auth } from '@/auth';
 import { useState, useEffect } from 'react'
-import { SlArrowLeft, SlArrowRight } from "react-icons/sl";
-import Imagen1 from '../images/shutterstock.jpg';
-import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { CldUploadWidget, CldImage } from 'next-cloudinary';
-import { isGeneratorFunction } from 'util/types';
-import { authentication } from '../actions/authentication';
-import { getAllAddvertisements } from '../actions/getAllAddvertisements';
-import { ImageFormat } from '../types/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-
-/*const images : string[] = [
-  "https://cdn.pixabay.com/photo/2024/02/16/06/26/dentist-8576790_1280.png",
-  "https://cdn.pixabay.com/photo/2016/09/02/16/17/dentist-1639683_1280.jpg",
-  "https://cdn.pixabay.com/photo/2024/04/30/07/18/dentist-8729627_1280.jpg",
-  "https://cdn.pixabay.com/photo/2024/06/28/04/30/preventive-dentistry-8858477_1280.jpg",
-]*/
+import { SlArrowLeft, SlArrowRight } from "react-icons/sl"
+import Image from 'next/image'
+import { Button } from '@/components/ui/button'
+import { CldUploadWidget, CldImage } from 'next-cloudinary'
+import { authentication } from '../actions/authentication'
+import { getAllAddvertisements } from '../actions/getAllAddvertisements'
+import { ImageFormat } from '../types/types'
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 
 export default function AutoCarrousel() {
-
-  const [Addvertisments, setAddvertisements] = useState<ImageFormat[]>([]);
+  const [advertisements, setAdvertisements] = useState<ImageFormat[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAdmin, setIsAdmin] = useState(false)
 
-  useEffect(()=>{
-    const fetchAddvertisements = async () => {
-      const adds : ImageFormat[] = await getAllAddvertisements();
-      setAddvertisements(adds);
-
-      console.log(adds);
-    };
-    fetchAddvertisements();
-  }, []);
+  useEffect(() => {
+    getAllAddvertisements().then((ads: ImageFormat[]) => setAdvertisements(ads))
+    authentication().then(session => {
+      if (session?.user?.role === "admin") setIsAdmin(true)
+    })
+  }, [])
 
   useEffect(() => {
-    const fetchSession = async () => {
+    if (advertisements.length === 0) return
+    const interval = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % advertisements.length)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [advertisements.length])
 
-      const session = await authentication();
-  
-      if (session?.user?.role === "admin") {
-        setIsAdmin(true);
-      }
-    };
-    fetchSession();
-    
-    // Solo iniciar el intervalo si hay imágenes
-    if (Addvertisments.length > 0) {
-      const interval = setInterval(() => {
-        nextSlide();
-      }, 5000); // Cambia de imagen cada 3 segundos
-  
-      return () => clearInterval(interval); // Limpiar el intervalo
-    }
-  }, []); // Escucha cambios en Addvertisments
+  const nextSlide = () => setCurrentIndex(prev => (prev + 1) % advertisements.length)
+  const prevSlide = () => setCurrentIndex(prev => (prev - 1 + advertisements.length) % advertisements.length)
 
-  const handleAddAdvertisment = (url : URL)=>{
-      console.log(url)
-      console.log(Addvertisments)
-      setAddvertisements(prevURLs => [...prevURLs, url])
+  let startX = 0
+  const handleTouchStart = (e: React.TouchEvent) => { startX = e.touches[0].clientX }
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const diff = e.changedTouches[0].clientX - startX
+    if (Math.abs(diff) > 50) diff > 0 ? prevSlide() : nextSlide()
   }
 
-  const nextSlide = () => {
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % Addvertisments?.length)
+  if (advertisements.length === 0) {
+    return (
+      <div className="relative w-full h-[70vh] bg-gradient-to-br from-blue-700 to-teal-500 flex items-center justify-center">
+        <div className="text-center text-white px-6">
+          <h1 className="text-4xl md:text-6xl font-bold mb-4 drop-shadow-lg">Tu sonrisa, nuestra pasión</h1>
+          <p className="text-lg md:text-xl opacity-90 max-w-xl mx-auto">
+            Atención dental de calidad con tecnología de vanguardia y un equipo comprometido con tu bienestar.
+          </p>
+        </div>
+      </div>
+    )
   }
-
-  const prevSlide = () => {
-    setCurrentIndex((prevIndex) => (prevIndex - 1 + Addvertisments?.length) % Addvertisments?.length)
-  }
-
-  // Variables para manejar gestos táctiles
-  let startX = 0;
-
-  const handleTouchStart = (e) => {
-    startX = e.touches[0].clientX; // Captura la posición inicial
-  };
-
-  const handleTouchEnd = (e) => {
-    const endX = e.changedTouches[0].clientX; // Captura la posición final
-    const diffX = endX - startX;
-
-    if (Math.abs(diffX) > 50) {
-      // Determina la dirección del deslizamiento
-      if (diffX > 0) {
-        prevSlide(); // Desliza a la derecha
-      } else {
-        nextSlide(); // Desliza a la izquierda
-      }
-    }
-  };
 
   return (
     <div
-      className="relative w-full max-w-xl mx-auto"
+      className="relative w-full h-[70vh] overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <div className="overflow-hidden rounded-lg shadow-lg">
-        <div
-          className="flex transition-transform duration-500 ease-in-out"
-          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
-        >
-          {Addvertisments.map(({ url, width, height }, index) => (
-            <Dialog key={url}>
-              <DialogTrigger asChild>
-                <Image className="h-[40vh]" src={url} width={width} height={height} alt="" />
-              </DialogTrigger>
-              <DialogContent className="flex justify-center items-center sm:max-w-[850px] p-4">
+      <div
+        className="flex h-full transition-transform duration-500 ease-in-out"
+        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+      >
+        {advertisements.map(({ url, width, height }, index) => (
+          <Dialog key={url}>
+            <DialogTrigger asChild>
+              <div className="relative min-w-full h-full cursor-pointer bg-gray-900 flex items-center justify-center">
                 <Image
-                  className="h-[60vh]"
                   src={url}
-                  width={width * 2}
-                  height={height * 2}
-                  alt=""
+                  width={width}
+                  height={height}
+                  className="max-h-full max-w-full object-contain"
+                  alt={`Publicidad ${index + 1}`}
                 />
-              </DialogContent>
-            </Dialog>
-          ))}
-        </div>
+              </div>
+            </DialogTrigger>
+            <DialogContent className="flex justify-center items-center sm:max-w-[850px] p-4">
+              <Image src={url} width={width} height={height} className="max-h-[80vh] w-auto object-contain" alt="" />
+            </DialogContent>
+          </Dialog>
+        ))}
       </div>
 
-      <button
-        onClick={prevSlide}
-        className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 rounded-full p-2 shadow-md"
-        aria-label="Previous slide"
-      >
+      <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-3 shadow-md transition" aria-label="Anterior">
         <SlArrowLeft />
       </button>
-      <button
-        onClick={nextSlide}
-        className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 rounded-full p-2 shadow-md"
-        aria-label="Next slide"
-      >
+      <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-3 shadow-md transition" aria-label="Siguiente">
         <SlArrowRight />
       </button>
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 mb-10">
-        {Addvertisments.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => setCurrentIndex(index)}
-            className={`w-3 h-3 rounded-full ${
-              index === currentIndex ? 'bg-stone-600' : 'bg-stone-500/50'
-            }`}
-            aria-label={`Go to slide ${index + 1}`}
+
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+        {advertisements.map((_, i) => (
+          <button key={i} onClick={() => setCurrentIndex(i)}
+            className={`w-3 h-3 rounded-full transition ${i === currentIndex ? 'bg-white' : 'bg-white/50'}`}
+            aria-label={`Slide ${i + 1}`}
           />
         ))}
       </div>
+
+      {isAdmin && (
+        <div className="absolute top-4 right-4">
+          <CldUploadWidget
+            uploadPreset="dental_preset"
+            onSuccess={(result) => {
+              if (result.info && typeof result.info === 'object') {
+                setAdvertisements(prev => [...prev, result.info as ImageFormat])
+              }
+            }}
+          >
+            {({ open }) => (
+              <Button onClick={() => open()} className="bg-white text-blue-600 hover:bg-blue-50 shadow">
+                + Subir imagen
+              </Button>
+            )}
+          </CldUploadWidget>
+        </div>
+      )}
     </div>
-  );
+  )
 }

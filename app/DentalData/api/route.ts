@@ -1,74 +1,52 @@
-import { db } from "@/lib/db";
+import { createAdminClient } from "@/lib/supabase/admin"
 
-export async function GET(request : Request){
+export async function GET(request: Request) {
+  const supabase = createAdminClient()
+  const { searchParams } = new URL(request.url)
+  const patientId = Number.parseInt(searchParams.get('id') ?? '')
 
-    const {searchParams} = new URL(request.url);
-    const patientId = Number.parseInt(searchParams.get('id'));
-    console.log(patientId);
-    try {
-        const dentalData = await db.dentalData.findUnique({
-            where: {
-                nameId: patientId
-            }
-        })
-    
-        return Response.json(dentalData);
-    } catch (error) {
-        console.log(error);
-        return Response.json(error);
-    }
-    
+  const { data, error } = await supabase
+    .from('DentalData')
+    .select('*')
+    .eq('nameId', patientId)
+    .single()
+
+  if (error && error.code !== 'PGRST116') {
+    return Response.json({ error: error.message }, { status: 500 })
+  }
+
+  return Response.json(data ?? null)
 }
 
-export async function PUT(response: Response){
+export async function PUT(req: Request) {
+  const supabase = createAdminClient()
+  const { examenTejidos, motivoConsulta, habitos, enfermedadesPersonales, higieneBucal, alergias, alimentacion, id } = await req.json()
+  const nameId = Number(id)
 
-    const {examenTejidos, motivoConsulta, habitos, enfermedadesPersonales, higieneBucal, alergias, alimentacion, id} = await response.json()
-    console.log(motivoConsulta, id);
-    try {
-        const Patientid = await db.dentalData.findUnique({
-            where: {
-                nameId: Number(id)
-            }
-        })
+  const { data: existing } = await supabase
+    .from('DentalData')
+    .select('id')
+    .eq('nameId', nameId)
+    .single()
 
+  if (existing) {
+    const { data, error } = await supabase
+      .from('DentalData')
+      .update({ motivoConsulta, examenTejidos, habitos, enfermedadesPersonales, higieneBucal, alergias, alimentacion })
+      .eq('nameId', nameId)
+      .select()
+      .single()
 
-        if(Patientid){ //si existe el nameId (id de un paciente )
-            const dentalData = await db.dentalData.update({ //actualizamos
-                where:{
-                    nameId: Number(id),
-                },
-                data: {
-                    motivoConsulta: motivoConsulta,
-                    examenTejidos: examenTejidos,
-                    habitos: habitos,
-                    enfermedadesPersonales: enfermedadesPersonales,
-                    higieneBucal: higieneBucal,
-                    alergias: alergias,
-                    alimentacion: alimentacion
-                }  
-            })
+    if (error) return Response.json({ error: error.message }, { status: 500 })
+    return Response.json(data)
+  }
 
-            return Response.json(dentalData);
-        }else {
-            const createPatientData = await db.dentalData.create({  //creamos
-                data: {
-                    motivoConsulta: motivoConsulta,
-                    examenTejidos: examenTejidos,
-                    habitos: habitos,
-                    enfermedadesPersonales: enfermedadesPersonales,
-                    higieneBucal: higieneBucal,
-                    alergias: alergias,
-                    alimentacion: alimentacion,
-                    nameId: Number(id)
-                }
-            })
+  const { data, error } = await supabase
+    .from('DentalData')
+    .insert({ motivoConsulta, examenTejidos, habitos, enfermedadesPersonales, higieneBucal, alergias, alimentacion, nameId })
+    .select()
+    .single()
 
-            return Response.json(createPatientData);
-        }
-
-    } catch (error) {
-        console.log(error)
-       return Response.json(error);   
-    }
-    
+  if (error) return Response.json({ error: error.message }, { status: 500 })
+  return Response.json(data)
 }

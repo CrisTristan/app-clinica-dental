@@ -1,75 +1,74 @@
-import { Patient } from "@/app/types/types";
-import { PrismaClient } from "@prisma/client";
+import { Patient } from "@/app/types/types"
+import { createAdminClient } from "@/lib/supabase/admin"
 
-const prisma = new PrismaClient();
+export async function GET(request: Request) {
+  const supabase = createAdminClient()
+  const { searchParams } = new URL(request.url)
+  const id = Number.parseInt(searchParams.get('id') ?? '')
 
-export async function GET(request : Request){
-    const { searchParams } = new URL(request.url)
-    const id = Number.parseInt(searchParams.get('id'))
+  if (id) {
+    const { data, error } = await supabase
+      .from('Patient')
+      .select('*')
+      .eq('id', id)
+      .single()
 
-    if(id){
-        const Patient = await prisma.patient.findUnique({
-            where: {
-                id: id
-            }
-        })
+    if (error) return Response.json({ error: error.message }, { status: 500 })
+    return Response.json(data)
+  }
 
-        return Response.json(Patient);
-    }
-    
-    const Patients = await prisma.patient.findMany({
-        include: {
-            Appointment: true
-        }
-    });
-    return Response.json(Patients);
+  const { data, error } = await supabase
+    .from('Patient')
+    .select('*, Appointment(*)')
+
+  if (error) return Response.json({ error: error.message }, { status: 500 })
+  return Response.json(data)
 }
 
-export async function POST(req : Request){
+export async function POST(req: Request) {
+  const supabase = createAdminClient()
+  const body = await req.json()
 
-    const body = await req.json();
-    const Patient = await prisma.patient.create({
-        data : {
-            name: body.name,
-            telefono: body.phone,
-            apellido_pat: body.apellidoPat,
-            apellido_mat: body.apellidoMat,
-        }
+  const { data, error } = await supabase
+    .from('Patient')
+    .insert({
+      name: body.name,
+      telefono: body.phone,
+      apellido_pat: body.apellidoPat,
+      apellido_mat: body.apellidoMat,
     })
-    return Response.json(Patient);
+    .select()
+    .single()
+
+  if (error) return Response.json({ error: error.message }, { status: 500 })
+  return Response.json(data)
 }
 
-export async function PUT(req : Request){
+export async function PUT(req: Request) {
+  const supabase = createAdminClient()
+  const { id, name, apellido_pat, apellido_mat, telefono, edad, domicilio, sexo }: Patient = await req.json()
 
-    const {id, name, apellido_pat, apellido_mat, telefono, edad, domicilio, sexo} : Patient = await req.json();
-    //console.log(sexo);
-    const Patient = await prisma.patient.update({
-        where: {
-            id
-        }, 
-        data: {
-            name,
-            apellido_pat,
-            apellido_mat,
-            telefono,
-            edad: Number(edad),
-            domicilio,
-            sexo: sexo,
-        }
-    })
-    return Response.json(Patient);
+  const { data, error } = await supabase
+    .from('Patient')
+    .update({ name, apellido_pat, apellido_mat, telefono, edad: Number(edad), domicilio, sexo })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) return Response.json({ error: error.message }, { status: 500 })
+  return Response.json(data)
 }
 
-export async function DELETE(req : Request){
+export async function DELETE(req: Request) {
+  const supabase = createAdminClient()
+  const body = await req.json()
+  const ids: string[] = body.ids
 
-    const body = await req.json();
-    const Ids = body.ids;
-    console.log(Ids);
-    let Patient;
-    Ids.forEach(async id => {
-        Patient = await prisma.patient.delete({
-            where: {id: parseInt(id)}
-        })
-    });
-    return Response.json({message: "Paciente Borrados"});
+  const { error } = await supabase
+    .from('Patient')
+    .delete()
+    .in('id', ids.map(Number))
+
+  if (error) return Response.json({ error: error.message }, { status: 500 })
+  return Response.json({ message: "Pacientes borrados" })
 }

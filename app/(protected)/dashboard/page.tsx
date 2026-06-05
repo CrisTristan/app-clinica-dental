@@ -1,7 +1,8 @@
 "use client"
 
 import { SignOut } from "@/app/components/signOut"
-import { auth } from "@/auth"
+import { authentication } from "@/app/actions/authentication"
+import { isAdmin } from "@/lib/roles"
 import React, { useEffect, useState } from "react";
 import { FaSearch, FaFilter, FaUserAlt, FaClock, FaChartBar, FaSpinner, FaDollarSign, FaFileInvoiceDollar, FaUsers } from "react-icons/fa";
 import { Line, Pie } from "react-chartjs-2";
@@ -36,11 +37,7 @@ ChartJS.register(
 import { useRouter } from 'next/navigation'
 
 export default function DashboardPage() {
-  // const session = await auth()
-
-  // if (!session) {
-  //   return <div>Not authenticated</div>
-  // }
+  const [canAccess, setCanAccess] = useState(false)
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDate, setFilterDate] = useState<Date>(new Date());
@@ -51,6 +48,12 @@ export default function DashboardPage() {
   const [monthIncome, setMonthIncome] = useState(0);
   const [IncomingPerMonth, setIncomingPerMonth] = useState([0,0,0,0,0,0,0,0,0,0,0,0])
   const router = useRouter();
+
+  useEffect(() => {
+    authentication().then(session => {
+      if (isAdmin(session?.user?.role)) setCanAccess(true)
+    })
+  }, [])
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -260,6 +263,8 @@ export default function DashboardPage() {
         return "bg-gray-200 text-gray-800";
     }
   };
+
+  if (!canAccess) return <p className="p-4">No tienes permiso para acceder a esta página</p>
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">

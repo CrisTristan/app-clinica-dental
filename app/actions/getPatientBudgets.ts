@@ -1,18 +1,20 @@
 "use server"
-import { prisma } from "@/prisma";
 
-export const getPatientBudgets = async (id: number)=>{
+import { createAdminClient } from "@/lib/supabase/admin"
 
-    try {
-        const res = await prisma.patient.findUnique({
-            where: {
-                id: Number(id)
-            },
-        })
+export const getPatientBudgets = async (id: number) => {
+  const supabase = createAdminClient()
 
-        console.log(res);
-        return res;
-    } catch (error) {
-        console.log(error);
-    }   
+  const { data, error } = await supabase
+    .from('Patient')
+    .select('servicios')
+    .eq('id', Number(id))
+    .single()
+
+  if (error) {
+    console.log(error)
+    return null
+  }
+
+  return data
 }
