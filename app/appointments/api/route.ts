@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { dateOnlyToDbStartOfDay } from "@/app/helpers/dateTime"
 
 export async function GET(req: Request) {
   const supabase = createAdminClient()
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
   const { data, error } = await supabase
     .from('Appointment')
     .select('*, name:Patient(*)')
-    .gte('startDate', new Date(startDate).toISOString())
+    .gte('startDate', dateOnlyToDbStartOfDay(startDate))
     .limit(7)
 
   if (error) return new Response('Server error', { status: 500 })
@@ -76,15 +77,17 @@ export async function PUT(req: Request) {
     .eq('telefono', appointment.phone)
     .single()
 
+  const updatePayload: Record<string, unknown> = {}
+
+  if (patient?.id) updatePayload.nameId = patient.id
+  if (appointment.status !== undefined) updatePayload.status = appointment.status
+  if (appointment.description !== undefined) updatePayload.desc = appointment.description
+  if (appointment.startDate !== undefined) updatePayload.startDate = appointment.startDate
+  if (appointment.endDate !== undefined) updatePayload.endDate = appointment.endDate
+
   const { error } = await supabase
     .from('Appointment')
-    .update({
-      nameId: patient?.id,
-      status: appointment.status,
-      desc: appointment.description,
-      startDate: appointment.startDate,
-      endDate: appointment.endDate,
-    })
+    .update(updatePayload)
     .eq('id', appointment.id)
 
   if (error) return new Response('Server error', { status: 500 })
