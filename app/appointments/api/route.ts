@@ -1,153 +1,111 @@
-import { PrismaClient } from '@prisma/client'
-const prisma = new PrismaClient()
+import { createAdminClient } from "@/lib/supabase/admin"
 
-// export async function GET() {
-//     const Appointments = await prisma.appointment.findMany({
-//         include: {
-//             name: true,
-//         }
-//     })
-//     return Response.json(Appointments)
-// }
+export async function GET(req: Request) {
+  const supabase = createAdminClient()
+  const url = new URL(req.url)
+  const startDate = url.searchParams.get('startDate')
 
-export async function GET(req: Request) { 
-    // Parseamos la URL para extraer los parámetros de consulta
-    const url = new URL(req.url);
-    const startDate = url.searchParams.get('startDate');
-    //console.log(startDate);
-    if (!startDate) {
-        const Appointments = await prisma.appointment.findMany({
-                    include: {
-                        name: true,
-                    }
-                })
-                return Response.json(Appointments)
-    }
+  if (!startDate) {
+    const { data, error } = await supabase
+      .from('Appointment')
+      .select('*, name:Patient(*)')
 
-    console.log(startDate);
-    try {
-        const Appointments = await prisma.appointment.findMany({
-            include: { name: true },
-            where: {
-                startDate: {
-                    gte: new Date(startDate)
-                }
-            },
-            take: 7
-        });
-        console.log(Appointments);
-        return Response.json(Appointments);
-    } catch (error) {
-        console.log(error);
-        return new Response('Server error', { status: 500 });
-    }
+    if (error) return new Response('Server error', { status: 500 })
+    return Response.json(data)
+  }
+
+  const { data, error } = await supabase
+    .from('Appointment')
+    .select('*, name:Patient(*)')
+    .gte('startDate', new Date(startDate).toISOString())
+    .limit(7)
+
+  if (error) return new Response('Server error', { status: 500 })
+  return Response.json(data)
 }
 
-
-
 export async function POST(req: Request) {
-    const appointment = await req.json();
+  const supabase = createAdminClient()
+  const appointment = await req.json()
 
-    const patient = await prisma.patient.findUnique({
-        where : { 
-            telefono : appointment.phone
-        },
-        select: {
-            id: true
-        }
+  const { data: patient } = await supabase
+    .from('Patient')
+    .select('id')
+    .eq('telefono', appointment.phone)
+    .single()
+
+  if (patient) {
+    await supabase.from('Appointment').insert({
+      id: appointment.id,
+      nameId: patient.id,
+      desc: appointment.description,
+      startDate: appointment.startDate,
+      endDate: appointment.endDate,
     })
+  } else {
+    const { data: newPatient } = await supabase
+      .from('Patient')
+      .insert({ name: appointment.name, telefono: appointment.phone })
+      .select('id')
+      .single()
 
-    if(patient){
-        await prisma.appointment.create({
-            data: {
-                id: appointment.id,
-                name: {
-                    connect: {
-                      id: patient.id
-                    }
-                },
-                desc : appointment.description,
-                startDate: appointment.startDate,
-                endDate: appointment.endDate
-            },
-        })
-
-        return new Response(JSON.stringify(appointment), {
-            headers: {
-                "Content-Type": "application/json",
-            },
-            status: 201
-        });
-
+    if (newPatient) {
+      await supabase.from('Appointment').insert({
+        id: appointment.id,
+        nameId: newPatient.id,
+        desc: appointment.description,
+        startDate: appointment.startDate,
+        endDate: appointment.endDate,
+      })
     }
+  }
 
-    await prisma.appointment.create({
-        data: {
-            id: appointment.id,
-            name: {
-                create: {
-                  name: appointment.name,
-                  telefono: appointment.phone,
-                }
-            },
-            desc : appointment.description,
-            startDate: appointment.startDate,
-            endDate: appointment.endDate
-        },
-    })
-
-    
-    return new Response(JSON.stringify(appointment), {
-        headers: {
-            "Content-Type": "application/json",
-        },
-        status: 201
-    });
+  return new Response(JSON.stringify(appointment), {
+    headers: { "Content-Type": "application/json" },
+    status: 201,
+  })
 }
 
 export async function PUT(req: Request) {
-    const appointment = await req.json();
-    const id = appointment.id;
+  const supabase = createAdminClient()
+  const appointment = await req.json()
 
-    await prisma.appointment.update({
-        where: {
-          id: id,
-        },
-        data: {
-            name : {
-                connect: {
-                    telefono: appointment.phone
-                }
-            },
-            status: appointment.status,
-            desc : appointment.description,
-            startDate: appointment.startDate,
-            endDate: appointment.endDate
-        },
-      })
-    return new Response(JSON.stringify(appointment), {
-        headers: {
-            "Content-Type": "application/json",
-        },
-        status: 201
-    });
+  const { data: patient } = await supabase
+    .from('Patient')
+    .select('id')
+    .eq('telefono', appointment.phone)
+    .single()
+
+  const { error } = await supabase
+    .from('Appointment')
+    .update({
+      nameId: patient?.id,
+      status: appointment.status,
+      desc: appointment.description,
+      startDate: appointment.startDate,
+      endDate: appointment.endDate,
+    })
+    .eq('id', appointment.id)
+
+  if (error) return new Response('Server error', { status: 500 })
+  return new Response(JSON.stringify(appointment), {
+    headers: { "Content-Type": "application/json" },
+    status: 201,
+  })
 }
 
 export async function DELETE(req: Request) {
-    const body = await req.json();
-    const id = body.id;
+  const supabase = createAdminClient()
+  const body = await req.json()
 
-    await prisma.appointment.delete({
-        where: {
-          id: id,
-        },
-    })
-    return new Response("Registro eliminado", {
-        headers: {
-            "Content-Type": "application/json",
-        },
-        status: 201
-    });
+  const { error } = await supabase
+    .from('Appointment')
+    .delete()
+    .eq('id', body.id)
 
-
+  if (error) return new Response('Server error', { status: 500 })
+  return new Response("Registro eliminado", {
+    headers: { "Content-Type": "application/json" },
+    status: 201,
+  })
 }

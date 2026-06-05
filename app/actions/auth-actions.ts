@@ -1,50 +1,39 @@
 "use server"
 
-import { db } from "@/lib/db"
+import { createClient } from "@/lib/supabase/server"
 import { loginSchema, registerSchema } from "@/lib/zod"
 import { z } from "zod"
-import bcrypt from "bcryptjs"
 
 export const loginAction = async (values: z.infer<typeof loginSchema>) => {
-  const { success } = loginSchema.safeParse(values)
+  const { data, success } = loginSchema.safeParse(values)
+  if (!success) return { error: "Datos inválidos" }
 
-  if (!success) {
-    return { error: "Invalid data" }
-  }
+  const supabase = await createClient()
+  const { error } = await supabase.auth.signInWithPassword({
+    email: data.email,
+    password: data.password,
+  })
 
+  if (error) return { error: error.message }
   return { success: true }
 }
 
 export const registerAction = async (values: z.infer<typeof registerSchema>) => {
-  try {
-    const { data, success } = registerSchema.safeParse(values)
+  const { data, success } = registerSchema.safeParse(values)
+  if (!success) return { error: "Datos inválidos" }
 
-    if (!success) {
-      return { error: "Invalid data" }
-    }
-
-    const user = await db.user.findUnique({
-      where: {
-        email: data.email,
-      },
-    })
-
-    if (user) {
-      return { error: "El usuario ya existe" }
-    }
-
-    const passwordHash = await bcrypt.hash(data.password, 10)
-
-    await db.user.create({
+  const supabase = await createClient()
+  const { error } = await supabase.auth.signUp({
+    email: data.email,
+    password: data.password,
+    options: {
       data: {
-        email: data.email,
         name: data.name,
-        password: passwordHash,
+        role: 'recepcionista',
       },
-    })
+    },
+  })
 
-    return { success: true }
-  } catch {
-    return { error: "error 500" }
-  }
+  if (error) return { error: error.message }
+  return { success: true }
 }

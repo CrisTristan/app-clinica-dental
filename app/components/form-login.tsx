@@ -17,12 +17,11 @@ import { loginAction } from "../actions/auth-actions"
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { loginSchema } from "@/lib/zod"
-import { signIn } from "next-auth/react"
 
 export default function FormLogin({
-  isVerified,
+  isVerified = false,
 }: {
-  isVerified: boolean
+  isVerified?: boolean
 }) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -38,30 +37,12 @@ export default function FormLogin({
 
   async function onSubmit(values: z.infer<typeof loginSchema>) {
     setError(null)
-
     startTransition(async () => {
       const response = await loginAction(values)
-
       if (response.error) {
         setError(response.error)
         return
       }
-
-      const signInResponse = await signIn("credentials", {
-        email: values.email,
-        password: values.password,
-        redirect: false,
-      })
-
-      if (signInResponse?.error) {
-        setError(
-          signInResponse.error === "CredentialsSignin"
-            ? "Credenciales invalidas"
-            : signInResponse.error
-        )
-        return
-      }
-
       router.push("/pacientes")
       router.refresh()
     })

@@ -1,52 +1,43 @@
-import { PrismaClient } from '@prisma/client'
-const prisma = new PrismaClient()
+import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function POST(req: Request) {
-    const confirmation = await req.json();
+  const supabase = createAdminClient()
+  const confirmation = await req.json()
 
-    console.log(confirmation);
+  const { data: patient } = await supabase
+    .from('Patient')
+    .select('*, Appointment(*)')
+    .eq('telefono', confirmation.phoneNumber)
+    .single()
 
-    const patient = await prisma.patient.findUnique({
-        where : { 
-            telefono : confirmation.phoneNumber
-        },
-        include: {
-            Appointment: true
-        }
+  if (!patient) {
+    return new Response(JSON.stringify(null), {
+      headers: { "Content-Type": "application/json" },
+      status: 201,
     })
-    
-    if(patient){
-        // appointment.Appointment.map((appointment)=>{
-        //     console.log(appointment.id);
-        // })
+  }
 
-        console.log(patient.Appointment[patient.Appointment.length- 1].id)
-        const lastAppointmentId=patient.Appointment[patient.Appointment.length- 1].id;
-        try {
-            const changeAppoitmentStatus = await prisma.appointment.update({
-                where: {
-                    id: lastAppointmentId
-                },
-                data: {
-                    status: confirmation.confirmation
-                }
-            })
-            console.log(changeAppoitmentStatus);
-            return new Response(JSON.stringify(changeAppoitmentStatus), {
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                status: 201
-            });
-        } catch (error) {
-            console.log(error);
-        } 
+  const appointments = patient.Appointment as { id: string }[]
+  const lastAppointmentId = appointments[appointments.length - 1]?.id
 
-    }
+  if (!lastAppointmentId) {
     return new Response(JSON.stringify(patient), {
-        headers: {
-            "Content-Type": "application/json",
-        },
-        status: 201
-    });
+      headers: { "Content-Type": "application/json" },
+      status: 201,
+    })
+  }
+
+  const { data: updated, error } = await supabase
+    .from('Appointment')
+    .update({ status: confirmation.confirmation })
+    .eq('id', lastAppointmentId)
+    .select()
+    .single()
+
+  if (error) return new Response('Server error', { status: 500 })
+
+  return new Response(JSON.stringify(updated), {
+    headers: { "Content-Type": "application/json" },
+    status: 201,
+  })
 }

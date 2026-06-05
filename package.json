@@ -4,13 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
     "@aldabil/react-scheduler": "^2.9.5",
-    "@auth/prisma-adapter": "^2.7.1",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
     "@hookform/resolvers": "^3.9.0",
@@ -21,7 +20,8 @@
     "@nextui-org/input": "^2.2.5",
     "@nextui-org/system": "^2.2.6",
     "@nextui-org/theme": "^2.2.11",
-    "@prisma/client": "^5.22.0",
+    "@supabase/ssr": "^0.5.0",
+    "@supabase/supabase-js": "^2.45.0",
     "@radix-ui/react-alert-dialog": "^1.1.2",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-checkbox": "^1.1.2",
@@ -35,7 +35,6 @@
     "@radix-ui/react-toast": "^1.2.2",
     "@syncfusion/ej2-react-grids": "^27.1.48",
     "@syncfusion/ej2-react-schedule": "^27.1.48",
-    "bcryptjs": "^2.4.3",
     "chart.js": "^4.4.4",
     "class-variance-authority": "^0.7.0",
     "cloudinary": "^2.5.1",
@@ -47,7 +46,6 @@
     "lucide-react": "^0.441.0",
     "nanoid": "^5.0.7",
     "next": "16.2.6",
-    "next-auth": "4.24.14",
     "next-cloudinary": "^6.15.0",
     "react": "^19.2.6",
     "react-chartjs-2": "^5.2.0",
@@ -62,14 +60,12 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",
     "eslint-config-next": "16.2.6",
     "postcss": "^8",
-    "prisma": "^5.22.0",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }

@@ -1,72 +1,47 @@
-import { PrismaClient } from "@prisma/client";
+import { createAdminClient } from "@/lib/supabase/admin"
 
-const prisma = new PrismaClient();
+export async function GET(req: Request) {
+  const supabase = createAdminClient()
+  const { searchParams } = new URL(req.url)
+  const id = Number.parseInt(searchParams.get('id') ?? '')
 
-export async function GET(req : Request){
-    const { searchParams } = new URL(req.url)
-    const id = Number.parseInt(searchParams.get('id'))
+  if (!id) return Response.json(null)
 
-    console.log(id);
-    if(id){
-        const teeth = await prisma.teeth.findUnique({
-            where: {
-                nameId: id
-            }
-        })
+  const { data, error } = await supabase
+    .from('Teeth')
+    .select('*')
+    .eq('nameId', id)
+    .single()
 
-        return Response.json(teeth);
-    }
+  if (error && error.code !== 'PGRST116') {
+    return Response.json({ error: error.message }, { status: 500 })
+  }
+
+  return Response.json(data ?? null)
 }
 
-export async function POST(req : Request){
+export async function POST(req: Request) {
+  const supabase = createAdminClient()
+  const { teethState, id } = await req.json()
+  const nameId = Number(id)
 
-    const {teethState, id} = await req.json();
-    //console.log(teethState);
-    console.log(id)
-    let searchForTeeth;
-    try {
-        //buscar si existe el paciente;
-        searchForTeeth = await prisma.teeth.findUnique({
-            where: {
-                nameId: Number(id)
-            }
-        })
+  const { data: existing } = await supabase
+    .from('Teeth')
+    .select('id')
+    .eq('nameId', nameId)
+    .single()
 
-        if(searchForTeeth){
-            await prisma.teeth.update({
-                where: {
-                    nameId: Number(id)
-                },
-                data : {
-                    teethState: teethState
-                }
-            })
-            return Response.json({"teeth updated":searchForTeeth});
-        }
-        
-    } catch (error) {
-        console.log(error);
-        //console.log(`teeth for id ${id} not found`);
-    }
+  if (existing) {
+    const { data } = await supabase
+      .from('Teeth')
+      .update({ teethState })
+      .eq('nameId', nameId)
+      .select()
+      .single()
 
-    try {
-        if(!searchForTeeth){
-        const PatietTeeth = await prisma.teeth.create({
-            data: {
-                teethState: teethState,
-                name : {
-                    connect: {
-                        id: Number(id)
-                    }
-                } 
-            }
-        })
+    return Response.json({ "teeth updated": data })
+  }
 
-        console.log(PatietTeeth);
-        }
-    } catch (error) {
-        console.log(error);
-    }
-
-    return Response.json("Saving Teeth");
+  await supabase.from('Teeth').insert({ teethState, nameId })
+  return Response.json("Saving Teeth")
 }

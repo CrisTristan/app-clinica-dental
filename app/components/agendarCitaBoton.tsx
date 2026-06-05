@@ -1,31 +1,22 @@
 "use client"
 
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
+import Image from "next/image"
 import WhatsappIcon from "../images/WhatsappIcon.png"
-export default function AgendarCitaBoton() {
-  const phoneNumber = ""; // Número de WhatsApp con el prefijo internacional
-  const message = "¡Hola! Me gustaría agendar una cita."; // Mensaje predefinido
 
-  const router = useRouter();
-  // Crear URL de WhatsApp con el número y el mensaje
-  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+export default function AgendarCitaBoton() {
+  const phoneNumber = "529981234567" // Cambiar por el número real
+  const message = "¡Hola! Me gustaría agendar una cita."
+  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
 
   return (
-    <Button
-      onClick={() => {
-        return;
-        router.push(whatsappUrl)
-      }}
-      className="fixed bottom-4 right-4 bg-green-500 hover:bg-green-600 text-white p-6 rounded-full shadow-lg transition transform hover:scale-150 z-50"
+    <a
+      href={whatsappUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="fixed bottom-6 right-6 bg-green-500 hover:bg-green-600 text-white p-4 rounded-full shadow-xl transition-transform hover:scale-110 z-50 flex items-center justify-center"
+      aria-label="Agendar cita por WhatsApp"
     >
-      <Image
-        src={WhatsappIcon}
-        width={50}
-        height={50}
-        alt="whatsapp"
-      />
-    </Button>
-  );
+      <Image src={WhatsappIcon} width={36} height={36} alt="WhatsApp" />
+    </a>
+  )
 }
