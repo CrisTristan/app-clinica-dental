@@ -41,12 +41,12 @@ const services = [
 
 const Services = () => {
   return (
-    <section className="py-16 bg-gray-50">
+    <section className="py-16 bg-gray-50 dark:bg-slate-800">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <span className="text-blue-600 font-semibold text-sm uppercase tracking-widest">Lo que ofrecemos</span>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mt-2">Nuestros Servicios</h2>
-          <p className="text-gray-500 mt-3 max-w-xl mx-auto">
+          <span className="text-blue-600 dark:text-sky-400 font-semibold text-sm uppercase tracking-widest">Lo que ofrecemos</span>
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-slate-100 mt-2">Nuestros Servicios</h2>
+          <p className="text-gray-500 dark:text-slate-400 mt-3 max-w-xl mx-auto">
             Contamos con una amplia gama de tratamientos para cuidar tu salud bucal en todas las etapas de tu vida.
           </p>
         </div>
@@ -55,7 +55,7 @@ const Services = () => {
           {services.map((service, index) => (
             <div
               key={index}
-              className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 group"
+              className="bg-white dark:bg-slate-700 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 dark:border-slate-600 group"
             >
               <div className="relative h-44 overflow-hidden">
                 <Image
@@ -68,8 +68,8 @@ const Services = () => {
                 <span className="absolute bottom-3 left-3 text-2xl">{service.icon}</span>
               </div>
               <div className="p-5">
-                <h3 className="text-lg font-semibold text-gray-800">{service.name}</h3>
-                <p className="text-sm text-gray-500 mt-1 leading-relaxed">{service.desc}</p>
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100">{service.name}</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-1 leading-relaxed">{service.desc}</p>
               </div>
             </div>
           ))}

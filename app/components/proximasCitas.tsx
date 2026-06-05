@@ -1,35 +1,34 @@
+"use client"
+
 import { useEffect, useState } from "react"
-import CitasDentales from "./CitasDentales";
+import CitasDentales from "./CitasDentales"
 
-export default function ProximasCitas(){
+export default function ProximasCitas() {
+  const [appointments, setAppointments] = useState([])
+  const [loading, setLoading] = useState(true)
 
-    const [appointments, setAppointments] = useState([]);
+  useEffect(() => {
+    const fetch_ = async () => {
+      try {
+        const today = new Date().toISOString().split("T")[0]
+        const res   = await fetch(`/appointments/api?startDate=${today}`)
+        const data  = await res.json()
+        setAppointments(data)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetch_()
+  }, [])
 
-    useEffect(()=>{
-        const fetchAppointments = async ()=>{
-            try {
-            const today = new Date();
-            const formattedDate = today.toISOString().split('T')[0];
-            console.log(formattedDate);
-            const data = await fetch(`/appointments/api?startDate=${formattedDate}`);
-            const appointments = await data.json();
-            console.log(appointments)
-            setAppointments(appointments)
-            } catch (error) {
-                console.log(error)
-            }  
-        }
-        
-        if(appointments){
-            console.log(appointments);
-        }
-        fetchAppointments()
-    }, [])
-
+  if (loading)
     return (
-        <div>
-            <h1>Solo se Muestran Citas del Dia de hoy en adelante</h1>
-             <CitasDentales citas={appointments}/>
-        </div>
+      <div className="flex items-center justify-center py-24">
+        <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+      </div>
     )
+
+  return <CitasDentales citas={appointments} />
 }

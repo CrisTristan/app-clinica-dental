@@ -3,170 +3,102 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-
 import { toast } from "@/hooks/use-toast"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
+import { Form, FormField, FormItem, FormMessage } from "@/components/ui/form"
 import { useEffect } from "react"
+import { Check } from "lucide-react"
 
 const items = [
-  {
-    id: "emergencia",
-    label: "Emergencia",
-  },
-  {
-    id: "revisión",
-    label: "Revisión",
-  },
-  {
-    id: "lesion caries",
-    label: "Lesión Caries",
-  },
-  {
-    id: "odontoxsesis",
-    label: "Odontoxsesis",
-  },
-  {
-    id: "puente",
-    label: "Puente",
-  },
-  {
-    id: "prostodoncia",
-    label: "Prostodoncia",
-  },
-  {
-    id: "extracción",
-    label: "Extracción",
-  },
-  {
-    id: "amalgamas",
-    label: "Amalgamas",
-  },
+  { id: "emergencia",    label: "Emergencia"    },
+  { id: "revisión",      label: "Revisión"      },
+  { id: "lesion caries", label: "Lesión Caries" },
+  { id: "odontoxsesis",  label: "Odontoxsesis"  },
+  { id: "puente",        label: "Puente"        },
+  { id: "prostodoncia",  label: "Prostodoncia"  },
+  { id: "extracción",    label: "Extracción"    },
+  { id: "amalgamas",     label: "Amalgamas"     },
 ] as const
 
-const FormSchema = z.object({
-  items: z.array(z.string()),
-})
+const FormSchema = z.object({ items: z.array(z.string()) })
 
-export default function MotivoConsulta({id}: {id: string | null}) {
+export default function MotivoConsulta({ id }: { id: string | null }) {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
-    defaultValues: {
-      items: [],
-    },
+    defaultValues: { items: [] },
   })
 
-  useEffect(()=>{
-    const fetchData = async ()=>{
-      if (id) {
-        try {
-            const response = await fetch(`/DentalData/api?id=${id}`);
-            if (!response.ok) {
-                throw new Error('Error en la solicitud');
-            }
-            const data = await response.json();
-            //console.log(data);
-            // console.log(data.blandos)
-            form.reset(data.motivoConsulta)
-        } catch (error) {
-            console.log(error);
-        }
-    }
-    }
-    
-    fetchData();
-  },[]);
+  useEffect(() => {
+    if (!id) return
+    fetch(`/DentalData/api?id=${id}`)
+      .then(r => r.json())
+      .then(data => { if (data?.motivoConsulta) form.reset(data.motivoConsulta) })
+      .catch(console.error)
+  }, [])
 
   function onSubmit(data: z.infer<typeof FormSchema>) {
-    
-    fetch('/DentalData/api', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        // Datos que enviarás en el cuerpo de la solicitud
-        motivoConsulta: data,
-        id: id
-      })
+    fetch("/DentalData/api", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ motivoConsulta: data, id }),
     })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Error en la solicitud');
-      }
-
-      toast({
-        title: "Se han guardado los datos",
-        description: (
-          <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-            <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-          </pre>
-        ),
-      })
-
-      return response.json();
-    }).catch(error => {
-      console.log(error);
-    })
+      .then(r => { if (!r.ok) throw new Error(); return r.json() })
+      .then(() => toast({ title: "Motivo de consulta guardado" }))
+      .catch(() => toast({ title: "Error al guardar", variant: "destructive" }))
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 text-center">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="items"
           render={() => (
             <FormItem>
-              <div className="mb-4">
-              </div>
-              {items.map((item, index) => (
-                <FormField
-                  key={item.id}
-                  control={form.control}
-                  name="items"
-                  render={({ field }) => {
-                    return (
-                      <FormItem
-                        key={item.id}
-                        className="flex flex-row space-y-3 space-x-0"
-                      >
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value?.includes(item.id)}
-                            onCheckedChange={(checked) => {
-                              return checked
-                                ? field.onChange([...field.value, item.id])
-                                : field.onChange(
-                                    field.value?.filter(
-                                      (value) => value !== item.id
-                                    )
-                                  )
-                            }}
-                          />
-                        </FormControl>
-                        <FormLabel className="font-normal">
+              <div className="flex flex-wrap gap-2">
+                {items.map(item => (
+                  <FormField
+                    key={item.id}
+                    control={form.control}
+                    name="items"
+                    render={({ field }) => {
+                      const active = field.value?.includes(item.id)
+                      return (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            field.onChange(
+                              active
+                                ? field.value.filter(v => v !== item.id)
+                                : [...field.value, item.id]
+                            )
+                          }
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all select-none
+                            ${active
+                              ? "bg-sky-500 dark:bg-sky-600 text-white border-sky-500 shadow-sm"
+                              : "bg-white dark:bg-slate-700 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-600 hover:border-sky-400 dark:hover:border-sky-500 hover:text-sky-600 dark:hover:text-sky-400"
+                            }`}
+                        >
+                          {active && <Check className="w-3 h-3" />}
                           {item.label}
-                        </FormLabel>
-                      </FormItem>
-                    )
-                  }}
-                />
-              ))}
+                        </button>
+                      )
+                    }}
+                  />
+                ))}
+              </div>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit">Submit</Button>
+
+        <button
+          type="submit"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white
+                     bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600
+                     rounded-xl shadow-sm transition-all"
+        >
+          Guardar
+        </button>
       </form>
     </Form>
   )

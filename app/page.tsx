@@ -18,22 +18,22 @@ export default function Home() {
       <AutoCarrousel />
 
       {/* Quiénes somos */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-white dark:bg-slate-900">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center gap-10">
             <div className="flex-1">
-              <span className="text-blue-600 font-semibold text-sm uppercase tracking-widest">Sobre nosotros</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mt-2 mb-4">
+              <span className="text-blue-600 dark:text-sky-400 font-semibold text-sm uppercase tracking-widest">Sobre nosotros</span>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-slate-100 mt-2 mb-4">
                 Más que una clínica, tu aliado para sonreír
               </h2>
-              <p className="text-gray-500 leading-relaxed">
+              <p className="text-gray-500 dark:text-slate-400 leading-relaxed">
                 En Grupo Peninsular somos especialistas altamente capacitados que combinan experiencia,
                 tecnología de vanguardia y un enfoque humano para brindarte una atención integral y
                 personalizada. Tu salud bucal es nuestra prioridad.
               </p>
               <a
                 href="#servicios"
-                className="inline-block mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-full transition"
+                className="inline-block mt-6 bg-blue-600 hover:bg-blue-700 dark:bg-sky-500 dark:hover:bg-sky-600 text-white font-semibold px-6 py-3 rounded-full transition"
               >
                 Ver servicios
               </a>
@@ -50,7 +50,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats */}
+      {/* Stats — el gradiente funciona bien en ambos modos */}
       <section className="bg-gradient-to-r from-blue-600 to-teal-500 py-12">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center text-white">
@@ -73,10 +73,10 @@ export default function Home() {
       <Testimonios />
 
       {/* CTA final */}
-      <section className="py-16 bg-blue-50">
+      <section className="py-16 bg-blue-50 dark:bg-slate-800">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800">¿Listo para tu primera visita?</h2>
-          <p className="text-gray-500 mt-3 max-w-lg mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-slate-100">¿Listo para tu primera visita?</h2>
+          <p className="text-gray-500 dark:text-slate-400 mt-3 max-w-lg mx-auto">
             Agenda tu cita hoy mismo. Nuestro equipo está listo para atenderte.
           </p>
           <a
@@ -90,8 +90,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-800 text-white pt-10 pb-6">
+      {/* Footer — ya tiene fondo oscuro, se adapta bien a ambos modos */}
+      <footer className="bg-gray-800 dark:bg-slate-950 text-white pt-10 pb-6">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row gap-8 mb-8">
             <div className="flex-1">
@@ -118,7 +118,7 @@ export default function Home() {
               />
             </div>
           </div>
-          <div className="border-t border-gray-700 pt-4 text-center text-gray-500 text-sm">
+          <div className="border-t border-gray-700 dark:border-slate-800 pt-4 text-center text-gray-500 text-sm">
             © {new Date().getFullYear()} Odontología Cosmética Integral. Todos los derechos reservados.
           </div>
         </div>

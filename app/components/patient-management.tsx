@@ -1,408 +1,441 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Users, Calendar, FileText, Menu, Plus, Search, ChartColumnBig, LayoutDashboard, ListPlus } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table"
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Users, Calendar, FileText, Plus, Search,
+  ChevronRight, X,
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { Patient } from '../types/types'
 import DeleteButtonNotify from './deleteButtonNotify'
 import AdministradorAnuncios from './AdministradorAnuncios'
 import ProximasCitas from './proximasCitas'
-import IncomeExpenseChart from './incomeExpenseChart'
 
+/* ── Helpers ── */
+function initials(name: string, ap?: string) {
+  return `${name?.[0] ?? ""}${ap?.[0] ?? ""}`.toUpperCase() || "?"
+}
+
+function fmt(date?: string) {
+  if (!date) return "—"
+  return new Date(date).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })
+}
+
+/* ── Nav items ── */
+const NAV = [
+  { id: "Pacientes",      label: "Pacientes",      icon: Users    },
+  { id: "Proximas Citas", label: "Próximas Citas", icon: Calendar },
+  { id: "Anuncios",       label: "Anuncios",       icon: FileText },
+]
+
+/* ── Sidebar item ── */
+function SidebarItem({
+  item, active, onClick,
+}: {
+  item: typeof NAV[0]; active: boolean; onClick: () => void
+}) {
+  const Icon = item.icon
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
+        ${active
+          ? "bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-sm"
+          : "text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-gray-800 dark:hover:text-slate-100"
+        }`}
+    >
+      <Icon className="w-4 h-4 shrink-0" />
+      <span className="flex-1 text-left">{item.label}</span>
+      {active && <ChevronRight className="w-3.5 h-3.5 opacity-70" />}
+    </button>
+  )
+}
 
 export default function PatientManagement() {
-  const [checkedItems, setCheckedItems] = useState<string[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([])
+  const [patients,     setPatients]     = useState<Patient[]>([])
+  const [currentPage,  setCurrentPage]  = useState("Pacientes")
+  const [searchTerm,   setSearchTerm]   = useState("")
+  const [checkedItems, setCheckedItems] = useState<string[]>([])
+  const [sidebarOpen,  setSidebarOpen]  = useState(false)
+  const [dialogOpen,   setDialogOpen]   = useState(false)
 
-  useEffect(() => {
-    console.log(patients)
-  }, [patients])
+  const [newPatient, setNewPatient] = useState({
+    name: "", telefono: "998", apellido_pat: "", apellido_mat: "",
+  })
+  const [errorName,  setErrorName]  = useState("")
+  const [errorPhone, setErrorPhone] = useState("")
+  const [errorSave,  setErrorSave]  = useState(false)
 
-  useEffect(() => {
-    const getAllPatients = () => {
-      const response = fetch('/patients/api')
-      response.then(data => {
-        return data.json()
-      })
-        .then(patients => {
-          console.log(patients)
-          setPatients(patients)
-        })
-        .catch(error => {
-          console.log(error)
-        })
-    }
-
-    getAllPatients()
-  }, []);
-
-  const [currentPage, setCurrentPage] = useState('Pacientes')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [newPatient, setNewPatient] = useState(false);
-
-  const [patient, setPatient] = useState({ name: '', telefono: '998', apellido_pat: '', apellido_mat: '' })
-  const [errorPhone, setErrorPhone] = useState("");
-  const [errorName, setErrorName] = useState("");
-  const [errorOnSavePatient, setErrorOnSavePatient] = useState(false)
-  const [viewMenu, setViewMenu] = useState(false);
   const router = useRouter()
 
+  /* ── Fetch patients ── */
+  useEffect(() => {
+    fetch("/patients/api")
+      .then(r => r.json())
+      .then(setPatients)
+      .catch(console.error)
+  }, [])
 
-  const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, checked } = event.target;
-    console.log(id, checked)
-    if (checked) {
-      setCheckedItems((prevItems) => [...prevItems, id]); // Agregar id si está marcado
-    } else {
-      setCheckedItems((prevItems) => prevItems.filter((item) => item !== id)); // Remover id si está desmarcado
-    }
 
-  };
-
-  const handleDeletePatient = async () => {
-    console.log(checkedItems);
-    try {
-      const response = await fetch('/patients/api', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ ids: checkedItems })
-      });
-      if (!response.ok) throw new Error('Error en la solicitud');
-
-      //const data = await response.json();
-      //console.log('Respuesta:', data);
-
-      setCheckedItems([]); // Limpiar los seleccionados
-      const updatedPatients = patients.filter(
-        (patient) => !checkedItems.map(Number).includes(patient.id)
-      );
-
-      setPatients(updatedPatients); // Actualiza la lista sin hacer refresh
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setPatient((prevPatient) => ({
-      ...prevPatient,
-      [name]: value,
-    }));
-
-    if (name === 'name' && !(/^[A-Za-z]+ ?[A-Za-z]+$/.test(value))) {
-      setErrorName('Solo se permiten letras y un espacio');
-    } else {
-      setErrorName('');
-    }
-
-    // Valida el campo y establece el error si es necesario
-    if (name === 'telefono' && !/^\d+$/.test(value)) {
-      setErrorPhone('El número de teléfono solo debe contener dígitos.');
-    } else {
-      setErrorPhone('');
-    }
-  };
-
-  const navItems = [
-    { name: 'Pacientes', icon: <Users className="mr-2 h-4 w-4" /> },
-    { name: 'Proximas Citas', icon: <Calendar className="mr-2 h-4 w-4" /> },
-    { name: 'Anuncios', icon: <FileText className="mr-2 h-4 w-4" /> },
-    { name: 'ServiciosActivos', icon: <ListPlus className="mr-2 h-4 w-4" /> },
-    { name: 'Panel de Control', icon: <LayoutDashboard className='mr-2 h-4 w-4' /> }
-  ]
-
-  /*const patients = [
-    { id: 1, name: 'Ana Martínez', phone: '123-456-7890', lastVisit: '2023-05-15', nextAppointment: '2023-06-20' },
-    { id: 2, name: 'Carlos Rodríguez', phone: '098-765-4321', lastVisit: '2023-04-30', nextAppointment: '2023-06-15' },
-    { id: 3, name: 'Elena Gómez', phone: '555-555-5555', lastVisit: '2023-05-10', nextAppointment: '2023-07-01' },
-    { id: 4, name: 'David Torres', phone: '333-333-3333',  lastVisit: '2023-05-20', nextAppointment: '2023-06-25' },
-    { id: 5, name: 'Laura Sánchez', phone: '444-444-4444',  lastVisit: '2023-05-05', nextAppointment: '2023-06-18' },
-  ]*/
-
-  const filteredPatients = patients.filter(patient =>
-    patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.telefono.includes(searchTerm) /*||
-    patient.email.toLowerCase().includes(searchTerm.toLowerCase())*/
+  const filteredPatients = patients.filter(p =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.telefono.includes(searchTerm)
   )
 
-  const handlePatientClick = (patientId: number, patientName: string) => {
-    router.push(`/pacientes/${encodeURIComponent(patientId)}/?id=${patientId}&name=${patientName}`)
+  const handleCheckbox = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, checked } = e.target
+    setCheckedItems(prev => checked ? [...prev, id] : prev.filter(i => i !== id))
   }
 
-  const handleNewPatient = () => {
-    console.log(checkedItems);
-    setNewPatient(true);
-    setCheckedItems([]);
+  const handleDelete = async () => {
+    try {
+      const res = await fetch("/patients/api", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: checkedItems }),
+      })
+      if (!res.ok) throw new Error()
+      setPatients(prev => prev.filter(p => !checkedItems.map(Number).includes(p.id)))
+      setCheckedItems([])
+    } catch { console.error("Error al eliminar") }
   }
 
-  const handleSavePatient = () => {  //Logica para guardar el paciente en la BD
-    console.log("Nombre:", patient.name);
-    console.log("Teléfono:", patient.telefono);
-    if (errorName.length > 0 || errorPhone.length > 0) {
-      return;
+  const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setNewPatient(prev => ({ ...prev, [name]: value }))
+    if (name === "name") {
+      setErrorName(/^[A-Za-záéíóúÁÉÍÓÚñÑ]+ ?[A-Za-záéíóúÁÉÍÓÚñÑ]+$/.test(value) ? "" : "Solo letras y un espacio")
     }
-
-    if (patient.telefono.length < 10) {
-      setErrorPhone("Numero de telefono de 10 digitos")
-      return;
+    if (name === "telefono") {
+      setErrorPhone(/^\d+$/.test(value) ? "" : "Solo dígitos")
     }
+  }
 
-    fetch('/patients/api', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+  const handleSave = () => {
+    if (errorName || errorPhone) return
+    if (newPatient.telefono.length < 10) { setErrorPhone("10 dígitos requeridos"); return }
+
+    fetch("/patients/api", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        // Datos que enviarás en el cuerpo de la solicitud
-        name: patient.name,
-        phone: patient.telefono,
-        apellidoPat: patient.apellido_pat,
-        apellidoMat: patient.apellido_mat
-      })
+        name: newPatient.name,
+        phone: newPatient.telefono,
+        apellidoPat: newPatient.apellido_pat,
+        apellidoMat: newPatient.apellido_mat,
+      }),
     })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Error en la solicitud');
-        }
-        return response.json();
+      .then(r => { if (!r.ok) throw new Error(); return r.json() })
+      .then(() => {
+        setDialogOpen(false)
+        setErrorSave(false)
+        setNewPatient({ name: "", telefono: "998", apellido_pat: "", apellido_mat: "" })
+        location.reload()
       })
-      .then(data => {
-        console.log('Respuesta:', data);
-        setPatients(prev => [...prev, { ...patient }])
-        setNewPatient(false)
-        setErrorOnSavePatient(false)
-        location.reload();
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        setErrorOnSavePatient(true)
-      });
-    //setPatient({name: '', telefono: '998', apellido_pat: '', apellido_mat: ''})
-    console.log(patients);
-
+      .catch(() => setErrorSave(true))
   }
+
+  const activeLabel = NAV.find(n => n.id === currentPage)?.label ?? currentPage
+
+  /* ── Sidebar content (shared between desktop & mobile) ── */
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full">
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 px-3 py-5 mb-2">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500 to-cyan-500 grid place-items-center shrink-0 overflow-hidden">
+          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 1C9.6 1 7.5 2.3 6.3 4.2 5.4 3.8 4.5 3.5 3.5 3.5 1.6 3.5 0 5.1 0 7c0 1.6 1 3 2.5 3.5.1 1.5.4 3 1 4.4.8 2.3 1.9 4.4 2.6 6.4.5 1.3 1.6 2.2 2.9 2.2s2.4-1 2.9-2.2l.5-1.7c.3-1 .5-1.5.6-1.5s.3.5.6 1.5l.5 1.7c.5 1.3 1.6 2.2 2.9 2.2s2.4-1 2.9-2.2c.7-2 1.8-4.1 2.6-6.4.6-1.4.9-2.9 1-4.4C23 9.9 24 8.6 24 7c0-1.9-1.6-3.5-3.5-3.5-1 0-1.9.3-2.8.7C16.5 2.3 14.4 1 12 1z" />
+          </svg>
+        </div>
+        <div className="leading-tight">
+          <span className="block text-sm font-bold text-gray-800 dark:text-slate-100">Clínica Dental</span>
+          <span className="block text-[10px] text-gray-400 dark:text-slate-500">Panel Admin</span>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 space-y-1 px-2">
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-slate-600 uppercase tracking-widest px-3 mb-2">Módulos</p>
+        {NAV.map(item => (
+          <SidebarItem
+            key={item.id}
+            item={item}
+            active={currentPage === item.id}
+            onClick={() => { setCurrentPage(item.id); setSidebarOpen(false) }}
+          />
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="px-3 py-4 border-t border-gray-100 dark:border-slate-700">
+        <p className="text-[10px] text-gray-400 dark:text-slate-600 text-center">
+          © {new Date().getFullYear()} Clínica Dental
+        </p>
+      </div>
+    </div>
+  )
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <aside className="bg-white w-64 hidden md:block p-4 border-r">
-        <div className="text-2xl font-bold mb-6 text-primary">Clínica Dental</div>
-        <nav>
-          <ul>
-            {navItems.map((item) => (
-              <li key={item.name} className="mb-2">
-                <Button
-                  variant={currentPage === item.name ? "default" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setCurrentPage(item.name)}
-                >
-                  {item.icon}
-                  {item.name}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </nav>
+    <div className="flex h-screen bg-gray-50 dark:bg-slate-900 overflow-hidden">
+
+      {/* ── Desktop sidebar ── */}
+      <aside className="hidden md:flex flex-col w-60 bg-white dark:bg-slate-800 border-r border-gray-100 dark:border-slate-700 shadow-sm shrink-0">
+        <SidebarContent />
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 p-8 overflow-auto">
-        <div className="max-w-6xl mx-auto">
-          <header className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold">{currentPage}</h1>
-            <Button variant="outline" className="md:hidden" onClick={() => setViewMenu(prev => !prev)}>
-              <Menu className="h-4 w-4" />
-            </Button>
-            <div className={`${viewMenu ? "" : "hidden"} md:hiden`}>
-              {navItems.map((item) => (
-                <li key={item.name} className="mb-2">
-                  <Button
-                    variant={currentPage === item.name ? "default" : "ghost"}
-                    className="w-full justify-start"
-                    onClick={() => setCurrentPage(item.name)}
-                  >
-                    {item.icon}
-                    {item.name}
-                  </Button>
-                </li>
-              ))}
-            </div>
-          </header>
+      {/* ── Mobile sidebar overlay ── */}
+      {sidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-40 flex">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+          <aside className="relative z-50 flex flex-col w-64 bg-white dark:bg-slate-800 shadow-xl">
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <SidebarContent />
+          </aside>
+        </div>
+      )}
 
-          {currentPage === 'Pacientes' && (
-            <>
-              <div className="flex justify-between items-center mb-6">
-                <div className="relative w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
+      {/* ── Main content ── */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+
+        {/* Top bar */}
+        <div className="bg-white dark:bg-slate-800 border-b border-gray-100 dark:border-slate-700 px-6 py-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              className="md:hidden p-1.5 rounded-lg text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div>
+              <h1 className="text-lg font-bold text-gray-800 dark:text-slate-100">{activeLabel}</h1>
+              <p className="text-xs text-gray-400 dark:text-slate-500">
+                {currentPage === "Pacientes"
+                  ? `${filteredPatients.length} paciente${filteredPatients.length !== 1 ? "s" : ""}`
+                  : "Panel de administración"}
+              </p>
+            </div>
+          </div>
+
+          {/* Badge de módulo activo */}
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 border border-sky-200 dark:border-sky-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+            Administrador
+          </span>
+        </div>
+
+        {/* Content area */}
+        <div className="flex-1 overflow-auto p-6">
+
+          {/* ── Pacientes ── */}
+          {currentPage === "Pacientes" && (
+            <div className="space-y-4">
+
+              {/* Actions bar */}
+              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
+                  <input
                     type="text"
-                    placeholder="Buscar pacientes..."
-                    className="pl-8"
+                    placeholder="Buscar por nombre o teléfono…"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 h-10 text-sm rounded-xl border border-gray-200 dark:border-slate-600
+                               bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100
+                               placeholder:text-gray-400 dark:placeholder:text-slate-500
+                               focus:outline-none focus:ring-2 focus:ring-sky-400 transition-colors"
                   />
                 </div>
-
-                <div className='flex space-x-4'>
-                  {checkedItems.length > 0 && (<DeleteButtonNotify onDelete={handleDeletePatient} text='Eliminar Pacientes' size='lg' />)}
-                  <Dialog open={newPatient} onOpenChange={setNewPatient}>
+                <div className="flex items-center gap-2 shrink-0">
+                  {checkedItems.length > 0 && (
+                    <DeleteButtonNotify onDelete={handleDelete} text="Eliminar" size="default" />
+                  )}
+                  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button onClick={handleNewPatient}>
-                        <Plus className="mr-2 h-4 w-4" /> Nuevo Paciente
-                      </Button>
+                      <button
+                        onClick={() => { setDialogOpen(true); setCheckedItems([]) }}
+                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white
+                                   bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600
+                                   rounded-xl shadow-sm transition-all"
+                      >
+                        <Plus className="w-4 h-4" /> Nuevo Paciente
+                      </button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
+                    <DialogContent className="sm:max-w-[420px] bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700">
                       <DialogHeader>
-                        <DialogTitle>Crear Paciente</DialogTitle>
-                        <DialogDescription>
-                          Crea un nuevo Paciente.
+                        <DialogTitle className="text-gray-800 dark:text-slate-100">Nuevo Paciente</DialogTitle>
+                        <DialogDescription className="text-gray-400 dark:text-slate-500">
+                          Completa los datos para registrar al paciente.
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="nombre" className="text-right">
-                            Nombre
-                          </Label>
-                          <Input
-                            name='name'
-                            value={patient.name}
-                            onChange={handleChange}
-                            required={true}
-                            className="col-span-3"
-                          />
-                          {errorName && <p className="text-red-500 text-sm">{errorName}</p>}
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="nombre" className="text-right">
-                            Apellido Paterno
-                          </Label>
-                          <Input
-                            name='apellido_pat'
-                            value={patient.apellido_pat}
-                            onChange={handleChange}
-                            required={false}
-                            className="col-span-3"
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="nombre" className="text-right">
-                            Apellido Paterno
-                          </Label>
-                          <Input
-                            name='apellido_mat'
-                            value={patient.apellido_mat}
-                            onChange={handleChange}
-                            required={false}
-                            className="col-span-3"
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="telefono" className="text-right">
-                            Telefono
-                          </Label>
-                          <Input
-                            name='telefono'
-                            value={patient.telefono}
-                            onChange={handleChange}
-                            className="col-span-3"
-                          />
-                        </div>
-                        {errorPhone && <p className="text-red-500 text-sm">{errorPhone}</p>}
+                      <div className="space-y-3 py-2">
+                        {[
+                          { label: "Nombre",           field: "name",         ph: "Nombre(s)" },
+                          { label: "Apellido Paterno", field: "apellido_pat", ph: "Apellido paterno" },
+                          { label: "Apellido Materno", field: "apellido_mat", ph: "Apellido materno" },
+                          { label: "Teléfono",         field: "telefono",     ph: "10 dígitos" },
+                        ].map(({ label, field, ph }) => (
+                          <div key={field} className="space-y-1">
+                            <Label className="text-xs font-medium text-gray-600 dark:text-slate-300">{label}</Label>
+                            <Input
+                              name={field}
+                              value={newPatient[field as keyof typeof newPatient]}
+                              onChange={handleFieldChange}
+                              placeholder={ph}
+                              className="h-9"
+                            />
+                            {field === "name"     && errorName  && <p className="text-xs text-red-500">{errorName}</p>}
+                            {field === "telefono" && errorPhone && <p className="text-xs text-red-500">{errorPhone}</p>}
+                          </div>
+                        ))}
+                        {errorSave && (
+                          <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg border border-red-200 dark:border-red-800">
+                            El teléfono {newPatient.telefono} ya existe en el sistema.
+                          </p>
+                        )}
                       </div>
                       <DialogFooter>
-                        {errorOnSavePatient && <p className="text-red-500 text-sm">{`El paciente ${patient.name} ${patient.apellido_pat} no fue guardado debido a que el numero ${patient.telefono} ya existe`}</p>}
-                        <Button type="submit" onClick={handleSavePatient}>Guardar</Button>
+                        <button
+                          onClick={() => setDialogOpen(false)}
+                          className="px-4 py-2 text-sm text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={handleSave}
+                          className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 rounded-lg shadow-sm transition-all"
+                        >
+                          Guardar
+                        </button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
                 </div>
               </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead></TableHead>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Teléfono</TableHead>
-                    <TableHead>Última Visita</TableHead>
-                    <TableHead>Próxima Cita</TableHead>
-                    <TableHead>Servicios por Pagar</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className=''>
-                  {filteredPatients.map(({ id, name, apellido_pat, apellido_mat, telefono, Appointment, servicios }) => {
 
-                    const fechaHoy = new Date();
-                    // console.log(patient.Appointment)
-                    const ultimaVisita = Appointment?.filter((appointment) => {
-                      const fechaCita = new Date(appointment.startDate);
-                      return fechaCita < fechaHoy;
-                    });
-                    //console.log(ultimaVisita);
-                    const proximaCita = Appointment?.filter((appointment) => {
-                      const fechaCita = new Date(appointment.startDate);
-                      return fechaCita > fechaHoy;
-                    });
-                    console.log(proximaCita);
-                    return (
-                      <TableRow
-                        key={id}
-                        className="cursor-pointer border-b border-gray-200 size-10 hover:bg-gray-500 text-md"
-                      >
-                        <TableCell>
-                          <input id={"" + id} onChange={handleCheckboxChange} type='checkbox' className='size-7' />
+              {/* Table */}
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                      <TableHead className="w-10" />
+                      <TableHead className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Paciente</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Teléfono</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Última Visita</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Próxima Cita</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide text-center">Servicios</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPatients.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-16 text-gray-400 dark:text-slate-500">
+                          {searchTerm ? `Sin resultados para "${searchTerm}"` : "No hay pacientes registrados"}
                         </TableCell>
-                        <TableCell onClick={() => handlePatientClick(id, name)} className="font-medium bg-cyan-500">{`${name} ${apellido_pat == null ? "" : apellido_pat} ${apellido_mat == null ? "" : apellido_mat}`}</TableCell>
-                        <TableCell onClick={() => handlePatientClick(id, name)} >{`${telefono}`}</TableCell>
-                        <TableCell onClick={() => handlePatientClick(id, name)} >{ultimaVisita[ultimaVisita.length - 1]?.startDate?.split("T")[0]}</TableCell>
-                        <TableCell onClick={() => handlePatientClick(id, name)} >{proximaCita[proximaCita.length -1 ]?.startDate?.split("T")[0]}</TableCell>
-                        <TableCell>{servicios?.length}</TableCell>
                       </TableRow>
-                    )
-                  }
-                  )}
-                </TableBody>
-              </Table>
-            </>
-          )}
-          {
-            currentPage === 'Anuncios' && (<AdministradorAnuncios />)
-          }
-          {
-            currentPage === 'Proximas Citas' && (<ProximasCitas />)
-          }
-          {
-            currentPage === 'ServiciosActivos' ? router.push("/servicios-activos") : (<></>)
-          }
-          {
-            currentPage === 'Panel de Control' ? router.push("/dashboard") : (<></>)
-          }
-          {currentPage !== 'Pacientes' && (
-            <p className="text-gray-500">Contenido de {currentPage} en desarrollo.</p>
+                    ) : (
+                      filteredPatients.map(({ id, name, apellido_pat, apellido_mat, telefono, Appointment, servicios }) => {
+                        const hoy = new Date()
+                        const ultima  = Appointment?.filter(a => new Date(a.startDate) < hoy) ?? []
+                        const proxima = Appointment?.filter(a => new Date(a.startDate) > hoy) ?? []
+                        const fullName = [name, apellido_pat, apellido_mat].filter(Boolean).join(" ")
+                        const pending  = servicios?.filter(s => s.balance > 0).length ?? 0
+
+                        return (
+                          <TableRow
+                            key={id}
+                            className="border-gray-50 dark:border-slate-700 hover:bg-sky-50/50 dark:hover:bg-slate-700/50 transition-colors group"
+                          >
+                            <TableCell className="w-10">
+                              <input
+                                id={String(id)}
+                                type="checkbox"
+                                checked={checkedItems.includes(String(id))}
+                                onChange={handleCheckbox}
+                                className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 accent-sky-500"
+                              />
+                            </TableCell>
+
+                            <TableCell
+                              onClick={() => router.push(`/pacientes/${encodeURIComponent(id)}/?id=${id}&name=${name}`)}
+                              className="cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-cyan-400 grid place-items-center text-white text-xs font-bold shrink-0 overflow-hidden">
+                                  <span className="leading-none">{initials(name, apellido_pat)}</span>
+                                </div>
+                                <span className="text-sm font-medium text-gray-800 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+                                  {fullName}
+                                </span>
+                              </div>
+                            </TableCell>
+
+                            <TableCell
+                              onClick={() => router.push(`/pacientes/${encodeURIComponent(id)}/?id=${id}&name=${name}`)}
+                              className="cursor-pointer text-sm text-gray-500 dark:text-slate-400"
+                            >
+                              {telefono}
+                            </TableCell>
+
+                            <TableCell
+                              onClick={() => router.push(`/pacientes/${encodeURIComponent(id)}/?id=${id}&name=${name}`)}
+                              className="cursor-pointer text-sm text-gray-500 dark:text-slate-400"
+                            >
+                              {fmt(ultima[ultima.length - 1]?.startDate)}
+                            </TableCell>
+
+                            <TableCell
+                              onClick={() => router.push(`/pacientes/${encodeURIComponent(id)}/?id=${id}&name=${name}`)}
+                              className="cursor-pointer text-sm text-gray-500 dark:text-slate-400"
+                            >
+                              {fmt(proxima[proxima.length - 1]?.startDate)}
+                            </TableCell>
+
+                            <TableCell className="text-center">
+                              {pending > 0 ? (
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold">
+                                  {pending}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-xs font-bold">
+                                  ✓
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {filteredPatients.length > 0 && (
+                <p className="text-xs text-gray-400 dark:text-slate-500 text-right">
+                  {filteredPatients.length} paciente{filteredPatients.length !== 1 ? "s" : ""}
+                  {searchTerm && ` · búsqueda: "${searchTerm}"`}
+                </p>
+              )}
+            </div>
           )}
 
+          {currentPage === "Anuncios"       && <AdministradorAnuncios />}
+          {currentPage === "Proximas Citas" && <ProximasCitas />}
 
         </div>
       </main>

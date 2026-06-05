@@ -1,151 +1,117 @@
 "use client";
 
 import { useState } from "react";
-import { TextField, Button, DialogActions } from "@mui/material";
 import { Scheduler } from "@aldabil/react-scheduler";
-import type {
-  ProcessedEvent,
-  SchedulerHelpers,
-  RemoteQuery
-} from "@aldabil/react-scheduler/types";
-import { nanoid } from 'nanoid';
-import { onUpdateSomeField } from '../helpers/onUpdateSomeField'
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
+import type { ProcessedEvent, SchedulerHelpers, RemoteQuery } from "@aldabil/react-scheduler/types";
+import { nanoid } from "nanoid";
+import { onUpdateSomeField } from "../helpers/onUpdateSomeField";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { es } from "date-fns/locale";
+import { format } from "date-fns";
 
 interface CustomEditorProps {
   scheduler: SchedulerHelpers;
 }
 
-function App() {
+const STATUS_CONFIG = {
+  Confirmar:       { label: "Confirmada",    dot: "bg-green-500",  badge: "bg-green-100 text-green-700 border-green-200"  },
+  "Por Confirmar": { label: "Por confirmar", dot: "bg-yellow-500", badge: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  Cancelar:        { label: "Cancelada",     dot: "bg-red-500",    badge: "bg-red-100 text-red-700 border-red-200"   },
+}
 
+/* ─── Campo de texto del editor ─── */
+function Field({
+  label, placeholder, value, onChange, error, maxLength, type = "text",
+}: {
+  label: string; placeholder: string; value: string;
+  onChange: (v: string) => void; error?: string;
+  maxLength?: number; type?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide">{label}</label>
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        maxLength={maxLength}
+        className="w-full h-9 px-3 text-sm rounded-lg border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400
+                   focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition-colors"
+      />
+      {error && <p className="text-xs text-red-500">{error}</p>}
+    </div>
+  )
+}
+
+function App() {
   const [events, setEvents] = useState<ProcessedEvent[]>([]);
 
-  const handleColorChange = (eventId: string | number, color: string) => {
-    console.log(eventId, color);
-    const updatedEvents = events.map((e) =>
-      e.event_id === eventId ? { ...e, color } : e
-    );
-    setEvents(updatedEvents); // Actualizamos el estado
-  };
-
+  /* ─── Editor personalizado ─── */
   const CustomEditor = ({ scheduler }: CustomEditorProps) => {
     const event = scheduler.edited;
+    const isEdit = Boolean(event);
 
-    // Make your own form/state
+    const startVal = scheduler.state?.start?.value
+    const endVal   = scheduler.state?.end?.value
+
+    const startLabel = startVal ? format(new Date(startVal), "d MMM · HH:mm", { locale: es }) : ""
+    const endLabel   = endVal   ? format(new Date(endVal),   "HH:mm",          { locale: es }) : ""
+
     const [state, setState] = useState({
-      id: nanoid(),
-      name: event?.title || "",
-      description: event?.description || "",
-      phone: event?.subtitle || 998
+      id:          nanoid(),
+      name:        event?.title       as string || "",
+      description: event?.description as string || "",
+      phone:       event?.subtitle    as string || "998",
     });
 
-    const [errorOnName, setErrorOnName] = useState("");
-    const [errorOnPhone, setErrorOnPhone] = useState("");
+    const [errorName,  setErrorName]  = useState("");
+    const [errorPhone, setErrorPhone] = useState("");
 
-    const handleChange = (value: string, name: string) => {
-      setState((prev) => {
-        return {
-          ...prev,
-          [name]: value,
-        };
-      });
-    };
+    const set = (field: string) => (v: string) =>
+      setState(prev => ({ ...prev, [field]: v }));
 
     const handleSubmit = async () => {
-      // Validaciones
-      if (state.name.length < 3) {
-        return setErrorOnName("Min 3 letters");
-      }
+      setErrorName(""); setErrorPhone("");
+      if (state.name.trim().length < 3)  return setErrorName("Mínimo 3 caracteres");
+      if (!/^\d+$/.test(state.phone))    return setErrorPhone("Solo números");
+      if (state.phone.length < 10)       return setErrorPhone("Debe tener 10 dígitos");
 
-      if (!Number.isInteger(Number.parseInt(state.phone))) {
-        return setErrorOnPhone("telefono debe ser Numerico")
-      }
-
-      if (state.phone.length < 10) {
-        console.log(typeof state.phone)
-        return setErrorOnPhone("telefono debe ser de 10 digitos")
-      }
-      //Validaciones
       try {
         scheduler.loading(true);
 
-        /**Simulate remote data saving */
-        const added_updated_event = (await new Promise((resolve, reject) => {
-          /**
-           * Make sure the event have 4 mandatory fields
-           * event_id: string|number
-           * title: string
-           * start: Date|string
-           * end: Date|string
-           */
+        const result = await new Promise<ProcessedEvent>((resolve, reject) => {
           if (event?.event_id) {
-            const update = onUpdateSomeField(event, state)
-            update.then(() => {
+            onUpdateSomeField(event, state).then(() =>
               resolve({
-                event_id: event?.event_id,
-                title: state.name,
-                subtitle: state.phone,
-                start: event.start,
-                end: event.end,
-                description: state.description
-              });
-            })
-
+                event_id: event.event_id, title: state.name,
+                subtitle: state.phone, start: event.start,
+                end: event.end, description: state.description,
+              })
+            );
             return;
           }
-
-          fetch('/appointments/api', {
+          fetch("/appointments/api", {
             method: "POST",
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              "id": state.id,
-              "name": state.name,
-              "description": state.description,
-              "phone": state.phone,
-              "startDate": new Date(scheduler.state.start.value),
-              "endDate": new Date(new Date(scheduler.state.end.value)),
-            })
+              id: state.id, name: state.name, description: state.description,
+              phone: state.phone,
+              startDate: new Date(scheduler.state.start.value),
+              endDate:   new Date(scheduler.state.end.value),
+            }),
           })
-            .then(response => {
-              if (!response.ok) {
-                throw new Error('Network response was not ok');
+            .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+            .then(() => resolve({
+              event_id: state.id, title: state.name,
+              subtitle: state.phone, start: scheduler.state.start.value,
+              end: scheduler.state.end.value, description: state.description,
+            }))
+            .catch(reject);
+        });
 
-              }
-              return response.json();
-            })
-            .then(data => {
-              console.log(data);
-              resolve({
-                event_id: event?.event_id || state.id,
-                title: state.name,
-                subtitle: state.phone,
-                start: scheduler.state.start.value,
-                end: scheduler.state.end.value,
-                description: state.description
-              }); // Resuelve la promesa con los datos obtenidos
-            })
-            .catch(error => {
-              console.error('Error fetching data:', error);
-              reject(error); // Rechaza la promesa en caso de error
-            });
-        })) as ProcessedEvent;
-
-        scheduler.onConfirm(added_updated_event, event ? "edit" : "create");
+        scheduler.onConfirm(result, isEdit ? "edit" : "create");
         scheduler.close();
       } finally {
         scheduler.loading(false);
@@ -153,225 +119,203 @@ function App() {
     };
 
     return (
-      <div>
-        <div style={{ padding: "1rem" }}>
-          <p>Proxima Cita</p>
-          <TextField
-            label="Paciente"
-            value={state.name}
-            onChange={(e) => handleChange(e.target.value, "name")}
-            error={!!errorOnName}
-            helperText={errorOnName}
-            fullWidth
-          />
-          <TextField
-            label="Description"
-            value={state.description}
-            onChange={(e) => handleChange(e.target.value, "description")}
-            fullWidth
-          />
-          <TextField
-            label="Telefono"
-            value={state.phone}
-            disabled={state.phone.toString.length === 10 ? true: false}
-            onChange={(e) => handleChange(e.target.value, "phone")}
-            error={!!errorOnPhone}
-            helperText={errorOnPhone}
-            fullWidth
-          />
+      /* Fondo blanco explícito — siempre visible dentro del diálogo MUI */
+      <div className="bg-white overflow-hidden" style={{ minWidth: 340, maxWidth: 400 }}>
+
+        {/* Header coloreado */}
+        <div className="bg-gradient-to-r from-sky-500 to-cyan-500 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <h3 className="text-white font-semibold text-sm">
+              {isEdit ? "Editar cita" : "Nueva cita"}
+            </h3>
+          </div>
+          {startLabel && (
+            <p className="text-sky-100 text-xs mt-1">
+              {startLabel}{endLabel ? ` – ${endLabel}` : ""}
+            </p>
+          )}
         </div>
-        <DialogActions>
-          <Button onClick={scheduler.close}>Cancel</Button>
-          <Button onClick={handleSubmit}>Confirm</Button>
-        </DialogActions>
+
+        {/* Cuerpo del formulario — fondo gris claro para distinguirlo del diálogo */}
+        <div className="bg-gray-50 px-5 py-4 space-y-3 border-b border-gray-100">
+          <Field label="Paciente"        placeholder="Nombre completo"  value={state.name}        onChange={set("name")}        error={errorName}  />
+          <Field label="Motivo"          placeholder="Ej. Limpieza dental" value={state.description} onChange={set("description")} />
+          <Field label="Teléfono"        placeholder="10 dígitos"       value={state.phone}       onChange={set("phone")}       error={errorPhone} maxLength={10} />
+        </div>
+
+        {/* Footer con botones */}
+        <div className="bg-white px-5 py-3 flex justify-end gap-2">
+          <button
+            onClick={scheduler.close}
+            className="px-4 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-4 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 rounded-lg transition-all shadow-sm"
+          >
+            {isEdit ? "Guardar cambios" : "Crear cita"}
+          </button>
+        </div>
+
       </div>
     );
   };
 
-  const fetchRemoteData = async (query: RemoteQuery): Promise<ProcessedEvent[]> => {
-    console.log({ query });
-    /**Simulate fetchin remote data */
+  /* ─── Fetch remoto ─── */
+  const fetchRemoteData = async (_q: RemoteQuery): Promise<ProcessedEvent[]> => {
+    const r = await fetch("/appointments/api");
+    if (!r.ok) throw new Error("Error al cargar citas");
+    const data = await r.json();
 
-    return new Promise(async (res, rej) => {
-      try {
-        const response = await fetch('/appointments/api');
-        if (!response.ok) {
-          throw new Error('Error en la respuesta de la red');
-        }
-        const data = await response.json();
+    const formatted: ProcessedEvent[] = data.map(ev => ({
+      event_id:    ev.id,
+      title:       ev.name.name,
+      description: ev.desc,
+      subtitle:    ev.name.telefono,
+      status:      ev.status,
+      color:
+        ev.status === "Confirmar" ? "#16a34a"
+        : ev.status === "Cancelar" ? "#dc2626"
+        : "#0ea5e9",
+      start: new Date(ev.startDate),
+      end:   new Date(ev.endDate),
+    }));
 
-        const formattedEvents = data.map(event => ({
-          event_id: event.id,
-          title: event.name.name,
-          description: event.desc,
-          subtitle: event.name.telefono, //event.name.telefono
-          status: event.status,
-          color: event.status === 'Confirmed' ? "#50b500" : event.status === "Cancelled" ? "#900000" : "",
-          start: new Date(event.startDate), // Asegúrate de que 'start' sea la clave correcta
-          end: new Date(event.endDate)      // Asegúrate de que 'end' sea la clave correcta
-        }));
-
-        setEvents(formattedEvents);
-
-        return res(formattedEvents)
-      } catch (err) {
-        console.log(err)
-        rej(err)
-      }
-
-    });
-
+    setEvents(formatted);
+    return formatted;
   };
 
-
-
+  /* ─── Cambio de estado ─── */
   const handleStatusChange = (eventId: number | string, newStatus: string, phone: number) => {
-
-    const update = onUpdateSomeField(undefined,undefined, eventId, newStatus, phone);
-    update.then(() => {
-      // Determinar el color basado en el estado
-      const newColor =
-        newStatus === "Confirmar"
-          ? "#50b500"
-          : newStatus === "Cancelar"
-            ? "#900000"
-            : "";
-
-      // Actualizar el evento específico en el estado
-      setEvents((prevEvents) =>
-        prevEvents.map((event) =>
-          event.event_id === eventId ? { ...event, color: newColor } : event
+    onUpdateSomeField(undefined, undefined, eventId, newStatus, phone).then(() => {
+      const colorMap = { Confirmar: "#16a34a", Cancelar: "#dc2626" };
+      setEvents(prev =>
+        prev.map(e =>
+          e.event_id === eventId
+            ? { ...e, color: colorMap[newStatus] ?? "#0ea5e9" }
+            : e
         )
       );
-    })
-
+    });
   };
 
+  /* ─── Drag & drop ─── */
   const onEventDrop = async (
-    event: React.DragEvent<HTMLButtonElement>,
+    _e: React.DragEvent<HTMLButtonElement>,
     droppedOn: Date,
     updatedEvent: ProcessedEvent,
-    originalEvent: ProcessedEvent
+    originalEvent: ProcessedEvent,
   ): Promise<ProcessedEvent | void> => {
+    const duration = originalEvent.end.getTime() - originalEvent.start.getTime();
+    const newEnd   = new Date(droppedOn.getTime() + duration);
 
-    // Aquí puedes agregar lógica para manejar el evento arrastrado
-    const updatedEvents = events.map((existingEvent) =>
-      existingEvent.event_id === originalEvent.event_id
-        ? { ...existingEvent, start: droppedOn, end: new Date(droppedOn.getTime() + (originalEvent.end.getTime() - originalEvent.start.getTime())) }
-        : existingEvent
-    );
-
-    console.log(updatedEvent.subtitle);
-
-    fetch('/appointments/api', {
+    await fetch("/appointments/api", {
       method: "PUT",
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        "id": updatedEvent.event_id,
-        "name": updatedEvent.name,
-        "phone": updatedEvent.subtitle,
-        "description": updatedEvent.description,
-        "startDate": new Date(updatedEvent.start),
-        "endDate": new Date(updatedEvent.end),
-      })
-    }).then(response => {
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return response.json();
-    }).catch(error => {
-      console.error('Error fetching data:', error);
+        id: updatedEvent.event_id, name: updatedEvent.name,
+        phone: updatedEvent.subtitle, description: updatedEvent.description,
+        startDate: droppedOn, endDate: newEnd,
+      }),
     });
 
-    setEvents(updatedEvents);
-    return updatedEvent; // O puedes devolver void si no necesitas regresar nada
+    setEvents(prev =>
+      prev.map(e =>
+        e.event_id === originalEvent.event_id
+          ? { ...e, start: droppedOn, end: newEnd }
+          : e
+      )
+    );
+    return updatedEvent;
   };
 
+  /* ─── Delete ─── */
   const onDelete = async (deletedId: string | number): Promise<void> => {
-    // Filtramos los eventos para eliminar el evento que coincide con el id
-    const updatedEvents = events.filter((event) => event.id !== deletedId);
-    setEvents(updatedEvents);
-    fetch('/appointments/api', {
+    await fetch("/appointments/api", {
       method: "DELETE",
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        "id": deletedId,
-      })
-    }).then(response => {
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return response.json();
-    }).catch(error => {
-      console.error('Error fetching data:', error);
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: deletedId }),
     });
-    return deletedId; // Opcional, puedes devolver el ID del evento eliminado
+    setEvents(prev => prev.filter(e => e.event_id !== deletedId));
   };
 
+  /* ─── Render ─── */
   return (
     <Scheduler
       events={events}
+      locale={es}
+      hourFormat="24"
+      height={500}
+      view="week"
       getRemoteEvents={fetchRemoteData}
       onEventDrop={onEventDrop}
       onDelete={onDelete}
+      dialogMaxWidth="xs"
+      translations={{
+        navigation: { month: "Mes", week: "Semana", day: "Día", today: "Hoy", agenda: "Agenda" },
+        form: { addTitle: "Nueva cita", editTitle: "Editar cita", confirm: "Confirmar", delete: "Eliminar", cancel: "Cancelar" },
+        event: { title: "Paciente", subtitle: "Teléfono", start: "Inicio", end: "Fin", allDay: "Todo el día" },
+        moreEvents: "más...",
+        noDataToDisplay: "Sin citas registradas",
+        loading: "Cargando...",
+      }}
       week={{
         weekDays: [0, 1, 2, 3, 4, 5],
         weekStartOn: 1,
-        startHour: 9,
+        startHour: 8,
+        endHour: 20,
+        step: 60,
+      }}
+      day={{
+        startHour: 8,
         endHour: 20,
         step: 30,
-        cellRenderer: ({ height, start, onClick, ...props }) => {
-          // Fake some condition up
-          const hour = start.getHours();
-          const disabled = hour === 14;
-          const restProps = disabled ? {} : props;
-          return (
-            <Button
-              style={{
-                height: "100%",
-                background: disabled ? "#eee" : "transparent",
-                cursor: disabled ? "not-allowed" : "pointer"
-              }}
-              onClick={() => {
-                if (disabled) {
-                  return alert("Opss");
-                }
-                onClick();
-              }}
-              disableRipple={disabled}
-              // disabled={disabled}
-              {...restProps}
-            ></Button>
-          );
-        }
       }}
-      customEditor={(scheduler) => <CustomEditor scheduler={scheduler} />}
-      viewerExtraComponent={(fields, event) => {
+      customEditor={scheduler => <CustomEditor scheduler={scheduler} />}
+      viewerExtraComponent={(_fields, event) => {
+        const status: string = event.status || "Por Confirmar";
+        const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG["Por Confirmar"];
+
         return (
-          <div>
-          <p>{event.description}</p>
-          <RadioGroup
-            defaultValue={event.status || "Por Confirmar"}
-            onValueChange={(value) => handleStatusChange(event.event_id, value, event.subtitle)}
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="Confirmar" id={`confirm-${event.event_id}`} />
-              <Label htmlFor={`confirm-${event.event_id}`}>Confirmar</Label>
+          <div className="mt-2 space-y-3">
+
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cfg.badge}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+              {cfg.label}
+            </span>
+
+            {event.description && (
+              <p className="text-sm text-gray-600 leading-relaxed">{event.description}</p>
+            )}
+
+            <div className="border-t border-gray-100 pt-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Cambiar estado</p>
+              <RadioGroup
+                defaultValue={status}
+                onValueChange={val => handleStatusChange(event.event_id, val, event.subtitle)}
+                className="space-y-1.5"
+              >
+                {(["Confirmar", "Por Confirmar", "Cancelar"] as const).map(s => (
+                  <div key={s} className="flex items-center gap-2">
+                    <RadioGroupItem value={s} id={`${s}-${event.event_id}`} />
+                    <Label
+                      htmlFor={`${s}-${event.event_id}`}
+                      className={`text-xs cursor-pointer px-2 py-0.5 rounded-full border ${STATUS_CONFIG[s].badge}`}
+                    >
+                      {STATUS_CONFIG[s].label}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
             </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="Por Confirmar" id={`pending-${event.event_id}`} />
-              <Label htmlFor={`pending-${event.event_id}`}>Por Confirmar</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="Cancelar" id={`cancel-${event.event_id}`} />
-              <Label htmlFor={`cancel-${event.event_id}`}>Cancelar</Label>
-            </div>
-          </RadioGroup>
-        </div>
+
+          </div>
         );
       }}
     />
@@ -379,4 +323,3 @@ function App() {
 }
 
 export default App;
-
