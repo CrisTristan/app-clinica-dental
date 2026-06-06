@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Script from "next/script";
+import { useSearchParams } from "next/navigation";
 
 declare global {
   interface Window {
@@ -32,6 +33,7 @@ function normalizeSurface(tooth: number | string, surface: string) {
 export default function OdontogramaCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<any>(null);
+  const searchParams = useSearchParams();
 
   function getOdontogramStateForSaving() {
     const data = engineRef.current.getData();
@@ -58,8 +60,9 @@ export default function OdontogramaCanvas() {
       patientData: engineRef.current.treatmentData,
       odontogramData: JSON.stringify(getOdontogramStateForSaving()),
     };
-
-    await fetch("/api/odontograms/1", {
+    //Obtener el query param id de la URL actual
+    const id = searchParams.get("id") || "0";
+    await fetch(`/api/odontogramas/${id}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -72,10 +75,11 @@ export default function OdontogramaCanvas() {
 
   async function getOdontogramFromDB() {
     console.log("Cargando odontograma desde DB...");
-    const response = await fetch("/api/odontograms/1");
+    const id = searchParams.get("id") || "0";
+    const response = await fetch(`/api/odontogramas/${id}`);
     const dbPayload = await response.json();
     console.log("Datos recibidos:", dbPayload);
-    let odontogramData = dbPayload.odontogramData ?? "[]";
+    let odontogramData = dbPayload.data?.odontogramData ?? "[]";
 
     if (typeof odontogramData === "string") {
       odontogramData = JSON.parse(odontogramData || "[]");
