@@ -74,8 +74,8 @@ function App() {
     const [state, setState] = useState({
       id:          nanoid(),
       name:        event?.title       as string || "",
-      description: event?.description as string || "",
-      phone:       event?.subtitle    as string || "998",
+      description: event?.subtitle    as string || "",
+      phone:       event?.description as string || "998",
     });
 
     const [errorName,  setErrorName]  = useState("");
@@ -119,7 +119,7 @@ function App() {
             .then(r => { if (!r.ok) throw new Error(); return r.json(); })
             .then(() => resolve({
               event_id: state.id, title: state.name,
-              subtitle: state.phone, start: scheduler.state.start.value,
+              subtitle: state.description, start: scheduler.state.start.value,
               end: scheduler.state.end.value, description: state.description,
               status: DEFAULT_STATUS,
               color: STATUS_CONFIG[DEFAULT_STATUS].color,
@@ -192,8 +192,8 @@ function App() {
     const formatted: ProcessedEvent[] = data.map((ev: any) => ({
       event_id:    ev.id,
       title:       ev.name.name,
-      description: ev.desc,
-      subtitle:    ev.name.telefono,
+      description: ev.name.telefono,
+      subtitle:    ev.desc,
       status:      ev.status,
       color:       STATUS_CONFIG[normalizeStatus(ev.status)].color,
       start: new Date(ev.startDate),
