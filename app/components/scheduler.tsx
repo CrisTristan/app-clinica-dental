@@ -207,6 +207,28 @@ function App() {
             .catch(reject);
         });
 
+        setEvents(prev => {
+          // Busca el índice del evento en el array previo usando su event_id
+          // Si no lo encuentra, findIndex devuelve -1
+          const existingIndex = prev.findIndex(item => item.event_id === result.event_id);
+          // Verifica si el evento NO existe en el array (índice === -1)
+          // Esto ocurre cuando se crea una cita nueva
+          if (existingIndex === -1) {
+            // Si es un evento nuevo, devuelve un nuevo array con todos los eventos previos
+            // más el nuevo evento agregado al final usando spread operator (...)
+            return [...prev, result];
+          }
+          // Si el evento ya existe (se está editando), utiliza map para recorrer todos los eventos
+          return prev.map(item =>
+            // Para cada evento, verifica si su event_id coincide con el event_id del resultado
+            item.event_id === result.event_id
+            // Si coincide: devuelve el evento anterior pero actualizado con los nuevos datos del resultado
+            // (el spread operator {...item, ...result} mezcla ambos objetos, prevaleciendo result)
+              ? { ...item, ...result }
+              // Si NO coincide: devuelve el evento sin cambios
+              : item
+          );
+        });
         scheduler.onConfirm(result, isEdit ? "edit" : "create");
         scheduler.close();
       } finally {
@@ -235,6 +257,7 @@ function App() {
             </p>
           )}
           <button className="absolute top-2 right-2 text-sky-100 text-md hover:text-white" onClick={() => {
+            if(isEdit) return;
             setState({
               id: nanoid(),
               name: "",
@@ -366,6 +389,7 @@ function App() {
   /* ─── Cambio de estado ─── */
   const handleStatusChange = (eventId: number | string, newStatus: AppointmentStatus, phone: number | string) => {
     onUpdateSomeField(undefined, undefined, eventId, newStatus, phone).then(() => {
+      //Se recorre el array de eventos para actualizar el estado y color del evento modificado
       setEvents(prev =>
         prev.map(e =>
           e.event_id === eventId
@@ -464,7 +488,6 @@ function App() {
             {event.description && (
               <p className="text-sm text-gray-600 leading-relaxed">{event.description}</p>
             )}
-
             <div className="border-t border-gray-100 pt-3">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Cambiar estado</p>
               <RadioGroup
