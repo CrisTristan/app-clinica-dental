@@ -46,15 +46,16 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   const supabase = createAdminClient()
-  const { id, name, apellido_pat, apellido_mat, telefono, edad, domicilio, sexo }: Patient = await req.json()
+  const { id, name, apellido_pat, apellido_mat, telefono, edad, domicilio, sexo, fechaNacimiento, email }: Patient = await req.json()
 
   const { data, error } = await supabase
     .from('Patient')
-    .update({ name, apellido_pat, apellido_mat, telefono, edad: Number(edad), domicilio, sexo })
+    .update({ name, apellido_pat, apellido_mat, telefono, edad: Number(edad), domicilio, sexo, fechaNacimiento, email })
     .eq('id', id)
     .select()
     .single()
 
+  if(error) console.error("Error updating patient:", error);  
   if (error) return Response.json({ error: error.message }, { status: 500 })
   return Response.json(data)
 }

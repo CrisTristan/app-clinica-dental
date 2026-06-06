@@ -14,6 +14,7 @@ export interface Patient {
     apellido_mat: string,
     telefono: string,
     edad: number,
+    sexo: string,
     email: string,
     lastVisit: string,
     nextAppointment: string,

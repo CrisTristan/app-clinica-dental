@@ -105,6 +105,7 @@ export default function PerfilPaciente({
 
   useEffect(() => {
     if (!paciente) return
+    console.log("Paciente recibido en componente:", paciente)
     setPatient(paciente)
     getProfilePhoto(nombre, id).then(url => setPatient(prev => prev ? { ...prev, foto: url } : prev))
     getAllPatientImages(nombre, id).then(setArchivos)
@@ -116,6 +117,7 @@ export default function PerfilPaciente({
   }
 
   const handleSave = async () => {
+
     await fetch("/patients/api", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -128,6 +130,7 @@ export default function PerfilPaciente({
         domicilio: patient?.domicilio,
         sexo: patient?.sexo,
         email: patient?.email,
+        fechaNacimiento: patient?.fechaNacimiento,
       }),
     })
     setSaved(true)
@@ -242,7 +245,7 @@ export default function PerfilPaciente({
         <Section title="Datos Personales" icon={User}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {FIELD_ORDER.map(key => {
-              const value = (patient as any)[key] ?? ""
+              const value = (patient as any)[key]  === 'email' ? patient.correo_electronico : (patient as any)[key]
               const label = FIELD_LABELS[key] ?? key
               const isDisabled = key === "telefono"
 
