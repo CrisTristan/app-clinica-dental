@@ -124,6 +124,32 @@ export default function OdontogramaCanvas() {
     }, 1600);
   }
 
+  useEffect(() => {
+    // Si Engine ya existe, inicializar inmediatamente
+    if (window.Engine && !engineRef.current) {
+      initEngine();
+      return;
+    }
+
+    // Si Engine no existe, esperar a que se cargue
+    const checkEngine = setInterval(() => {
+      if (window.Engine && !engineRef.current) {
+        initEngine();
+        clearInterval(checkEngine);
+      }
+    }, 100);
+
+    return () => {
+      clearInterval(checkEngine);
+      if (engineRef.current && canvasRef.current) {
+        canvasRef.current.removeEventListener("mousedown", engineRef.current.onMouseClick);
+        canvasRef.current.removeEventListener("mousemove", engineRef.current.onMouseMove);
+        window.removeEventListener("keydown", engineRef.current.onButtonClick);
+        engineRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <>
       <Script
@@ -169,10 +195,9 @@ export default function OdontogramaCanvas() {
       <Script
         src="/odontograma/js/engine.js"
         strategy="afterInteractive"
-        onLoad={initEngine}
       />
 
-      <div className="flex flex-col items-center justify-center gap-4 w-full">
+      <div className="flex flex-col items-start md:items-center gap-4 w-full">
 
         <canvas
           ref={canvasRef}
@@ -181,7 +206,7 @@ export default function OdontogramaCanvas() {
           onContextMenu={(event) => event.preventDefault()}
         />
 
-        <button type="button" onClick={saveOdontogramOnDB}>
+        <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" type="button" onClick={saveOdontogramOnDB}>
           Guardar
         </button>
       </div>
