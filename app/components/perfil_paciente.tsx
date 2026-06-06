@@ -21,6 +21,7 @@ import HigieneBucal from './DentalData/HigieneBucal'
 import Alergias from './DentalData/Alergias'
 import Alimentacion from './DentalData/Alimentacion'
 import { useRouter } from 'next/navigation'
+import OdontogramaCanvas from '../odontograma/OdontogramaCanvas'
 
 /* ── Field map: key → Spanish label ── */
 const FIELD_LABELS: Record<string, string> = {
@@ -299,8 +300,9 @@ export default function PerfilPaciente({
 
         {/* ── Odontograma ── */}
         <Section title="Odontograma" icon={Stethoscope} className="overflow-visible">
-          <div className="h-80">
-            <Odontogram />
+          <div className="">
+            {/* <Odontogram /> */}
+            <OdontogramaCanvas />
           </div>
         </Section>
 
