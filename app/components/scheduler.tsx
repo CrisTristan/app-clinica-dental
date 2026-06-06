@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Scheduler } from "@aldabil/react-scheduler";
 import type { ProcessedEvent, SchedulerHelpers, RemoteQuery } from "@aldabil/react-scheduler/types";
 import { nanoid } from "nanoid";
@@ -15,14 +15,22 @@ interface CustomEditorProps {
   scheduler: SchedulerHelpers;
 }
 
+interface PatientSuggestion {
+  id: number;
+  name: string;
+  apellido_pat?: string | null;
+  apellido_mat?: string | null;
+  telefono: string;
+}
+
 type AppointmentStatus = "Confirmed" | "toBeConfirmed" | "Cancelled";
 
 const DEFAULT_STATUS: AppointmentStatus = "toBeConfirmed";
 
 const STATUS_CONFIG: Record<AppointmentStatus, { label: string; dot: string; badge: string; color: string }> = {
-  Confirmed:     { label: "Confirmada",    dot: "bg-green-500",  badge: "bg-green-100 text-green-700 border-green-200",    color: "#16a34a" },
+  Confirmed: { label: "Confirmada", dot: "bg-green-500", badge: "bg-green-100 text-green-700 border-green-200", color: "#16a34a" },
   toBeConfirmed: { label: "Por confirmar", dot: "bg-yellow-500", badge: "bg-yellow-100 text-yellow-700 border-yellow-200", color: "#eab308" },
-  Cancelled:     { label: "Cancelada",     dot: "bg-red-500",    badge: "bg-red-100 text-red-700 border-red-200",          color: "#dc2626" },
+  Cancelled: { label: "Cancelada", dot: "bg-red-500", badge: "bg-red-100 text-red-700 border-red-200", color: "#dc2626" },
 }
 
 const STATUS_OPTIONS = Object.keys(STATUS_CONFIG) as AppointmentStatus[];
@@ -34,11 +42,11 @@ const normalizeStatus = (status?: string): AppointmentStatus =>
 
 /* ─── Campo de texto del editor ─── */
 function Field({
-  label, placeholder, value, onChange, error, maxLength, type = "text",
+  label, placeholder, value, onChange, error, maxLength, type = "text", disabled = false,
 }: {
   label: string; placeholder: string; value: string;
   onChange: (v: string) => void; error?: string;
-  maxLength?: number; type?: string;
+  maxLength?: number; type?: string; disabled?: boolean;
 }) {
   return (
     <div className="space-y-1">
@@ -49,6 +57,7 @@ function Field({
         value={value}
         onChange={e => onChange(e.target.value)}
         maxLength={maxLength}
+        disabled={disabled}
         className="w-full h-9 px-3 text-sm rounded-lg border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400
                    focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition-colors"
       />
@@ -65,30 +74,101 @@ function App() {
     const event = scheduler.edited;
     const isEdit = Boolean(event);
 
+    // Separar el nombre completo si está en modo edición
+    let initialName = "";
+    let initialApellidoPat = "";
+    let initialApellidoMat = "";
+
+    if (isEdit && event?.title) {
+      const parts = (event.title as string).trim().split(/\s+/);
+      initialName = parts[0] || "";
+      initialApellidoPat = parts[1] || "";
+      initialApellidoMat = parts[2] || "";
+    }
+
     const startVal = scheduler.state?.start?.value
-    const endVal   = scheduler.state?.end?.value
+    const endVal = scheduler.state?.end?.value
 
     const startLabel = startVal ? format(new Date(startVal), "d MMM · HH:mm", { locale: es }) : ""
-    const endLabel   = endVal   ? format(new Date(endVal),   "HH:mm",          { locale: es }) : ""
+    const endLabel = endVal ? format(new Date(endVal), "HH:mm", { locale: es }) : ""
 
     const [state, setState] = useState({
-      id:          nanoid(),
-      name:        event?.title       as string || "",
-      description: event?.subtitle    as string || "",
-      phone:       event?.description as string || "998",
+      id: nanoid(),
+      name: initialName,
+      apellido_pat: initialApellidoPat, // No se obtiene del evento, se llena al seleccionar paciente
+      apellido_mat: initialApellidoMat, // No se obtiene del evento, se llena al seleccionar paciente
+      description: event?.subtitle as string || "",
+      phone: event?.description as string || "998",
     });
 
-    const [errorName,  setErrorName]  = useState("");
+    const [errorName, setErrorName] = useState("");
     const [errorPhone, setErrorPhone] = useState("");
+    const [patientSuggestions, setPatientSuggestions] = useState<PatientSuggestion[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isSearchingPatients, setIsSearchingPatients] = useState(false);
 
     const set = (field: string) => (v: string) =>
       setState(prev => ({ ...prev, [field]: v }));
 
+    useEffect(() => {
+      const query = state.name.trim();
+
+      if (query.length < 2 || !showSuggestions) {
+        setPatientSuggestions([]);
+        setIsSearchingPatients(false);
+        return;
+      }
+
+      setIsSearchingPatients(true);
+      const controller = new AbortController();
+      const timeout = window.setTimeout(async () => {
+        try {
+          const response = await fetch(`/patients/api?q=${encodeURIComponent(query)}`, {
+            signal: controller.signal,
+          });
+          if (!response.ok) throw new Error("Error al buscar pacientes");
+
+          const patients: PatientSuggestion[] = await response.json();
+          setPatientSuggestions(patients);
+        } catch (error) {
+          if ((error as Error).name !== "AbortError") {
+            setPatientSuggestions([]);
+          }
+        } finally {
+          if (!controller.signal.aborted) setIsSearchingPatients(false);
+        }
+      }, 250);
+
+      return () => {
+        window.clearTimeout(timeout);
+        controller.abort();
+      };
+    }, [state.name, showSuggestions]);
+
+    const patientFullName = (patient: PatientSuggestion) =>
+      [patient.name, patient.apellido_pat, patient.apellido_mat]
+        .filter(Boolean)
+        .join(" ");
+
+    const selectPatient = (patient: PatientSuggestion) => {
+      setState(prev => ({
+        ...prev,
+        name: patient.name,
+        apellido_pat: patient.apellido_pat || "",
+        apellido_mat: patient.apellido_mat || "",
+        phone: patient.telefono,
+      }));
+      setErrorName("");
+      setErrorPhone("");
+      setShowSuggestions(false);
+      setPatientSuggestions([]);
+    };
+
     const handleSubmit = async () => {
       setErrorName(""); setErrorPhone("");
-      if (state.name.trim().length < 3)  return setErrorName("Mínimo 3 caracteres");
-      if (!/^\d+$/.test(state.phone))    return setErrorPhone("Solo números");
-      if (state.phone.length < 10)       return setErrorPhone("Debe tener 10 dígitos");
+      if (state.name.trim().length < 3) return setErrorName("Mínimo 3 caracteres");
+      if (!/^\d+$/.test(state.phone)) return setErrorPhone("Solo números");
+      if (state.phone.length < 10) return setErrorPhone("Debe tener 10 dígitos");
 
       try {
         scheduler.loading(true);
@@ -98,8 +178,8 @@ function App() {
             onUpdateSomeField(event, state).then(() =>
               resolve({
                 event_id: event.event_id, title: state.name,
-                subtitle: state.phone, start: event.start,
-                end: event.end, description: state.description,
+                subtitle: state.description, start: event.start,
+                end: event.end, description: state.phone,
                 status: normalizeStatus(event.status as string),
                 color: STATUS_CONFIG[normalizeStatus(event.status as string)].color,
               })
@@ -110,17 +190,17 @@ function App() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              id: state.id, name: state.name, description: state.description,
+              id: state.id, name: state.name, apellido_pat: state.apellido_pat, apellido_mat: state.apellido_mat, description: state.description,
               phone: state.phone,
               startDate: toDbTimestamp(scheduler.state.start.value),
-              endDate:   toDbTimestamp(scheduler.state.end.value),
+              endDate: toDbTimestamp(scheduler.state.end.value),
             }),
           })
             .then(r => { if (!r.ok) throw new Error(); return r.json(); })
             .then(() => resolve({
-              event_id: state.id, title: state.name,
+              event_id: state.id, title: state.name + " " + state.apellido_pat + " " + state.apellido_mat,
               subtitle: state.description, start: scheduler.state.start.value,
-              end: scheduler.state.end.value, description: state.description,
+              end: scheduler.state.end.value, description: state.phone,
               status: DEFAULT_STATUS,
               color: STATUS_CONFIG[DEFAULT_STATUS].color,
             }))
@@ -154,13 +234,92 @@ function App() {
               {startLabel}{endLabel ? ` – ${endLabel}` : ""}
             </p>
           )}
+          <button className="absolute top-2 right-2 text-sky-100 text-md hover:text-white" onClick={() => {
+            setState({
+              id: nanoid(),
+              name: "",
+              apellido_pat: "",
+              apellido_mat: "",
+              description: "",
+              phone: "",
+            });
+            setShowSuggestions(false);
+          }}>
+            <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <p>Limpiar</p>
+          </button>
         </div>
 
         {/* Cuerpo del formulario — fondo gris claro para distinguirlo del diálogo */}
         <div className="bg-gray-50 px-5 py-4 space-y-3 border-b border-gray-100">
-          <Field label="Paciente"        placeholder="Nombre completo"  value={state.name}        onChange={set("name")}        error={errorName}  />
-          <Field label="Motivo"          placeholder="Ej. Limpieza dental" value={state.description} onChange={set("description")} />
-          <Field label="Teléfono"        placeholder="10 dígitos"       value={state.phone}       onChange={set("phone")}       error={errorPhone} maxLength={10} />
+          <div
+            className="relative"
+            onBlur={event => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                setShowSuggestions(false);
+              }
+            }}
+          >
+
+            <Field
+              label="Nombre del paciente"
+              placeholder="Nombre"
+              value={state.name}
+              onChange={value => {
+                set("name")(value);
+                setShowSuggestions(true);
+              }}
+              disabled={isEdit} // Solo se puede cambiar el paciente al crear, no al editar
+              error={errorName}
+            />
+            {showSuggestions && state.name.trim().length >= 2 && (
+              <div
+                className={`block mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg`}
+                role="listbox"
+              >
+                {isSearchingPatients ? (
+                  <p className="px-3 py-2 text-xs text-gray-500">Buscando pacientes...</p>
+                ) : patientSuggestions.length > 0 ? (
+                  patientSuggestions.map(patient => (
+                    <button
+                      key={patient.id}
+                      type="button"
+                      role="option"
+                      onClick={() => selectPatient(patient)}
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-sky-50 focus:bg-sky-50 focus:outline-none"
+                    >
+                      <span className="truncate text-sm font-medium text-gray-800">
+                        {patientFullName(patient)}
+                      </span>
+                      <span className="shrink-0 text-xs text-gray-500">{patient.telefono}</span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="px-3 py-2 text-xs text-gray-500">No se encontraron pacientes</p>
+                )}
+              </div>
+            )}
+            <Field
+              label="Apellido Paterno"
+              placeholder="Apellido paterno"
+              value={state.apellido_pat}
+              onChange={set("apellido_pat")}
+              disabled={isEdit}
+            />
+
+            <Field
+              label="Apellido Materno"
+              placeholder="Apellido materno"
+              value={state.apellido_mat}
+              onChange={set("apellido_mat")}
+              disabled={isEdit}
+            />
+          </div>
+          <Field label="Motivo" placeholder="Ej. Limpieza dental" value={state.description} onChange={set("description")} />
+          <Field label="Teléfono" placeholder="10 dígitos" value={state.phone} onChange={set("phone")} error={errorPhone} maxLength={10} disabled={isEdit} />
         </div>
 
         {/* Footer con botones */}
@@ -190,14 +349,14 @@ function App() {
     const data = await r.json();
 
     const formatted: ProcessedEvent[] = data.map((ev: any) => ({
-      event_id:    ev.id,
-      title:       ev.name.name,
+      event_id: ev.id,
+      title: ev.name.name + " " + (ev.name.apellido_pat || "") + " " + (ev.name.apellido_mat || ""),
       description: ev.name.telefono,
-      subtitle:    ev.desc,
-      status:      ev.status,
-      color:       STATUS_CONFIG[normalizeStatus(ev.status)].color,
+      subtitle: ev.desc,
+      status: ev.status,
+      color: STATUS_CONFIG[normalizeStatus(ev.status)].color,
       start: new Date(ev.startDate),
-      end:   new Date(ev.endDate),
+      end: new Date(ev.endDate),
     }));
 
     setEvents(formatted);
@@ -225,14 +384,14 @@ function App() {
     originalEvent: ProcessedEvent,
   ): Promise<ProcessedEvent | void> => {
     const duration = originalEvent.end.getTime() - originalEvent.start.getTime();
-    const newEnd   = new Date(droppedOn.getTime() + duration);
+    const newEnd = new Date(droppedOn.getTime() + duration);
 
     await fetch("/appointments/api", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: updatedEvent.event_id, name: updatedEvent.name,
-        phone: updatedEvent.subtitle, description: updatedEvent.description,
+        phone: updatedEvent.description, description: updatedEvent.subtitle,
         startDate: toDbTimestamp(droppedOn), endDate: toDbTimestamp(newEnd),
       }),
     });
@@ -310,7 +469,7 @@ function App() {
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Cambiar estado</p>
               <RadioGroup
                 defaultValue={status}
-                onValueChange={val => handleStatusChange(event.event_id, normalizeStatus(val), String(event.subtitle ?? ""))}
+                onValueChange={val => handleStatusChange(event.event_id, normalizeStatus(val), String(event.description ?? ""))}
                 className="space-y-1.5"
               >
                 {STATUS_OPTIONS.map(s => (
