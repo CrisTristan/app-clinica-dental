@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { savePatientBudgets } from '../actions/saveBudgets'
 import { getPatientBudgets } from '../actions/getPatientBudgets'
@@ -151,18 +151,9 @@ export default function ManageBudgets({ id }) {
             </DialogHeader>
             <ScrollArea className="h-[300px] p-4">
               {dentalServices.map(service => (
-                // <Button 
-                //   key={service} 
-                //   onClick={() => createBudget(service)}
-                //   className="w-full mb-2"
-                //   variant="outline"
-                // >
-                //   {service}
-                // </Button>
-                <Dialog>
+                <Dialog key={service}>
                   <DialogTrigger asChild>
                     <Button
-                      key={service}
                       onClick={() => setNewService({name: service, price: 0})}
                       className="w-full mb-2"
                       variant="outline"
@@ -171,9 +162,12 @@ export default function ManageBudgets({ id }) {
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
-                    <DialogHeader>Costo de {service}</DialogHeader>
+                    <DialogHeader>
+                          <DialogTitle>Costo de {service}</DialogTitle>
+                          <DialogDescription>Ingresa el costo del servicio seleccionado</DialogDescription>
+                    </DialogHeader>
                     <Input value={newService.name} type='text' name='name' placeholder='servicio' disabled={true}/>
-                    <Input value={newService.price} type='number' name='price' placeholder='precioServicio' onChange={(e) => onNewServiceChange(e)}></Input>
+                    <Input value={newService.price} type='number' name='price' placeholder='seleccionar el precio' onChange={(e) => onNewServiceChange(e)}></Input>
                     <Button onClick={() => handleNewService()}>Confirmar</Button>
                   </DialogContent>
                 </Dialog>
@@ -187,7 +181,10 @@ export default function ManageBudgets({ id }) {
             <Button>Nuevo Servicio</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader>Nombre Servicio</DialogHeader>
+            <DialogHeader>
+              <DialogTitle>Nuevo Servicio Personalizado</DialogTitle>
+              <DialogDescription>Ingresa el nombre y costo del nuevo servicio</DialogDescription>
+            </DialogHeader>
             <Input value={newService.name} type='text' name='name' placeholder='servicio' onChange={(e) => onNewServiceChange(e)}></Input>
             <Input value={newService.price} type='number' name='price' placeholder='precioServicio' onChange={(e) => onNewServiceChange(e)}></Input>
             <Button onClick={() => handleNewService()}>Confirmar</Button>

@@ -1904,7 +1904,12 @@ Engine.prototype.printPreview = function () {
 
 Engine.prototype.print = function () {
 
-    var dataUrl = document.getElementById('canvas').toDataURL();
+    if (!this.canvas || typeof this.canvas.toDataURL !== "function") {
+        console.error("Engine: cannot print because the canvas is not initialized.");
+        return;
+    }
+
+    var dataUrl = this.canvas.toDataURL("image/png");
 
     var windowContent = '<!DOCTYPE html>';
     windowContent += '<html lang="en">';
@@ -1918,6 +1923,12 @@ Engine.prototype.print = function () {
     windowContent += '</html>';
 
     var printWin = window.open('', '', 'width=' + screen.availWidth + ',height=' + screen.availHeight);
+
+    if (!printWin) {
+        console.error("Engine: the print window was blocked by the browser.");
+        return;
+    }
+
     printWin.document.open();
     printWin.document.write(windowContent);
 
