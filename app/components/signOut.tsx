@@ -9,6 +9,7 @@ export function SignOut() {
   const handleSignOut = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
+    window.dispatchEvent(new Event("auth-state-changed"))
     router.push("/login")
     router.refresh()
   }

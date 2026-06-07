@@ -36,6 +36,7 @@ export async function POST(req: Request) {
     .single()
 
   if (patient) {
+    //si lla existe el paciente, solo creamos la cita asociada
     await supabase.from('Appointment').insert({
       id: appointment.id,
       nameId: patient.id,
@@ -44,12 +45,13 @@ export async function POST(req: Request) {
       endDate: appointment.endDate,
     })
   } else {
+    //Creamos el paciente si no existe
     const { data: newPatient } = await supabase
       .from('Patient')
-      .insert({ name: appointment.name, telefono: appointment.phone })
+      .insert({ name: appointment.name, telefono: appointment.phone, apellido_pat: appointment.apellido_pat, apellido_mat: appointment.apellido_mat })
       .select('id')
       .single()
-
+    // Creamos la cita asociada al nuevo paciente
     if (newPatient) {
       await supabase.from('Appointment').insert({
         id: appointment.id,
