@@ -9,13 +9,13 @@ export const loginAction = async (values: z.infer<typeof loginSchema>) => {
   if (!success) return { error: "Datos inválidos" }
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithPassword({
+  const { error, data: {user} } = await supabase.auth.signInWithPassword({
     email: data.email,
     password: data.password,
   })
 
   if (error) return { error: error.message }
-  return { success: true }
+  return { success: true, userRol: user?.user_metadata?.role}
 }
 
 export const registerAction = async (values: z.infer<typeof registerSchema>) => {

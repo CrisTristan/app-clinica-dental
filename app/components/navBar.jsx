@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { authentication } from "../actions/authentication"
+import { createClient } from "@/lib/supabase/client"
 import { SignOut } from "./signOut"
 import { ThemeToggle } from "./theme-toggle"
 import { useEffect, useState } from "react"
@@ -13,14 +13,43 @@ export default function NavBar() {
   const pathname = usePathname()
 
   useEffect(() => {
-    const fetchSession = async () => {
-      const data = await authentication()
-      setSession(data ?? null)
+    const supabase = createClient()
+    let isMounted = true
+
+    const updateSession = (user) => {
+      if (!isMounted) return
+
+      setSession(user
+        ? {
+            user: {
+              ...user,
+              role: user.user_metadata?.role ?? "user",
+            },
+          }
+        : null
+      )
     }
 
-    fetchSession()
-    const intervalId = setInterval(fetchSession, 2000)
-    return () => clearInterval(intervalId)
+    const refreshSession = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      updateSession(user)
+    }
+
+    refreshSession()
+    //Escuchamos cambios de sesión para actualizar el estado en tiempo real (ej: login/logout en otra pestaña)
+    window.addEventListener("auth-state-changed", refreshSession)
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, authSession) => {
+        updateSession(authSession?.user ?? null)
+      }
+    )
+
+    return () => {
+      isMounted = false
+      window.removeEventListener("auth-state-changed", refreshSession)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const role = session?.user?.role

@@ -17,6 +17,7 @@ import { loginAction } from "../actions/auth-actions"
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { loginSchema } from "@/lib/zod"
+import { isAdmin, isRecepcionista } from "@/lib/roles"
 
 export default function FormLogin({
   isVerified = false,
@@ -43,7 +44,18 @@ export default function FormLogin({
         setError(response.error)
         return
       }
-      window.location.href = "/pacientes"
+      window.dispatchEvent(new Event("auth-state-changed"))
+
+      if (isRecepcionista(response.userRol)) {
+        router.push("/agenda")
+      } else if (isAdmin(response.userRol)) {
+        router.push("/pacientes")
+      } else {
+        setError("El usuario no tiene un rol válido asignado")
+        return
+      }
+
+      router.refresh()
     })
   }
 
