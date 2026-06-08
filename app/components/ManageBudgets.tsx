@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { savePatientBudgets } from '../actions/saveBudgets'
 import { getPatientBudgets } from '../actions/getPatientBudgets'
+import { useToast } from "@/hooks/use-toast"
 
 type payment = {
   abono: number,
@@ -42,45 +43,42 @@ export default function ManageBudgets({ id }) {
   const [selectedBudget, setSelectedBudget] = useState<string | null>(null)
   const [paymentAmount, setPaymentAmount] = useState<string>('')
   const [newService, setNewService] = useState({ name: '', price: 0 })
+  const { toast } = useToast()
+
+  // Evita que la carga inicial (o la recarga desde el servidor) dispare un guardado innecesario
+  const skipNextSave = useRef(true)
 
   useEffect(() => {
-    // Cargar presupuestos guardados al iniciar
-    //const savedBudgets = localStorage.getItem('dentalBudgets')
     const fetchPatientBudgets = async () => {
       const savedBudgets = await getPatientBudgets(id);
-      console.log(savedBudgets);
       if (savedBudgets?.servicios) {
+        skipNextSave.current = true
         setBudgets(savedBudgets.servicios.map((budget: Budget) => ({
           ...budget,
           createdAt: new Date(budget.createdAt)
         })))
       }
-
     }
 
     fetchPatientBudgets();
-
-
-  }, [])
-
-  const firstUpdate = useRef(true);
+  }, [id])
 
   useEffect(() => {
-    // Guardar presupuestos cada vez que cambian
-    //console.log(budgets);
-    if (firstUpdate.current) {
-      firstUpdate.current = false;
+    if (skipNextSave.current) {
+      skipNextSave.current = false;
       return;
     }
     saveBudgetsToDatabase(budgets)
   }, [budgets])
 
   const saveBudgetsToDatabase = async (budgetsToSave: Budget[]) => {
-    // Simular guardado en base de datos usando localStorage
-    //localStorage.setItem('dentalBudgets', JSON.stringify(budgetsToSave))
-    //if(budgetsToSave.length === 0) return;
     const savedBudgets = await savePatientBudgets(id, budgetsToSave);
-    //console.log(savedBudgets);
+    if (!savedBudgets) {
+      toast({
+        title: "Error al guardar",
+        description: "No se pudieron guardar los servicios del paciente. Intenta de nuevo.",
+      })
+    }
   }
 
   const sumAllPayments = (budget: Budget) => {

@@ -245,7 +245,7 @@ export default function PerfilPaciente({
         <Section title="Datos Personales" icon={User}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {FIELD_ORDER.map(key => {
-              const value = (patient as any)[key]  === 'email' ? patient.correo_electronico : (patient as any)[key]
+              const value = ((patient as any)[key] === 'email' ? patient.correo_electronico : (patient as any)[key]) ?? ''
               const label = FIELD_LABELS[key] ?? key
               const isDisabled = key === "telefono"
 
