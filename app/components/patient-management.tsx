@@ -12,13 +12,14 @@ import {
 } from "@/components/ui/dialog"
 import {
   Users, Calendar, FileText, Plus, Search,
-  ChevronRight, X,
+  ChevronRight, X, ClipboardList,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Patient } from '../types/types'
 import DeleteButtonNotify from './deleteButtonNotify'
 import AdministradorAnuncios from './AdministradorAnuncios'
 import ProximasCitas from './proximasCitas'
+import CatalogoServicios from './CatalogoServicios'
 
 /* ── Helpers ── */
 function initials(name: string, ap?: string) {
@@ -35,6 +36,7 @@ const NAV = [
   { id: "Pacientes",      label: "Pacientes",      icon: Users    },
   { id: "Proximas Citas", label: "Próximas Citas", icon: Calendar },
   { id: "Anuncios",       label: "Anuncios",       icon: FileText },
+  { id: "Catalogo",       label: "Catálogo",       icon: ClipboardList },
 ]
 
 /* ── Sidebar item ── */
@@ -435,6 +437,7 @@ export default function PatientManagement() {
           )}
 
           {currentPage === "Anuncios"       && <AdministradorAnuncios />}
+          {currentPage === "Catalogo"       && <CatalogoServicios />}
           {currentPage === "Proximas Citas" && <ProximasCitas />}
 
         </div>

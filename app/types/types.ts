@@ -46,6 +46,12 @@ export interface Tooth {
     Fracture: number
 }
 
+export interface Service {
+    id: number;
+    name: string;
+    price: number;
+}
+
 export interface PatientService {
     name: string;
     activeService: string;
