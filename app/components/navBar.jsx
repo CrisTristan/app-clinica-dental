@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
+import { authentication } from "@/app/actions/authentication"
 import { SignOut } from "./signOut"
 import { ThemeToggle } from "./theme-toggle"
 import { useEffect, useState } from "react"
@@ -16,34 +17,19 @@ export default function NavBar() {
     const supabase = createClient()
     let isMounted = true
 
-    const updateSession = (user) => {
-      if (!isMounted) return
-
-      setSession(user
-        ? {
-            user: {
-              ...user,
-              role: user.user_metadata?.role ?? "user",
-            },
-          }
-        : null
-      )
-    }
-
     const refreshSession = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      updateSession(user)
+      // Leer rol desde la tabla profiles (no desde user_metadata)
+      const auth = await authentication()
+      if (!isMounted) return
+      setSession(auth)
     }
 
     refreshSession()
-    //Escuchamos cambios de sesión para actualizar el estado en tiempo real (ej: login/logout en otra pestaña)
     window.addEventListener("auth-state-changed", refreshSession)
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, authSession) => {
-        updateSession(authSession?.user ?? null)
-      }
-    )
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      refreshSession()
+    })
 
     return () => {
       isMounted = false
@@ -52,9 +38,9 @@ export default function NavBar() {
     }
   }, [])
 
-  const role = session?.user?.role
-  const isAdmin = role === "admin"
-  const hasAccess = role === "admin" || role === "recepcionista"
+  const role     = session?.user?.role
+  const isAdmin  = role === "admin"
+  const hasAccess = role === "admin" || role === "recepcionista" || role === "dentista"
 
   const navLinks = [
     {
@@ -65,10 +51,10 @@ export default function NavBar() {
         </svg>
       ),
     },
-    { href: "/agenda",            label: "Agenda",      show: hasAccess },
-    { href: "/servicios-activos", label: "Servicios",   show: hasAccess },
-    { href: "/pacientes",         label: "Panel Admin", show: isAdmin },
-    { href: "/dashboard",         label: "Dashboard",   show: isAdmin },
+    { href: "/agenda",            label: "Agenda",        show: hasAccess },
+    { href: "/servicios-activos", label: "Servicios",     show: hasAccess },
+    { href: "/pacientes",         label: "Panel Admin",   show: isAdmin },
+    { href: "/dashboard",         label: "Dashboard",     show: isAdmin },
   ].filter(l => l.show !== false)
 
   const initials = session?.user?.email?.[0]?.toUpperCase() ?? "?"
@@ -113,10 +99,9 @@ export default function NavBar() {
             ))}
           </nav>
 
-          {/* Divisor visual entre nav y auth */}
           <div className="hidden md:block w-px h-6 bg-gray-200 dark:bg-slate-700 mx-2" />
 
-          {/* Auth area + toggle */}
+          {/* Auth area */}
           <div className="flex items-center gap-2">
             <ThemeToggle />
 

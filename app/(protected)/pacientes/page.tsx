@@ -1,12 +1,11 @@
 import PatientManagement from "../../components/patient-management"
-import { createClient } from "@/lib/supabase/server"
+import { authentication } from "@/app/actions/authentication"
 
 export default async function pacientes() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await authentication()
 
-  if (user?.user_metadata?.role !== "admin") {
-    return <div>Tu no eres Admin</div>
+  if (session?.user?.role !== "admin") {
+    return <div>No tienes permiso para acceder a esta página.</div>
   }
 
   return (

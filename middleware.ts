@@ -1,14 +1,21 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Rutas accesibles sin autenticación
 const publicRoutes = [
   '/',
   '/login',
-  '/register',
   '/testing',
   '/appointment-confirmation/api',
   '/appointments/api',
-  '/api/setup-admin',
+]
+
+// Rutas que requieren rol 'admin' (cualquier otro rol es redirigido a /agenda)
+const adminOnlyRoutes = [
+  '/dashboard',
+  '/pacientes',
+  '/register',
+  '/api/admin',
 ]
 
 export async function middleware(request: NextRequest) {
@@ -36,16 +43,47 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
+  const pathname = request.nextUrl.pathname
 
-  const isPublic = publicRoutes.some(route =>
-    request.nextUrl.pathname === route ||
-    request.nextUrl.pathname.startsWith(route + '/')
+  const isPublic = publicRoutes.some(
+    route => pathname === route || pathname.startsWith(route + '/')
   )
 
+  // Sin sesión → login
   if (!user && !isPublic) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
+  }
+
+  if (user) {
+    // Consultar rol desde la tabla profiles (RLS permite leer el propio perfil)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    const role = profile?.role as string | undefined
+
+    // Usuario autenticado sin perfil no puede acceder a rutas protegidas
+    if (!isPublic && !role) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+
+    // Rutas solo para admin
+    const isAdminRoute = adminOnlyRoutes.some(
+      route => pathname === route || pathname.startsWith(route + '/')
+    )
+
+    if (isAdminRoute && role !== 'admin') {
+      const url = request.nextUrl.clone()
+      const isStaff = role === 'recepcionista' || role === 'dentista'
+      url.pathname = isStaff ? '/agenda' : '/login'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse

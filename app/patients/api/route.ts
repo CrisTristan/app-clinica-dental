@@ -1,7 +1,11 @@
 import { Patient } from "@/app/types/types"
+import { requireStaff } from "@/lib/auth-guard"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function GET(request: Request) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
   const supabase = createAdminClient()
   const { searchParams } = new URL(request.url)
   const id = Number.parseInt(searchParams.get('id') ?? '')
@@ -18,28 +22,11 @@ export async function GET(request: Request) {
     return Response.json(data)
   }
 
-  // if (query) {
-  //   const search = query.replace(/[^\p{L}\p{N}\s'-]/gu, '')
-  //   if (!search) return Response.json([])
-  //   console.log("Buscando pacientes para:", search);
-  //   const { data, error } = await supabase
-  //     .from('Patient')
-  //     .select('id, name, apellido_pat, apellido_mat, telefono')
-  //     .or(`name.ilike.%${search}%`)
-  //     .order('name')
-  //     .limit(8)
-
-  //   if (error) return Response.json({ error: error.message }, { status: 500 })
-  //   return Response.json(data)
-  // }
   if (query) {
     const search = query.replace(/[^\p{L}\p{N}\s'-]/gu, '').trim();
     if (!search) return Response.json([]);
 
-    // Dividir la búsqueda en términos individuales
     const terms = search.split(/\s+/);
-
-    // Crear condiciones OR para cada término
     const conditions = terms.map(term => `name.ilike.%${term}%`).join(',');
 
     console.log("Buscando pacientes para:", search);
@@ -53,7 +40,7 @@ export async function GET(request: Request) {
     if (error) return Response.json({ error: error.message }, { status: 500 });
     return Response.json(data);
   }
-  
+
   const { data, error } = await supabase
     .from('Patient')
     .select('*, Appointment(*)')
@@ -63,6 +50,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
   const supabase = createAdminClient()
   const body = await req.json()
 
@@ -82,6 +72,9 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
   const supabase = createAdminClient()
   const { id, name, apellido_pat, apellido_mat, telefono, edad, domicilio, sexo, fechaNacimiento, email }: Patient = await req.json()
 
@@ -98,6 +91,9 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
   const supabase = createAdminClient()
   const body = await req.json()
   const ids: string[] = body.ids
