@@ -17,7 +17,7 @@ import { loginAction } from "../actions/auth-actions"
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { loginSchema } from "@/lib/zod"
-import { isAdmin, isRecepcionista } from "@/lib/roles"
+import { isAdmin, hasAccess } from "@/lib/roles"
 
 export default function FormLogin({
   isVerified = false,
@@ -46,10 +46,10 @@ export default function FormLogin({
       }
       window.dispatchEvent(new Event("auth-state-changed"))
 
-      if (isRecepcionista(response.userRol)) {
-        router.push("/agenda")
-      } else if (isAdmin(response.userRol)) {
+      if (isAdmin(response.userRol)) {
         router.push("/pacientes")
+      } else if (hasAccess(response.userRol)) {
+        router.push("/agenda")
       } else {
         setError("El usuario no tiene un rol válido asignado")
         return
@@ -165,12 +165,6 @@ export default function FormLogin({
               </form>
             </Form>
 
-            <p className="text-center text-xs text-gray-400 dark:text-slate-500 mt-6">
-              ¿No tienes cuenta?{" "}
-              <a href="/register" className="text-sky-500 hover:text-sky-600 dark:text-sky-400 dark:hover:text-sky-300 font-medium hover:underline transition-colors">
-                Regístrate
-              </a>
-            </p>
 
           </div>
         </div>

@@ -1,30 +1,28 @@
-export async function POST(request : Request){
-    const body = await request.json();
-    const {number, message} = body;
+import { requireStaff } from "@/lib/auth-guard"
 
-    try {
-        // Hacer la solicitud a la API externa desde el backend de Next.js
-        const response = await fetch('https://api-whatsapp-sc2l.onrender.com/send-message', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            number: number,
-            message: message
-          })
-        });
-        //console.log(response);
-        const data = await response.text()
-        //console.log(data);
-        if (data != 'Mensaje enviado correctamente') {
-          return Response.json({response: data, status: 400});
-        }
-  
-        // Devolver la respuesta al cliente
-        return Response.json({response: data, status: response.status});
-      } catch (error) {
-        console.error('Error:', error);
-       return Response.json({ error: 'Internal Server Error', status: 500 });
-      }
+export async function POST(request: Request) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
+  const body = await request.json();
+  const { number, message } = body;
+
+  try {
+    const response = await fetch('https://api-whatsapp-sc2l.onrender.com/send-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ number, message }),
+    });
+
+    const data = await response.text()
+
+    if (data !== 'Mensaje enviado correctamente') {
+      return Response.json({ response: data, status: 400 });
+    }
+
+    return Response.json({ response: data, status: response.status });
+  } catch (error) {
+    console.error('Error:', error);
+    return Response.json({ error: 'Internal Server Error', status: 500 });
+  }
 }

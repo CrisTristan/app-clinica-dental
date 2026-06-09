@@ -1,6 +1,10 @@
+import { requireStaff } from "@/lib/auth-guard"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function GET(req: Request) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
   const supabase = createAdminClient()
   const { searchParams } = new URL(req.url)
   const id = Number.parseInt(searchParams.get('id') ?? '')
@@ -21,6 +25,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
   const supabase = createAdminClient()
   const { teethState, id } = await req.json()
   const nameId = Number(id)

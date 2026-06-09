@@ -1,6 +1,10 @@
+import { requireStaff } from "@/lib/auth-guard"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function GET(request: Request) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
   const supabase = createAdminClient()
   const { searchParams } = new URL(request.url)
   const patientId = Number.parseInt(searchParams.get('id') ?? '')
@@ -19,6 +23,9 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(req: Request) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
   const supabase = createAdminClient()
   const { examenTejidos, motivoConsulta, habitos, enfermedadesPersonales, higieneBucal, alergias, alimentacion, id } = await req.json()
   const nameId = Number(id)

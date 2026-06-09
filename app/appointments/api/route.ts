@@ -1,6 +1,8 @@
+import { requireStaff } from "@/lib/auth-guard"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { dateOnlyToDbStartOfDay } from "@/app/helpers/dateTime"
 
+// GET y POST son públicos: GET para verificar disponibilidad, POST para reservas
 export async function GET(req: Request) {
   const supabase = createAdminClient()
   const url = new URL(req.url)
@@ -36,7 +38,6 @@ export async function POST(req: Request) {
     .single()
 
   if (patient) {
-    //si lla existe el paciente, solo creamos la cita asociada
     await supabase.from('Appointment').insert({
       id: appointment.id,
       nameId: patient.id,
@@ -45,13 +46,11 @@ export async function POST(req: Request) {
       endDate: appointment.endDate,
     })
   } else {
-    //Creamos el paciente si no existe
     const { data: newPatient } = await supabase
       .from('Patient')
       .insert({ name: appointment.name, telefono: appointment.phone, apellido_pat: appointment.apellido_pat, apellido_mat: appointment.apellido_mat })
       .select('id')
       .single()
-    // Creamos la cita asociada al nuevo paciente
     if (newPatient) {
       await supabase.from('Appointment').insert({
         id: appointment.id,
@@ -69,7 +68,11 @@ export async function POST(req: Request) {
   })
 }
 
+// PUT y DELETE requieren autenticación de personal
 export async function PUT(req: Request) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
   const supabase = createAdminClient()
   const appointment = await req.json()
 
@@ -100,6 +103,9 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
   const supabase = createAdminClient()
   const body = await req.json()
 
