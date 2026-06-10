@@ -57,4 +57,21 @@ export interface PatientService {
     activeService: string;
     totalCost: number;
     balance: number;
-  }
+}
+
+export interface PatientServiceRow {
+  id: string
+  patient_id: number
+  patient_name: string
+  name: string
+  price: number
+  balance: number
+  created_at: string
+}
+
+export interface PaymentHistoryRow {
+  id: number
+  patient_service_id: string
+  abono: number
+  fecha: string
+}

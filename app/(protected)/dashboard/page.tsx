@@ -27,8 +27,9 @@ type Appointment = {
 type Patient = {
   id: number; name: string; apellido_pat: string; apellido_mat: string; telefono: string
   Appointment?: { startDate: string }[]
-  servicios?: { balance: number; price: number; paymentHistory: { abono: number; fecha: string }[] }[]
 }
+type PSRow = { patient_id: number; balance: number }
+type PHRow = { abono: number; fecha: string }
 
 /* ── Helpers ── */
 const fmt = (n: number) =>
@@ -88,11 +89,13 @@ export default function DashboardPage() {
   const { theme } = useTheme()
   const router    = useRouter()
 
-  const [canAccess,    setCanAccess]    = useState<boolean | null>(null)
-  const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [patients,     setPatients]     = useState<Patient[]>([])
-  const [searchTerm,   setSearchTerm]   = useState("")
-  const [filterDate,   setFilterDate]   = useState(new Date().toISOString().split("T")[0])
+  const [canAccess,       setCanAccess]       = useState<boolean | null>(null)
+  const [appointments,    setAppointments]    = useState<Appointment[]>([])
+  const [patients,        setPatients]        = useState<Patient[]>([])
+  const [patientServices, setPatientServices] = useState<PSRow[]>([])
+  const [allPayments,     setAllPayments]     = useState<PHRow[]>([])
+  const [searchTerm,      setSearchTerm]      = useState("")
+  const [filterDate,      setFilterDate]      = useState(new Date().toISOString().split("T")[0])
 
   /* ── Auth ── */
   useEffect(() => {
@@ -108,37 +111,43 @@ export default function DashboardPage() {
       .catch(console.error)
   }, [])
 
-  /* ── Fetch patients ── */
+  /* ── Fetch patients + financial data ── */
   useEffect(() => {
     fetch("/patients/api")
-      .then(r => r.json())
-      .then(setPatients)
-      .catch(console.error)
+      .then(r => r.json()).then(setPatients).catch(console.error)
+    fetch("/api/patient-services")
+      .then(r => r.json()).then(setPatientServices).catch(console.error)
+    fetch("/api/payment-history")
+      .then(r => r.json()).then(setAllPayments).catch(console.error)
   }, [])
 
   /* ── Computed values ── */
-  const { pendingMoney, monthIncome, incomingPerMonth, todayCount } = useMemo(() => {
+  const { pendingMoney, monthIncome, incomingPerMonth, todayCount, pendingCountMap } = useMemo(() => {
     const today = new Date()
-    let pendingMoney = 0
-    let monthIncome  = 0
-    const incomingPerMonth = new Array(12).fill(0)
     const todayCount = appointments.filter(a => isSameDay(parseISO(a.startDate), today)).length
 
-    patients.forEach(p => {
-      p.servicios?.forEach(s => {
-        pendingMoney += s.balance ?? 0
-        s.paymentHistory?.forEach(pay => {
-          const m = new Date(pay.fecha).getMonth()
-          if (!isNaN(m) && m >= 0 && m < 12) {
-            const abono = Number(pay.abono) || 0
-            incomingPerMonth[m] += abono
-            if (m === today.getMonth()) monthIncome += abono
-          }
-        })
-      })
+    const pendingMoney     = patientServices.reduce((s, r) => s + (r.balance ?? 0), 0)
+    const incomingPerMonth = new Array(12).fill(0)
+    let   monthIncome      = 0
+
+    allPayments.forEach(pay => {
+      const m     = new Date(pay.fecha + 'T12:00:00').getMonth()
+      const abono = Number(pay.abono) || 0
+      if (m >= 0 && m < 12) {
+        incomingPerMonth[m] += abono
+        if (m === today.getMonth()) monthIncome += abono
+      }
     })
-    return { pendingMoney, monthIncome, incomingPerMonth, todayCount }
-  }, [patients, appointments])
+
+    const pendingCountMap = new Map<number, number>()
+    patientServices.forEach(ps => {
+      if ((ps.balance ?? 0) > 0) {
+        pendingCountMap.set(ps.patient_id, (pendingCountMap.get(ps.patient_id) ?? 0) + 1)
+      }
+    })
+
+    return { pendingMoney, monthIncome, incomingPerMonth, todayCount, pendingCountMap }
+  }, [patientServices, allPayments, appointments])
 
   /* ── Filtered data ── */
   const filteredAppointments = useMemo(() =>
@@ -324,7 +333,7 @@ export default function DashboardPage() {
                 const hoy     = new Date()
                 const ultima  = patient.Appointment?.filter(a => new Date(a.startDate) < hoy) ?? []
                 const proxima = patient.Appointment?.filter(a => new Date(a.startDate) > hoy) ?? []
-                const pending = patient.servicios?.filter(s => s.balance > 0).length ?? 0
+                const pending = pendingCountMap.get(patient.id) ?? 0
 
                 return (
                   <div

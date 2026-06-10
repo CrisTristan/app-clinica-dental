@@ -12,7 +12,6 @@ import { CldUploadWidget, CldImage } from "next-cloudinary"
 import { getAllPatientImages } from '../actions/getAllImages'
 import { deleteOneImage } from '../actions/deleteOneImage'
 import DeleteButtonNotify from './deleteButtonNotify'
-import ManageBudgets from './ManageBudgets'
 import ExamenTejidos from "./DentalData/ExamenTejitos"
 import HabitosForm from "./DentalData/HabitosForm"
 import EnfermedadesPersonales from './DentalData/EnfermedaesPersonales'
@@ -143,9 +142,6 @@ export default function PerfilPaciente({
   const initials = [patient?.name?.[0], patient?.apellido_pat?.[0]]
     .filter(Boolean).join("").toUpperCase() || "?"
 
-  const pendingServices = patient?.servicios?.filter(s => s.balance > 0).length ?? 0
-  const totalServices   = patient?.servicios?.length ?? 0
-
   if (!patient)
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -224,19 +220,6 @@ export default function PerfilPaciente({
                 </div>
               </div>
 
-              {/* Quick stats */}
-              <div className="flex gap-3 shrink-0">
-                <div className="text-center px-4 py-2 bg-gray-50 dark:bg-slate-700 rounded-xl border border-gray-100 dark:border-slate-600">
-                  <p className="text-lg font-bold text-gray-800 dark:text-slate-100">{totalServices}</p>
-                  <p className="text-[10px] text-gray-400 dark:text-slate-500">Servicios</p>
-                </div>
-                <div className="text-center px-4 py-2 bg-gray-50 dark:bg-slate-700 rounded-xl border border-gray-100 dark:border-slate-600">
-                  <p className={`text-lg font-bold ${pendingServices > 0 ? "text-red-500" : "text-green-500"}`}>
-                    {pendingServices}
-                  </p>
-                  <p className="text-[10px] text-gray-400 dark:text-slate-500">Pendientes</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -307,11 +290,6 @@ export default function PerfilPaciente({
             {/* <Odontogram /> */}
             <OdontogramaCanvas />
           </div>
-        </Section>
-
-        {/* ── Presupuestos ── */}
-        <Section title="Gestión de Presupuestos" icon={ClipboardList}>
-          <ManageBudgets id={id} />
         </Section>
 
         {/* ── Historial clínico ── */}
