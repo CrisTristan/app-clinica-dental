@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MoreVertical } from 'lucide-react'
+import { MoreVertical, Download, Mail, MessageCircle, CheckCircle2, X } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -20,8 +20,14 @@ interface Props extends PatientServiceRow {
   onRefresh: () => void
 }
 
+interface AbonoResult {
+  paymentId: number
+  amount: number
+  newBalance: number
+}
+
 export default function PatientServiceCard({
-  id, patient_name, name, price, balance, onRefresh,
+  id, patient_name, patient_phone, name, price, balance, onRefresh,
 }: Props) {
   const paid     = (price ?? 0) - (balance ?? 0)
   const progress = price > 0 ? Math.min(Math.round((paid / price) * 100), 100) : 0
@@ -31,24 +37,57 @@ export default function PatientServiceCard({
   const initials = patient_name
     .split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase()
 
+  const fmt = (n: number) => `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+
   // ── Abonar ──────────────────────────────────────────────
-  const [abonarOpen, setAbonarOpen]     = useState(false)
-  const [abonoAmount, setAbonoAmount]   = useState('')
-  const [abonoLoading, setAbonoLoading] = useState(false)
+  const [abonarOpen, setAbonarOpen]       = useState(false)
+  const [abonoAmount, setAbonoAmount]     = useState('')
+  const [abonoLoading, setAbonoLoading]   = useState(false)
+  const [abonoResult, setAbonoResult]     = useState<AbonoResult | null>(null)
+  const [emailInput, setEmailInput]       = useState('')
+  const [sendingEmail, setSendingEmail]   = useState(false)
+  const [sendingWA, setSendingWA]         = useState(false)
+  const [sendResult, setSendResult]       = useState<{ email?: string; whatsapp?: string } | null>(null)
 
   const handleAbonar = async () => {
     const amount = parseFloat(abonoAmount)
     if (isNaN(amount) || amount <= 0) return
     setAbonoLoading(true)
-    await fetch('/api/payment-history', {
-      method: 'POST',
+    const res  = await fetch('/api/payment-history', {
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ patient_service_id: id, abono: amount }),
+      body:    JSON.stringify({ patient_service_id: id, abono: amount }),
     })
+    const data = await res.json()
     setAbonoLoading(false)
-    setAbonoAmount('')
+    if (res.ok && data.payment) {
+      setAbonoResult({ paymentId: data.payment.id, amount: data.payment.abono, newBalance: data.newBalance })
+      setAbonoAmount('')
+      setSendResult(null)
+      onRefresh()
+    }
+  }
+
+  const handleSendReceipt = async (channels: { email?: string; whatsapp?: boolean }) => {
+    if (!abonoResult) return
+    if (channels.email)    setSendingEmail(true)
+    if (channels.whatsapp) setSendingWA(true)
+    const res  = await fetch('/api/payment-history/send-receipt', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ paymentId: abonoResult.paymentId, channels }),
+    })
+    const data = await res.json()
+    setSendingEmail(false)
+    setSendingWA(false)
+    setSendResult(prev => ({ ...prev, ...data.results }))
+  }
+
+  const closeAbonar = () => {
     setAbonarOpen(false)
-    onRefresh()
+    setAbonoResult(null)
+    setEmailInput('')
+    setSendResult(null)
   }
 
   // ── Editar ──────────────────────────────────────────────
@@ -62,9 +101,9 @@ export default function PatientServiceCard({
     if (!editName || isNaN(numPrice) || numPrice <= 0) return
     setEditLoading(true)
     await fetch(`/api/patient-services/${id}`, {
-      method: 'PUT',
+      method:  'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: editName, price: numPrice }),
+      body:    JSON.stringify({ name: editName, price: numPrice }),
     })
     setEditLoading(false)
     setEditarOpen(false)
@@ -94,9 +133,9 @@ export default function PatientServiceCard({
     if (isNaN(amount) || amount <= 0) return
     setEditAbonoLoading(true)
     await fetch(`/api/payment-history/${last.id}`, {
-      method: 'PUT',
+      method:  'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ abono: amount, patient_service_id: id }),
+      body:    JSON.stringify({ abono: amount, patient_service_id: id }),
     })
     setEditAbonoLoading(false)
     await loadHistorial()
@@ -133,7 +172,7 @@ export default function PatientServiceCard({
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem
                 disabled={balance === 0}
-                onSelect={() => { setAbonoAmount(''); setAbonarOpen(true) }}
+                onSelect={() => { setAbonoAmount(''); setAbonoResult(null); setAbonarOpen(true) }}
               >
                 Abonar
               </DropdownMenuItem>
@@ -174,26 +213,121 @@ export default function PatientServiceCard({
       </div>
 
       {/* ── Dialog: Abonar ── */}
-      <Dialog open={abonarOpen} onOpenChange={setAbonarOpen}>
+      <Dialog open={abonarOpen} onOpenChange={closeAbonar}>
         <DialogContent className="sm:max-w-sm bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700">
-          <DialogHeader>
-            <DialogTitle className="text-gray-800 dark:text-slate-100">Registrar abono</DialogTitle>
-            <DialogDescription className="text-gray-400 dark:text-slate-500">
-              Pendiente: <span className="font-semibold text-red-500">${balance.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            type="number" placeholder="Monto a abonar"
-            value={abonoAmount} onChange={e => setAbonoAmount(e.target.value)}
-            min={0.01} max={balance} className="text-sm"
-          />
-          <div className="flex gap-2 justify-end mt-1">
-            <Button variant="outline" size="sm" onClick={() => setAbonarOpen(false)}>Cancelar</Button>
-            <Button size="sm" disabled={abonoLoading || !abonoAmount}
-              className="bg-sky-500 hover:bg-sky-600 text-white" onClick={handleAbonar}>
-              {abonoLoading ? "Guardando…" : "Confirmar abono"}
-            </Button>
-          </div>
+
+          {/* ── Panel de registro ── */}
+          {!abonoResult ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-gray-800 dark:text-slate-100">Registrar abono</DialogTitle>
+                <DialogDescription className="text-gray-400 dark:text-slate-500">
+                  Pendiente: <span className="font-semibold text-red-500">{fmt(balance)}</span>
+                </DialogDescription>
+              </DialogHeader>
+              <Input
+                type="number" placeholder="Monto a abonar"
+                value={abonoAmount} onChange={e => setAbonoAmount(e.target.value)}
+                min={0.01} max={balance} className="text-sm"
+              />
+              <div className="flex gap-2 justify-end mt-1">
+                <Button variant="outline" size="sm" onClick={closeAbonar}>Cancelar</Button>
+                <Button size="sm" disabled={abonoLoading || !abonoAmount}
+                  className="bg-sky-500 hover:bg-sky-600 text-white" onClick={handleAbonar}>
+                  {abonoLoading ? "Guardando…" : "Confirmar abono"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            /* ── Panel de recibo ── */
+            <>
+              <DialogHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+                    <DialogTitle className="text-gray-800 dark:text-slate-100">Abono registrado</DialogTitle>
+                  </div>
+                  <button onClick={closeAbonar} className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <DialogDescription className="sr-only">Opciones de recibo</DialogDescription>
+              </DialogHeader>
+
+              {/* Resumen */}
+              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-slate-400">Abono</span>
+                  <span className="font-bold text-sky-600 dark:text-sky-400">{fmt(abonoResult.amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-slate-400">Saldo restante</span>
+                  <span className={`font-semibold ${abonoResult.newBalance === 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-slate-200'}`}>
+                    {fmt(abonoResult.newBalance)}
+                  </span>
+                </div>
+                {abonoResult.newBalance === 0 && (
+                  <p className="text-center text-green-600 dark:text-green-400 font-semibold text-xs pt-1">
+                    Servicio liquidado
+                  </p>
+                )}
+              </div>
+
+              {/* Descargar */}
+              <a
+                href={`/api/payment-history/receipt/${abonoResult.paymentId}`}
+                download={`recibo-${abonoResult.paymentId}.pdf`}
+                className="flex items-center justify-center gap-2 w-full rounded-lg border border-sky-200 dark:border-sky-800 text-sky-600 dark:text-sky-400 text-sm font-medium py-2 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Descargar recibo PDF
+              </a>
+
+              {/* Enviar por correo */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">Enviar recibo</p>
+                <div className="flex gap-2">
+                  <Input
+                    type="email" placeholder="Correo del paciente"
+                    value={emailInput} onChange={e => setEmailInput(e.target.value)}
+                    className="text-sm h-9"
+                  />
+                  <Button
+                    size="sm" variant="outline"
+                    disabled={sendingEmail || !emailInput || !!sendResult?.email}
+                    className="shrink-0 h-9 gap-1.5"
+                    onClick={() => handleSendReceipt({ email: emailInput })}
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    {sendingEmail ? '…' : sendResult?.email === 'enviado' ? 'Enviado' : 'Email'}
+                  </Button>
+                </div>
+
+                {/* WhatsApp */}
+                {patient_phone && (
+                  <Button
+                    size="sm" variant="outline"
+                    disabled={sendingWA || !!sendResult?.whatsapp}
+                    className="w-full h-9 gap-1.5 border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                    onClick={() => handleSendReceipt({ whatsapp: true })}
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    {sendingWA ? 'Enviando…'
+                      : sendResult?.whatsapp === 'enviado' ? 'Enviado por WhatsApp'
+                      : `WhatsApp — ${patient_phone}`}
+                  </Button>
+                )}
+
+                {/* Errores de envío */}
+                {(sendResult?.email?.startsWith('error') || sendResult?.whatsapp?.startsWith('error')) && (
+                  <p className="text-xs text-red-500">
+                    {sendResult?.email?.startsWith('error') && `Email: ${sendResult.email}. `}
+                    {sendResult?.whatsapp?.startsWith('error') && `WhatsApp: ${sendResult.whatsapp}.`}
+                  </p>
+                )}
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -252,14 +386,24 @@ export default function PatientServiceCard({
                           {new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })}
                         </p>
                         <p className="text-sm font-bold text-gray-800 dark:text-slate-100">
-                          ${p.abono.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                          {fmt(p.abono)}
                         </p>
                       </div>
-                      {isLast && (
-                        <span className="text-[10px] font-medium text-sky-600 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/30 px-2 py-0.5 rounded-full">
-                          Último
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {isLast && (
+                          <span className="text-[10px] font-medium text-sky-600 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/30 px-2 py-0.5 rounded-full">
+                            Último
+                          </span>
+                        )}
+                        <a
+                          href={`/api/payment-history/receipt/${p.id}`}
+                          download={`recibo-${p.id}.pdf`}
+                          title="Descargar recibo"
+                          className="text-gray-400 hover:text-sky-500 transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
                     </div>
                   )
                 })}

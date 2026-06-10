@@ -63,6 +63,7 @@ export interface PatientServiceRow {
   id: string
   patient_id: number
   patient_name: string
+  patient_phone?: string
   name: string
   price: number
   balance: number

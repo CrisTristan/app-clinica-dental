@@ -9,20 +9,21 @@ export async function GET() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('Patient_Services')
-    .select('*, Patient(name, apellido_pat, apellido_mat)')
+    .select('*, Patient(name, apellido_pat, apellido_mat, telefono)')
     .order('created_at', { ascending: false })
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
 
   const rows = (data ?? []).map((row: any) => ({
-    id:           row.id,
-    patient_id:   row.patient_id,
-    patient_name: [row.Patient?.name, row.Patient?.apellido_pat, row.Patient?.apellido_mat]
+    id:            row.id,
+    patient_id:    row.patient_id,
+    patient_name:  [row.Patient?.name, row.Patient?.apellido_pat, row.Patient?.apellido_mat]
       .filter(Boolean).join(' '),
-    name:         row.name,
-    price:        row.price,
-    balance:      row.balance,
-    created_at:   row.created_at,
+    patient_phone: row.Patient?.telefono ?? '',
+    name:          row.name,
+    price:         row.price,
+    balance:       row.balance,
+    created_at:    row.created_at,
   }))
 
   return Response.json(rows)
