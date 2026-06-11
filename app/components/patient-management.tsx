@@ -65,12 +65,13 @@ function SidebarItem({
 }
 
 export default function PatientManagement() {
-  const [patients,     setPatients]     = useState<Patient[]>([])
-  const [currentPage,  setCurrentPage]  = useState("Pacientes")
-  const [searchTerm,   setSearchTerm]   = useState("")
-  const [checkedItems, setCheckedItems] = useState<string[]>([])
-  const [sidebarOpen,  setSidebarOpen]  = useState(false)
-  const [dialogOpen,   setDialogOpen]   = useState(false)
+  const [patients,        setPatients]        = useState<Patient[]>([])
+  const [pendingCountMap, setPendingCountMap] = useState<Map<number, number>>(new Map())
+  const [currentPage,     setCurrentPage]     = useState("Pacientes")
+  const [searchTerm,      setSearchTerm]      = useState("")
+  const [checkedItems,    setCheckedItems]    = useState<string[]>([])
+  const [sidebarOpen,     setSidebarOpen]     = useState(false)
+  const [dialogOpen,      setDialogOpen]      = useState(false)
 
   const [newPatient, setNewPatient] = useState({
     name: "", telefono: "998", apellido_pat: "", apellido_mat: "",
@@ -81,11 +82,21 @@ export default function PatientManagement() {
 
   const router = useRouter()
 
-  /* ── Fetch patients ── */
+  /* ── Fetch patients + pending counts ── */
   useEffect(() => {
     fetch("/patients/api")
+      .then(r => r.json()).then(setPatients).catch(console.error)
+
+    fetch("/api/patient-services")
       .then(r => r.json())
-      .then(setPatients)
+      .then((rows: { patient_id: number; balance: number }[]) => {
+        const map = new Map<number, number>()
+        rows.forEach(ps => {
+          if ((ps.balance ?? 0) > 0)
+            map.set(ps.patient_id, (map.get(ps.patient_id) ?? 0) + 1)
+        })
+        setPendingCountMap(map)
+      })
       .catch(console.error)
   }, [])
 
@@ -353,12 +364,14 @@ export default function PatientManagement() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredPatients.map(({ id, name, apellido_pat, apellido_mat, telefono, Appointment, servicios }) => {
-                        const hoy = new Date()
-                        const ultima  = Appointment?.filter(a => new Date(a.startDate) < hoy) ?? []
-                        const proxima = Appointment?.filter(a => new Date(a.startDate) > hoy) ?? []
+                      filteredPatients.map((patient) => {
+                        const { id, name, apellido_pat, apellido_mat, telefono } = patient
+                        const appts   = (patient as any).Appointment as { startDate: string }[] | undefined
+                        const hoy     = new Date()
+                        const ultima  = appts?.filter(a => new Date(a.startDate) < hoy) ?? []
+                        const proxima = appts?.filter(a => new Date(a.startDate) > hoy) ?? []
                         const fullName = [name, apellido_pat, apellido_mat].filter(Boolean).join(" ")
-                        const pending  = servicios?.filter(s => s.balance > 0).length ?? 0
+                        const pending  = pendingCountMap.get(id) ?? 0
 
                         return (
                           <TableRow

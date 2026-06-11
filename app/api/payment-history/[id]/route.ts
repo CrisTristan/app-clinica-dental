@@ -1,0 +1,45 @@
+import { requireStaff } from "@/lib/auth-guard"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { NextRequest } from "next/server"
+
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
+  const { id } = await params
+  const { abono, patient_service_id } = await req.json()
+  if (!abono || abono <= 0 || !patient_service_id) {
+    return Response.json({ error: "abono válido y patient_service_id son requeridos" }, { status: 400 })
+  }
+
+  const supabase = createAdminClient()
+
+  const [{ data: oldPayment }, { data: service }] = await Promise.all([
+    supabase.from('Payment_History').select('abono').eq('id', id).single(),
+    supabase.from('Patient_Services').select('balance, price').eq('id', patient_service_id).single(),
+  ])
+
+  if (!oldPayment) return Response.json({ error: "Pago no encontrado" }, { status: 404 })
+  if (!service)    return Response.json({ error: "Servicio no encontrado" }, { status: 404 })
+
+  // Restore old amount then apply new
+  const restoredBalance = service.balance + oldPayment.abono
+  const newBalance      = Math.max(0, restoredBalance - abono)
+  const fecha           = new Date().toISOString().split('T')[0]
+
+  const { data: updated, error } = await supabase
+    .from('Payment_History')
+    .update({ abono, fecha })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) return Response.json({ error: error.message }, { status: 500 })
+
+  await supabase
+    .from('Patient_Services')
+    .update({ balance: newBalance })
+    .eq('id', patient_service_id)
+
+  return Response.json({ payment: updated, newBalance })
+}
