@@ -21,6 +21,7 @@ import AdministradorAnuncios from './AdministradorAnuncios'
 import ProximasCitas from './proximasCitas'
 import CatalogoServicios from './CatalogoServicios'
 import GestionColaboradores from './GestionColaboradores'
+import Prescription from './Prescription/Prescription'
 
 /* ── Helpers ── */
 function initials(name: string, ap?: string) {
@@ -38,6 +39,7 @@ const NAV = [
   { id: "Proximas Citas",  label: "Próximas Citas",   icon: Calendar    },
   { id: "Anuncios",        label: "Anuncios",         icon: FileText    },
   { id: "Catalogo",        label: "Catálogo",         icon: ClipboardList },
+  {id: "Recetas",         label: "Recetas",          icon: FileText    },
   { id: "Colaboradores",   label: "Colaboradores",    icon: UserCog     },
 ]
 
@@ -455,7 +457,7 @@ export default function PatientManagement() {
           {currentPage === "Catalogo"       && <CatalogoServicios />}
           {currentPage === "Proximas Citas" && <ProximasCitas />}
           {currentPage === "Colaboradores"  && <GestionColaboradores />}
-
+          {currentPage === "Recetas"        && <Prescription />}
         </div>
       </main>
     </div>

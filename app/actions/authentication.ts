@@ -18,7 +18,7 @@ export const authentication = async () => {
   return {
     user: {
       ...user,
-      role: profile.role as 'admin' | 'recepcionista',
+      role: profile.role as 'admin' | 'recepcionista' | 'dentista',
     }
   }
 }

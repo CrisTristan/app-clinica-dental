@@ -53,6 +53,7 @@ export default function NavBar() {
     },
     { href: "/agenda",            label: "Agenda",        show: hasAccess },
     { href: "/servicios-activos", label: "Servicios",     show: hasAccess },
+    { href: "/recetas",           label: "Recetas",       show: isAdmin || role === "dentista" },
     { href: "/pacientes",         label: "Panel Admin",   show: isAdmin },
     { href: "/dashboard",         label: "Dashboard",     show: isAdmin },
   ].filter(l => l.show !== false)
