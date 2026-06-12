@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { type Role } from "@/lib/roles"
 
-type AuthSuccess = { ok: true;  userId: string; role: Role }
+type AuthSuccess = { ok: true;  userId: string; role: Role; nombre: string | null }
 type AuthFailure = { ok: false; error: string;  status: 401 | 403 }
 type AuthResult  = AuthSuccess | AuthFailure
 
@@ -13,13 +13,13 @@ export async function requireStaff(): Promise<AuthResult> {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, nombre')
     .eq('id', user.id)
     .single()
 
   if (!profile) return { ok: false, error: 'Sin acceso', status: 403 }
 
-  return { ok: true, userId: user.id, role: profile.role as Role }
+  return { ok: true, userId: user.id, role: profile.role as Role, nombre: profile.nombre ?? null }
 }
 
 export async function requireAdmin(): Promise<AuthResult> {

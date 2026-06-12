@@ -1,5 +1,6 @@
 import { requireStaff } from "@/lib/auth-guard"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { logAudit, fullPatientName } from "@/lib/audit"
 import { NextRequest } from "next/server"
 
 const METODOS_VALIDOS = ['efectivo', 'tarjeta', 'transferencia']
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   const { data: service } = await supabase
     .from('Patient_Services')
-    .select('balance')
+    .select('balance, name, Patient(name, apellido_pat, apellido_mat)')
     .eq('id', patient_service_id)
     .single()
 
@@ -72,6 +73,22 @@ export async function POST(req: NextRequest) {
     .from('Patient_Services')
     .update({ balance: newBalance })
     .eq('id', patient_service_id)
+
+  await logAudit(supabase, {
+    userId:      auth.userId,
+    userName:    auth.nombre,
+    action:      'crear',
+    entity:      'abono',
+    entityId:    payment.id,
+    patientName: fullPatientName((service as any).Patient),
+    serviceName: (service as any).name,
+    details: {
+      abono:           applied,
+      metodo_pago:     metodo,
+      balance_anterior: service.balance,
+      balance_nuevo:    newBalance,
+    },
+  })
 
   return Response.json({ payment, newBalance }, { status: 201 })
 }

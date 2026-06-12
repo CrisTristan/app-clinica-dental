@@ -57,6 +57,7 @@ export default function NavBar() {
     { href: "/pacientes",         label: "Panel Admin",   show: isAdmin },
     { href: "/dashboard",         label: "Dashboard",     show: isAdmin },
     { href: "/reportes",          label: "Reportes",      show: isAdmin },
+    { href: "/auditoria",         label: "Auditoría",     show: isAdmin },
   ].filter(l => l.show !== false)
 
   const initials = session?.user?.email?.[0]?.toUpperCase() ?? "?"

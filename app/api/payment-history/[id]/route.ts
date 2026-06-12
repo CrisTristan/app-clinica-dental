@@ -1,5 +1,6 @@
 import { requireStaff } from "@/lib/auth-guard"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { logAudit, fullPatientName } from "@/lib/audit"
 import { NextRequest } from "next/server"
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -18,8 +19,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const supabase = createAdminClient()
 
   const [{ data: oldPayment }, { data: service }] = await Promise.all([
-    supabase.from('Payment_History').select('abono').eq('id', id).single(),
-    supabase.from('Patient_Services').select('balance, price').eq('id', patient_service_id).single(),
+    supabase.from('Payment_History').select('abono, metodo_pago').eq('id', id).single(),
+    supabase.from('Patient_Services')
+      .select('balance, price, name, Patient(name, apellido_pat, apellido_mat)')
+      .eq('id', patient_service_id).single(),
   ])
 
   if (!oldPayment) return Response.json({ error: "Pago no encontrado" }, { status: 404 })
@@ -43,6 +46,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     .from('Patient_Services')
     .update({ balance: newBalance })
     .eq('id', patient_service_id)
+
+  await logAudit(supabase, {
+    userId:      auth.userId,
+    userName:    auth.nombre,
+    action:      'editar',
+    entity:      'abono',
+    entityId:    id,
+    patientName: fullPatientName((service as any).Patient),
+    serviceName: (service as any).name,
+    details: {
+      antes:   { abono: oldPayment.abono, metodo_pago: oldPayment.metodo_pago ?? 'efectivo' },
+      despues: { abono, metodo_pago: metodo_pago ?? oldPayment.metodo_pago ?? 'efectivo' },
+      balance_nuevo: newBalance,
+    },
+  })
 
   return Response.json({ payment: updated, newBalance })
 }

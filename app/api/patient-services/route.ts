@@ -1,5 +1,6 @@
 import { requireStaff } from "@/lib/auth-guard"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { logAudit, fullPatientName } from "@/lib/audit"
 import { NextRequest } from "next/server"
 
 export async function GET() {
@@ -42,9 +43,22 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase
     .from('Patient_Services')
     .insert({ id: Date.now().toString(), patient_id, name, price, balance: price })
-    .select()
+    .select('*, Patient(name, apellido_pat, apellido_mat)')
     .single()
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
-  return Response.json(data, { status: 201 })
+
+  await logAudit(supabase, {
+    userId:      auth.userId,
+    userName:    auth.nombre,
+    action:      'crear',
+    entity:      'servicio',
+    entityId:    data.id,
+    patientName: fullPatientName((data as any).Patient),
+    serviceName: name,
+    details:     { precio: price },
+  })
+
+  const { Patient: _patient, ...service } = data as any
+  return Response.json(service, { status: 201 })
 }
