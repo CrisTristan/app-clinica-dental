@@ -56,6 +56,7 @@ export default function NavBar() {
     { href: "/recetas",           label: "Recetas",       show: isAdmin || role === "dentista" },
     { href: "/pacientes",         label: "Panel Admin",   show: isAdmin },
     { href: "/dashboard",         label: "Dashboard",     show: isAdmin },
+    { href: "/reportes",          label: "Reportes",      show: isAdmin },
   ].filter(l => l.show !== false)
 
   const initials = session?.user?.email?.[0]?.toUpperCase() ?? "?"

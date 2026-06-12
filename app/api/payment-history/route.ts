@@ -2,6 +2,8 @@ import { requireStaff } from "@/lib/auth-guard"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextRequest } from "next/server"
 
+const METODOS_VALIDOS = ['efectivo', 'tarjeta', 'transferencia']
+
 export async function GET(req: NextRequest) {
   const auth = await requireStaff()
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
@@ -9,21 +11,33 @@ export async function GET(req: NextRequest) {
   const serviceId = new URL(req.url).searchParams.get('serviceId')
   const supabase  = createAdminClient()
 
-  const query = supabase.from('Payment_History').select('*').order('fecha', { ascending: true })
+  const query = supabase
+    .from('Payment_History')
+    .select('*, profiles(nombre)')
+    .order('fecha', { ascending: true })
   if (serviceId) query.eq('patient_service_id', serviceId)
 
   const { data, error } = await query
   if (error) return Response.json({ error: error.message }, { status: 500 })
-  return Response.json(data)
+
+  const rows = (data ?? []).map(({ profiles, ...row }: any) => ({
+    ...row,
+    registrado_por_nombre: profiles?.nombre ?? null,
+  }))
+  return Response.json(rows)
 }
 
 export async function POST(req: NextRequest) {
   const auth = await requireStaff()
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
-  const { patient_service_id, abono } = await req.json()
+  const { patient_service_id, abono, metodo_pago } = await req.json()
   if (!patient_service_id || !abono || abono <= 0) {
     return Response.json({ error: "patient_service_id y abono válido son requeridos" }, { status: 400 })
+  }
+  const metodo = metodo_pago ?? 'efectivo'
+  if (!METODOS_VALIDOS.includes(metodo)) {
+    return Response.json({ error: "metodo_pago inválido (efectivo, tarjeta o transferencia)" }, { status: 400 })
   }
 
   const supabase = createAdminClient()
@@ -42,7 +56,13 @@ export async function POST(req: NextRequest) {
 
   const { data: payment, error: payErr } = await supabase
     .from('Payment_History')
-    .insert({ patient_service_id, abono: applied, fecha })
+    .insert({
+      patient_service_id,
+      abono:          applied,
+      fecha,
+      metodo_pago:    metodo,
+      registrado_por: auth.userId,
+    })
     .select()
     .single()
 

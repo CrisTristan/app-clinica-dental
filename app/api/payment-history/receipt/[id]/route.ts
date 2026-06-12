@@ -50,6 +50,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       abono:        payment.abono,
       newBalance,
       fecha:        payment.fecha,
+      metodoPago:   payment.metodo_pago ?? undefined,
     })
 
     return new Response(new Uint8Array(pdf), {

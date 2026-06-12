@@ -7,9 +7,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
   const { id } = await params
-  const { abono, patient_service_id } = await req.json()
+  const { abono, patient_service_id, metodo_pago } = await req.json()
   if (!abono || abono <= 0 || !patient_service_id) {
     return Response.json({ error: "abono válido y patient_service_id son requeridos" }, { status: 400 })
+  }
+  if (metodo_pago && !['efectivo', 'tarjeta', 'transferencia'].includes(metodo_pago)) {
+    return Response.json({ error: "metodo_pago inválido (efectivo, tarjeta o transferencia)" }, { status: 400 })
   }
 
   const supabase = createAdminClient()
@@ -29,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { data: updated, error } = await supabase
     .from('Payment_History')
-    .update({ abono, fecha })
+    .update({ abono, fecha, ...(metodo_pago ? { metodo_pago } : {}) })
     .eq('id', id)
     .select()
     .single()

@@ -9,6 +9,13 @@ export interface ReciboData {
   abono: number
   newBalance: number
   fecha: string   // YYYY-MM-DD
+  metodoPago?: string   // efectivo | tarjeta | transferencia
+}
+
+const METODO_LABELS: Record<string, string> = {
+  efectivo:      'Efectivo',
+  tarjeta:       'Tarjeta',
+  transferencia: 'Transferencia',
 }
 
 export async function generateReciboPDF(data: ReciboData): Promise<Buffer> {
@@ -82,6 +89,13 @@ export async function generateReciboPDF(data: ReciboData): Promise<Buffer> {
          .fillColor(accent ? '#0369a1' : '#374151')
          .text(value, MARGIN, y, { align: 'right', width: CW })
     })
+
+    if (data.metodoPago) {
+      const y = doc.y
+      doc.fontSize(9).font('Helvetica').fillColor('#374151').text('Método de pago')
+      doc.fontSize(9).font('Helvetica').fillColor('#374151')
+         .text(METODO_LABELS[data.metodoPago] ?? data.metodoPago, MARGIN, y, { align: 'right', width: CW })
+    }
     doc.moveDown(0.8)
 
     // ── Liquidado ─────────────────────────────────────────
