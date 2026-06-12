@@ -15,6 +15,7 @@ const adminOnlyRoutes = [
   '/dashboard',
   '/pacientes',
   '/register',
+  '/auditoria',
   '/api/admin',
 ]
 

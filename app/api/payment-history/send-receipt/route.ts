@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       abono:        payment.abono,
       newBalance,
       fecha:        payment.fecha,
+      metodoPago:   payment.metodo_pago ?? undefined,
     })
 
     const resend  = new Resend(process.env.AUTH_RESEND_KEY)

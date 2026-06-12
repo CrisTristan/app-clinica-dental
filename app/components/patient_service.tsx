@@ -8,7 +8,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { PatientServiceRow, PaymentHistoryRow } from '../types/types'
+import { PatientServiceRow, PaymentHistoryRow, MetodoPago, METODO_PAGO_LABELS } from '../types/types'
 
 const STATUS = {
   paid:    { label: "Pagado",    bar: "bg-green-500",  badge: "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800",  dot: "bg-green-500"  },
@@ -42,6 +42,7 @@ export default function PatientServiceCard({
   // ── Abonar ──────────────────────────────────────────────
   const [abonarOpen, setAbonarOpen]       = useState(false)
   const [abonoAmount, setAbonoAmount]     = useState('')
+  const [metodoPago, setMetodoPago]       = useState<MetodoPago>('efectivo')
   const [abonoLoading, setAbonoLoading]   = useState(false)
   const [abonoResult, setAbonoResult]     = useState<AbonoResult | null>(null)
   const [emailInput, setEmailInput]       = useState('')
@@ -56,7 +57,7 @@ export default function PatientServiceCard({
     const res  = await fetch('/api/payment-history', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ patient_service_id: id, abono: amount }),
+      body:    JSON.stringify({ patient_service_id: id, abono: amount, metodo_pago: metodoPago }),
     })
     const data = await res.json()
     setAbonoLoading(false)
@@ -172,7 +173,7 @@ export default function PatientServiceCard({
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem
                 disabled={balance === 0}
-                onSelect={() => { setAbonoAmount(''); setAbonoResult(null); setAbonarOpen(true) }}
+                onSelect={() => { setAbonoAmount(''); setMetodoPago('efectivo'); setAbonoResult(null); setAbonarOpen(true) }}
               >
                 Abonar
               </DropdownMenuItem>
@@ -230,6 +231,25 @@ export default function PatientServiceCard({
                 value={abonoAmount} onChange={e => setAbonoAmount(e.target.value)}
                 min={0.01} max={balance} className="text-sm"
               />
+              <div>
+                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">Método de pago</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.keys(METODO_PAGO_LABELS) as MetodoPago[]).map(m => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setMetodoPago(m)}
+                      className={`text-xs font-medium px-2 py-2 rounded-lg border transition-colors ${
+                        metodoPago === m
+                          ? 'bg-sky-50 dark:bg-sky-900/30 border-sky-400 text-sky-600 dark:text-sky-400'
+                          : 'border-gray-200 dark:border-slate-600 text-gray-500 dark:text-slate-400 hover:border-sky-300'
+                      }`}
+                    >
+                      {METODO_PAGO_LABELS[m]}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex gap-2 justify-end mt-1">
                 <Button variant="outline" size="sm" onClick={closeAbonar}>Cancelar</Button>
                 <Button size="sm" disabled={abonoLoading || !abonoAmount}
@@ -387,6 +407,10 @@ export default function PatientServiceCard({
                         </p>
                         <p className="text-sm font-bold text-gray-800 dark:text-slate-100">
                           {fmt(p.abono)}
+                        </p>
+                        <p className="text-[10px] text-gray-400 dark:text-slate-500">
+                          {METODO_PAGO_LABELS[p.metodo_pago ?? 'efectivo']}
+                          {p.registrado_por_nombre && ` · Cobró: ${p.registrado_por_nombre}`}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">

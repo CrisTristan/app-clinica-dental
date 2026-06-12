@@ -70,9 +70,20 @@ export interface PatientServiceRow {
   created_at: string
 }
 
+export type MetodoPago = 'efectivo' | 'tarjeta' | 'transferencia'
+
+export const METODO_PAGO_LABELS: Record<MetodoPago, string> = {
+  efectivo:      'Efectivo',
+  tarjeta:       'Tarjeta',
+  transferencia: 'Transferencia',
+}
+
 export interface PaymentHistoryRow {
   id: number
   patient_service_id: string
   abono: number
   fecha: string
+  metodo_pago?: MetodoPago
+  registrado_por?: string | null
+  registrado_por_nombre?: string | null
 }
