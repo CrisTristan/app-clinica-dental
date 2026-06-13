@@ -19,8 +19,10 @@ function canManageTemplate(role: string) {
   return role === "admin" || role === "dentista"
 }
 
-function toClientTemplate(row: Record<string, string | null>) {
+function toClientTemplate(row: Record<string, string | null>, isOwn = false) {
   return {
+    id: row.id ?? "",
+    isOwn,
     logoUrl: row.logo_url ?? "",
     doctorFirstName: row.doctor_first_name ?? "",
     doctorLastName: row.doctor_last_name ?? "",
@@ -44,11 +46,19 @@ export async function GET() {
   const { data, error } = await supabase
     .from("prescription_templates")
     .select("*")
-    .eq("dentist_id", auth.userId)
-    .maybeSingle()
+    .order("doctor_last_name", { ascending: true })
+    .order("doctor_first_name", { ascending: true })
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
-  return Response.json({ template: data ? toClientTemplate(data) : null })
+
+  const templates = data.map((row) =>
+    toClientTemplate(row, row.dentist_id === auth.userId)
+  )
+
+  return Response.json({
+    templates,
+    template: templates.find((template) => template.isOwn) ?? null,
+  })
 }
 
 export async function PUT(request: NextRequest) {
@@ -105,5 +115,5 @@ export async function PUT(request: NextRequest) {
     .single()
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
-  return Response.json({ template: toClientTemplate(data) })
+  return Response.json({ template: toClientTemplate(data, true) })
 }

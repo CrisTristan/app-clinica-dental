@@ -2,14 +2,17 @@
 
 import { ChangeEvent, PointerEvent, useCallback, useEffect, useRef, useState } from "react"
 import {
+  AlertTriangle,
   Building2,
   CalendarDays,
+  CheckCircle2,
   Eraser,
   FilePenLine,
   ImagePlus,
   Loader2,
   Plus,
   Printer,
+  RotateCcw,
   Save,
   Stethoscope,
   Trash2,
@@ -32,6 +35,11 @@ type TemplateForm = {
   specialty: string
   clinicAddress: string
   signatureDataUrl: string
+}
+
+type StoredTemplate = TemplateForm & {
+  id: string
+  isOwn: boolean
 }
 
 type PrescriptionForm = {
@@ -108,20 +116,25 @@ function SectionTitle({
   icon: Icon,
   title,
   description,
+  action,
 }: {
   icon: React.ElementType
   title: string
   description: string
+  action?: React.ReactNode
 }) {
   return (
-    <div className="flex items-start gap-3 border-b border-slate-100 pb-4 dark:border-slate-700">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400">
-        <Icon className="h-4 w-4" />
-      </span>
-      <div>
-        <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">{title}</h2>
-        <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{description}</p>
+    <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4 dark:border-slate-700">
+      <div className="flex items-start gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400">
+          <Icon className="h-4 w-4" />
+        </span>
+        <div>
+          <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">{title}</h2>
+          <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{description}</p>
+        </div>
       </div>
+      {action}
     </div>
   )
 }
@@ -132,19 +145,22 @@ function fullName(...parts: string[]) {
 
 export default function Prescription() {
   const [template, setTemplate] = useState<TemplateForm>(emptyTemplate)
+  const [templates, setTemplates] = useState<StoredTemplate[]>([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
   const [prescription, setPrescription] = useState<PrescriptionForm>(emptyPrescription)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [hasTemplate, setHasTemplate] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const drawingRef = useRef(false)
   const { toast } = useToast()
 
   const drawSavedSignature = useCallback((dataUrl: string) => {
     const canvas = canvasRef.current
-    if (!canvas || !dataUrl) return
+    if (!canvas) return
     const context = canvas.getContext("2d")
     if (!context) return
+    context.clearRect(0, 0, canvas.width, canvas.height)
+    if (!dataUrl) return
 
     const image = new Image()
     image.onload = () => {
@@ -161,9 +177,14 @@ export default function Prescription() {
         const body = await response.json()
         if (!response.ok) throw new Error(body.error || "No se pudo cargar la plantilla")
 
-        if (body.template) {
-          setTemplate(body.template)
-          setHasTemplate(true)
+        const loadedTemplates: StoredTemplate[] =
+          body.templates ?? (body.template ? [body.template] : [])
+        const ownTemplate = loadedTemplates.find((item) => item.isOwn)
+
+        setTemplates(loadedTemplates)
+        if (ownTemplate) {
+          setTemplate(ownTemplate)
+          setSelectedTemplateId(ownTemplate.id)
         }
       } catch (error) {
         toast({
@@ -180,10 +201,54 @@ export default function Prescription() {
   }, [drawSavedSignature, toast])
 
   useEffect(() => {
-    if (!loading && template.signatureDataUrl) {
+    if (!loading) {
       drawSavedSignature(template.signatureDataUrl)
     }
   }, [drawSavedSignature, loading, template.signatureDataUrl])
+
+  const selectedTemplate = templates.find((item) => item.id === selectedTemplateId)
+  const ownTemplate = templates.find((item) => item.isOwn)
+  const hasTemplate = Boolean(ownTemplate)
+  const canEditTemplate = !selectedTemplateId || Boolean(selectedTemplate?.isOwn)
+
+  const selectTemplate = (selected: StoredTemplate) => {
+    setTemplate(selected)
+    setSelectedTemplateId(selected.id)
+  }
+
+  const selectOwnTemplate = () => {
+    if (ownTemplate) {
+      selectTemplate(ownTemplate)
+      return
+    }
+
+    setTemplate(emptyTemplate)
+    setSelectedTemplateId(null)
+  }
+
+  const clearDentistData = () => {
+    if (!canEditTemplate) return
+    setTemplate({ ...emptyTemplate })
+  }
+
+  const clearPrescriptionData = () => {
+    setPrescription({
+      issueDate: "",
+      patientFirstName: "",
+      patientLastName: "",
+      patientSecondLastName: "",
+      patientAge: "",
+      medicines: [
+        {
+          id: crypto.randomUUID(),
+          genericName: "",
+          dosage: "",
+          frequency: "",
+          duration: "",
+        },
+      ],
+    })
+  }
 
   const setTemplateField = (field: keyof TemplateForm, value: string) => {
     setTemplate((current) => ({ ...current, [field]: value }))
@@ -304,6 +369,8 @@ export default function Prescription() {
   }
 
   const saveTemplate = async () => {
+    if (!canEditTemplate) return
+
     const required: Array<keyof TemplateForm> = [
       "doctorFirstName",
       "doctorLastName",
@@ -330,8 +397,18 @@ export default function Prescription() {
       const body = await response.json()
       if (!response.ok) throw new Error(body.error || "No se pudo guardar la plantilla")
 
-      setTemplate(body.template)
-      setHasTemplate(true)
+      const savedTemplate: StoredTemplate = body.template
+      setTemplate(savedTemplate)
+      setSelectedTemplateId(savedTemplate.id)
+      setTemplates((current) => {
+        const otherTemplates = current.filter((item) => !item.isOwn)
+        return [...otherTemplates, savedTemplate].sort((first, second) =>
+          fullName(first.doctorLastName, first.doctorFirstName).localeCompare(
+            fullName(second.doctorLastName, second.doctorFirstName),
+            "es"
+          )
+        )
+      })
       toast({
         title: hasTemplate ? "Plantilla actualizada" : "Plantilla creada",
         description: "Los datos del dentista quedaron guardados.",
@@ -383,7 +460,9 @@ export default function Prescription() {
           <div>
             <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">Plantilla de receta médica</h1>
             <p className="text-xs text-slate-400 dark:text-slate-500">
-              {hasTemplate
+              {!canEditTemplate
+                ? "Plantilla seleccionada para preparar e imprimir la receta."
+                : hasTemplate
                 ? "Edita tu única plantilla y prepara los datos de la receta."
                 : "Crea la plantilla que usarás en tus recetas."}
             </p>
@@ -394,16 +473,115 @@ export default function Prescription() {
             <Printer className="mr-2 h-4 w-4" />
             Imprimir
           </Button>
-          <Button
-            onClick={saveTemplate}
-            disabled={saving}
-            className="rounded-xl bg-sky-600 text-white hover:bg-sky-700 dark:bg-sky-600 dark:text-white"
-          >
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            {hasTemplate ? "Guardar cambios" : "Crear plantilla"}
-          </Button>
+          {!canEditTemplate && (
+            <Button variant="outline" onClick={selectOwnTemplate} className="rounded-xl">
+              <UserRound className="mr-2 h-4 w-4" />
+              {hasTemplate ? "Mi plantilla" : "Crear mi plantilla"}
+            </Button>
+          )}
+          {canEditTemplate && (
+            <Button
+              onClick={saveTemplate}
+              disabled={saving}
+              className="rounded-xl bg-sky-600 text-white hover:bg-sky-700 dark:bg-sky-600 dark:text-white"
+            >
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {hasTemplate ? "Guardar cambios" : "Crear plantilla"}
+            </Button>
+          )}
         </div>
       </div>
+
+      <section className="no-print rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="mb-4">
+          <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+            Plantillas disponibles
+          </h2>
+          <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+            Selecciona al dentista cuyos datos aparecerán en la receta.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <button
+            type="button"
+            onClick={selectOwnTemplate}
+            className="flex min-h-[172px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-sky-300 bg-sky-50/50 p-4 text-center transition hover:border-sky-500 hover:bg-sky-50 dark:border-sky-800 dark:bg-sky-950/20 dark:hover:border-sky-600"
+          >
+            <span className="grid h-12 w-12 place-items-center rounded-full bg-sky-100 text-sky-600 dark:bg-sky-900/50 dark:text-sky-300">
+              <Plus className="h-6 w-6" />
+            </span>
+            <span className="mt-3 text-sm font-bold text-slate-800 dark:text-slate-100">
+              Crear plantilla nueva
+            </span>
+            <span className="mt-1 max-w-52 text-[11px] text-slate-500 dark:text-slate-400">
+              {hasTemplate
+                ? "Abre tu plantilla personal para editarla."
+                : "Completa tus datos para crear tu plantilla personal."}
+            </span>
+          </button>
+
+            {templates.map((storedTemplate) => {
+              const isSelected = storedTemplate.id === selectedTemplateId
+              const storedDoctorName = fullName(
+                storedTemplate.doctorFirstName,
+                storedTemplate.doctorLastName,
+                storedTemplate.doctorSecondLastName
+              )
+
+              return (
+                <button
+                  key={storedTemplate.id}
+                  type="button"
+                  onClick={() => selectTemplate(storedTemplate)}
+                  aria-pressed={isSelected}
+                  className={`relative rounded-2xl border p-4 text-left transition ${
+                    isSelected
+                      ? "border-sky-500 bg-sky-50 shadow-sm ring-2 ring-sky-100 dark:bg-sky-950/30 dark:ring-sky-900"
+                      : "border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50/40 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-sky-700"
+                  }`}
+                >
+                  {isSelected && (
+                    <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-sky-600" />
+                  )}
+                  <div className="flex items-start gap-3 pr-6">
+                    <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-600">
+                      {storedTemplate.logoUrl ? (
+                        <img
+                          src={storedTemplate.logoUrl}
+                          alt=""
+                          className="h-full w-full object-contain p-1.5"
+                        />
+                      ) : (
+                        <Stethoscope className="h-5 w-5 text-sky-500" />
+                      )}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-bold text-slate-800 dark:text-slate-100">
+                        {storedDoctorName}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs font-semibold text-sky-600 dark:text-sky-400">
+                        {storedTemplate.specialty || "Odontología general"}
+                      </span>
+                      {storedTemplate.isOwn && (
+                        <span className="mt-1 inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">
+                          Tu plantilla
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-[11px] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                    <p className="truncate">
+                      <strong className="text-slate-700 dark:text-slate-200">Cédula:</strong>{" "}
+                      {storedTemplate.professionalLicense}
+                    </p>
+                    <p className="truncate">{storedTemplate.degreeInstitution}</p>
+                    <p className="truncate">{storedTemplate.clinicAddress}</p>
+                  </div>
+                </button>
+              )
+            })}
+        </div>
+      </section>
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.9fr)]">
         <div className="no-print space-y-5">
@@ -411,9 +589,36 @@ export default function Prescription() {
             <SectionTitle
               icon={Stethoscope}
               title="Datos del dentista"
-              description="Estos datos se conservarán en tu plantilla personal."
+              description={
+                canEditTemplate
+                  ? "Estos datos se conservarán en tu plantilla personal."
+                  : "Datos protegidos de la plantilla seleccionada."
+              }
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={clearDentistData}
+                  disabled={!canEditTemplate}
+                  className="shrink-0 rounded-xl"
+                >
+                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                  Limpiar
+                </Button>
+              }
             />
 
+            {!canEditTemplate && (
+              <div className="flex items-center gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800 shadow-sm dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+                <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span>
+                  Puedes usar esta plantilla para la receta, pero solo su propietario puede modificarla.
+                </span>
+              </div>
+            )}
+
+            <fieldset disabled={!canEditTemplate} className="space-y-5 disabled:opacity-75">
             <div className="grid gap-4 sm:grid-cols-3">
               <Field id="doctorFirstName" label="Nombre" required>
                 <Input
@@ -516,17 +721,38 @@ export default function Prescription() {
                   ref={canvasRef}
                   width={600}
                   height={220}
-                  onPointerDown={startDrawing}
-                  onPointerMove={draw}
-                  onPointerUp={stopDrawing}
-                  onPointerCancel={stopDrawing}
-                  onPointerLeave={stopDrawing}
-                  className="h-[150px] w-full touch-none rounded-xl border border-slate-200 bg-white dark:border-slate-600"
+                  onPointerDown={canEditTemplate ? startDrawing : undefined}
+                  onPointerMove={canEditTemplate ? draw : undefined}
+                  onPointerUp={canEditTemplate ? stopDrawing : undefined}
+                  onPointerCancel={canEditTemplate ? stopDrawing : undefined}
+                  onPointerLeave={canEditTemplate ? stopDrawing : undefined}
+                  className={`h-[150px] w-full rounded-xl border border-slate-200 bg-white dark:border-slate-600 ${
+                    canEditTemplate ? "touch-none" : "cursor-not-allowed"
+                  }`}
                   aria-label="Área para dibujar la firma"
                 />
                 <p className="text-[10px] text-slate-400">Dibuja con el mouse, lápiz digital o dedo.</p>
               </div>
             </div>
+            </fieldset>
+
+            {canEditTemplate && (
+              <div className="flex justify-end border-t border-slate-100 pt-5 dark:border-slate-700">
+                <Button
+                  type="button"
+                  onClick={saveTemplate}
+                  disabled={saving}
+                  className="rounded-xl bg-sky-600 text-white hover:bg-sky-700 dark:bg-sky-600 dark:text-white"
+                >
+                  {saving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  {hasTemplate ? "Guardar cambios" : "Crear plantilla"}
+                </Button>
+              </div>
+            )}
           </section>
 
           <section className="space-y-5 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -534,6 +760,18 @@ export default function Prescription() {
               icon={UserRound}
               title="Datos de la receta"
               description="Cambian para cada paciente y no modifican tu plantilla."
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={clearPrescriptionData}
+                  className="shrink-0 rounded-xl"
+                >
+                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                  Limpiar
+                </Button>
+              }
             />
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -661,7 +899,8 @@ export default function Prescription() {
           </section>
         </div>
 
-        <aside className="prescription-preview sticky top-20 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+        <div className="prescription-preview-column sticky top-20 space-y-4">
+          <aside className="prescription-preview overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
           <div className="border-b-4 border-sky-500 bg-slate-50 px-7 py-6">
             <div className="flex items-start justify-between gap-5">
               <div className="min-w-0">
@@ -752,7 +991,18 @@ export default function Prescription() {
               {template.clinicAddress || "Domicilio del establecimiento de la clínica dental"}
             </p>
           </div>
-        </aside>
+          </aside>
+          <div className="no-print flex justify-center">
+            <Button
+              type="button"
+              onClick={() => window.print()}
+              className="rounded-xl bg-sky-600 px-6 text-white hover:bg-sky-700 dark:bg-sky-600 dark:text-white"
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Imprimir
+            </Button>
+          </div>
+        </div>
       </div>
 
       <style jsx global>{`
@@ -776,6 +1026,9 @@ export default function Prescription() {
             border: 0 !important;
             border-radius: 0 !important;
             box-shadow: none !important;
+          }
+          .prescription-preview-column {
+            position: static !important;
           }
           @page {
             size: letter;
