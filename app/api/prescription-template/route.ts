@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 
-import { requireStaff } from "@/lib/auth-guard"
+import { requireRole } from "@/lib/auth-guard"
+import { rolesFor } from "@/lib/permissions"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 const fields = [
@@ -14,10 +15,6 @@ const fields = [
   "clinicAddress",
   "signatureDataUrl",
 ] as const
-
-function canManageTemplate(role: string) {
-  return role === "admin" || role === "dentista"
-}
 
 function toClientTemplate(row: Record<string, string | null>, isOwn = false) {
   return {
@@ -36,11 +33,8 @@ function toClientTemplate(row: Record<string, string | null>, isOwn = false) {
 }
 
 export async function GET() {
-  const auth = await requireStaff()
+  const auth = await requireRole(rolesFor('recetas'))
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
-  if (!canManageTemplate(auth.role)) {
-    return Response.json({ error: "Solo los dentistas pueden administrar plantillas." }, { status: 403 })
-  }
 
   const supabase = createAdminClient()
   const { data, error } = await supabase
@@ -62,11 +56,8 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
-  const auth = await requireStaff()
+  const auth = await requireRole(rolesFor('recetas'))
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
-  if (!canManageTemplate(auth.role)) {
-    return Response.json({ error: "Solo los dentistas pueden administrar plantillas." }, { status: 403 })
-  }
 
   const body = await request.json()
   const values = Object.fromEntries(

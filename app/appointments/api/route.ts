@@ -2,16 +2,20 @@ import { requireStaff } from "@/lib/auth-guard"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { dateOnlyToDbStartOfDay } from "@/app/helpers/dateTime"
 
-// GET y POST son públicos: GET para verificar disponibilidad, POST para reservas
+// Sistema interno: tanto leer la agenda como crear citas exige sesión de personal.
 export async function GET(req: Request) {
-  const supabase = createAdminClient()
-  const url = new URL(req.url)
-  const startDate = url.searchParams.get('startDate')
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
-  if (!startDate) {
+  const supabase = createAdminClient()
+  const startDate = new URL(req.url).searchParams.get('startDate')
+
+  if (startDate) {
     const { data, error } = await supabase
       .from('Appointment')
       .select('*, name:Patient(*)')
+      .gte('startDate', dateOnlyToDbStartOfDay(startDate))
+      .limit(7)
 
     if (error) return new Response('Server error', { status: 500 })
     return Response.json(data)
@@ -20,14 +24,15 @@ export async function GET(req: Request) {
   const { data, error } = await supabase
     .from('Appointment')
     .select('*, name:Patient(*)')
-    .gte('startDate', dateOnlyToDbStartOfDay(startDate))
-    .limit(7)
 
   if (error) return new Response('Server error', { status: 500 })
   return Response.json(data)
 }
 
 export async function POST(req: Request) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
   const supabase = createAdminClient()
   const appointment = await req.json()
 

@@ -5,7 +5,10 @@ type AuthSuccess = { ok: true;  userId: string; role: Role; nombre: string | nul
 type AuthFailure = { ok: false; error: string;  status: 401 | 403 }
 type AuthResult  = AuthSuccess | AuthFailure
 
-export async function requireStaff(): Promise<AuthResult> {
+// Guard genérico: exige sesión + que el rol del perfil esté entre los permitidos.
+// Es la base de todos los demás guards. Las rutas declaran sus roles vía
+// requireRole(rolesFor('capacidad')) usando la matriz de lib/permissions.
+export async function requireRole(roles: readonly Role[]): Promise<AuthResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -19,14 +22,20 @@ export async function requireStaff(): Promise<AuthResult> {
 
   if (!profile) return { ok: false, error: 'Sin acceso', status: 403 }
 
-  return { ok: true, userId: user.id, role: profile.role as Role, nombre: profile.nombre ?? null }
-}
-
-export async function requireAdmin(): Promise<AuthResult> {
-  const result = await requireStaff()
-  if (!result.ok) return result
-  if (result.role !== 'admin') {
+  const role = profile.role as Role
+  if (!roles.includes(role)) {
     return { ok: false, error: 'Permisos insuficientes', status: 403 }
   }
-  return result
+
+  return { ok: true, userId: user.id, role, nombre: profile.nombre ?? null }
+}
+
+// Cualquier rol de personal con perfil.
+export async function requireStaff(): Promise<AuthResult> {
+  return requireRole(['admin', 'recepcionista', 'dentista'])
+}
+
+// Solo administrador.
+export async function requireAdmin(): Promise<AuthResult> {
+  return requireRole(['admin'])
 }

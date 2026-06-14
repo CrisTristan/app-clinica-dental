@@ -1,22 +1,31 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { rolesFor } from '@/lib/permissions'
 
-// Rutas accesibles sin autenticación
+// Rutas accesibles sin autenticación. El sistema es interno: lo único público
+// es el landing y el login. Todo lo demás (incluidas las APIs de citas) exige
+// sesión de personal.
 const publicRoutes = [
   '/',
   '/login',
-  '/testing',
-  '/appointment-confirmation/api',
-  '/appointments/api',
 ]
 
-// Rutas que requieren rol 'admin' (cualquier otro rol es redirigido a /agenda)
+// Rutas que requieren rol 'admin' (cualquier otro rol es redirigido a /agenda).
+// Nota: '/pacientes' (lista/Panel Admin) se gestiona aparte para permitir que
+// el personal abra la ficha individual /pacientes/<id> (plan B).
 const adminOnlyRoutes = [
   '/dashboard',
-  '/pacientes',
   '/register',
   '/auditoria',
   '/api/admin',
+]
+
+// Páginas divididas por rol, derivadas de la matriz central (lib/permissions).
+// Un rol no permitido es redirigido a /agenda.
+const roleRoutes: { prefix: string; roles: readonly string[] }[] = [
+  { prefix: '/servicios-activos', roles: rolesFor('cobros') },
+  { prefix: '/recetas',           roles: rolesFor('recetas') },
+  { prefix: '/reportes',          roles: rolesFor('reportes') },
 ]
 
 export async function middleware(request: NextRequest) {
@@ -96,6 +105,30 @@ export async function middleware(request: NextRequest) {
       const url = request.nextUrl.clone()
       const isStaff = role === 'recepcionista' || role === 'dentista'
       url.pathname = isStaff ? '/agenda' : '/login'
+      return NextResponse.redirect(url)
+    }
+
+    // Panel Admin (lista /pacientes) es solo admin; la ficha individual
+    // /pacientes/<id> la consulta todo el personal (plan B).
+    if (pathname === '/pacientes' && role !== 'admin') {
+      const url = request.nextUrl.clone()
+      const isStaff = role === 'recepcionista' || role === 'dentista'
+      url.pathname = isStaff ? '/agenda' : '/login'
+      return NextResponse.redirect(url)
+    }
+
+    // Páginas divididas por rol (cobros, recetas, reportes)
+    const roleRoute = roleRoutes.find(
+      r => pathname === r.prefix || pathname.startsWith(r.prefix + '/')
+    )
+
+    if (roleRoute && role && !roleRoute.roles.includes(role)) {
+      if (isApiRoute) {
+        return NextResponse.json({ error: 'Permisos insuficientes' }, { status: 403 })
+      }
+
+      const url = request.nextUrl.clone()
+      url.pathname = '/agenda'
       return NextResponse.redirect(url)
     }
   }

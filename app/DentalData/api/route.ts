@@ -1,4 +1,5 @@
-import { requireStaff } from "@/lib/auth-guard"
+import { requireStaff, requireRole } from "@/lib/auth-guard"
+import { rolesFor } from "@/lib/permissions"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function GET(request: Request) {
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(req: Request) {
-  const auth = await requireStaff()
+  const auth = await requireRole(rolesFor('clinica.editar'))
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
   const supabase = createAdminClient()

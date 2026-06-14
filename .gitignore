@@ -38,3 +38,6 @@ next-env.d.ts
 
 # security
 SECURITY_FINDINGS.md
+
+# notas internas (no subir)
+EVALUACION.md

@@ -21,6 +21,8 @@ import Alergias from './DentalData/Alergias'
 import Alimentacion from './DentalData/Alimentacion'
 import { useRouter } from 'next/navigation'
 import OdontogramaCanvas from '../odontograma/OdontogramaCanvas'
+import { authentication } from '../actions/authentication'
+import { can } from '@/lib/permissions'
 
 /* ── Field map: key → Spanish label ── */
 const FIELD_LABELS: Record<string, string> = {
@@ -101,6 +103,15 @@ export default function PerfilPaciente({
   const [patient,  setPatient]  = useState<Patient | undefined>()
   const [archivos, setArchivos] = useState<string[]>([])
   const [saved,    setSaved]    = useState(false)
+  // La info clínica solo la edita admin/dentista; la recepcionista la ve en
+  // modo solo lectura (el servidor también lo impone en las APIs clínicas).
+  const [canEditClinical, setCanEditClinical] = useState(true)
+
+  useEffect(() => {
+    authentication().then(session =>
+      setCanEditClinical(can(session?.user?.role, 'clinica.editar'))
+    )
+  }, [])
 
   useEffect(() => {
     if (!paciente) return
@@ -288,7 +299,7 @@ export default function PerfilPaciente({
         <Section title="Odontograma" icon={Stethoscope} className="overflow-visible">
           <div className="">
             {/* <Odontogram /> */}
-            <OdontogramaCanvas />
+            <fieldset disabled={!canEditClinical} className="contents"><OdontogramaCanvas /></fieldset>
           </div>
         </Section>
 
@@ -308,8 +319,13 @@ export default function PerfilPaciente({
 
         {/* ── Datos dentales ── */}
         <div>
-          <h2 className="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-3 px-1">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-3 px-1">
             Datos Clínicos
+            {!canEditClinical && (
+              <span className="text-[10px] font-medium normal-case px-2 py-0.5 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400">
+                Solo lectura
+              </span>
+            )}
           </h2>
           <div className="space-y-2">
 
@@ -322,20 +338,20 @@ export default function PerfilPaciente({
                 <p className="text-sm font-semibold text-gray-800 dark:text-slate-100">Motivo de Consulta</p>
               </div>
               <div className="p-5">
-                <MotivoConsulta id={id} />
+                <fieldset disabled={!canEditClinical} className="contents"><MotivoConsulta id={id} /></fieldset>
               </div>
             </div>
 
             <DentalCard title="Examen de Tejidos" icon={Stethoscope} description="Revisión de tejidos blandos y duros">
-              <ExamenTejidos id={id} />
+              <fieldset disabled={!canEditClinical} className="contents"><ExamenTejidos id={id} /></fieldset>
             </DentalCard>
 
             <DentalCard title="Hábitos" icon={Activity} description="Hábitos orales y parafuncionales">
-              <HabitosForm id={id} />
+              <fieldset disabled={!canEditClinical} className="contents"><HabitosForm id={id} /></fieldset>
             </DentalCard>
 
             <DentalCard title="Enfermedades Personales" icon={Heart} description="Antecedentes médicos y enfermedades sistémicas">
-              <EnfermedadesPersonales id={id} />
+              <fieldset disabled={!canEditClinical} className="contents"><EnfermedadesPersonales id={id} /></fieldset>
             </DentalCard>
 
             {/* Higiene, alergias, alimentación — inline */}
@@ -347,13 +363,15 @@ export default function PerfilPaciente({
                 <p className="text-sm font-semibold text-gray-800 dark:text-slate-100">Higiene, Alergias y Alimentación</p>
               </div>
               <div className="p-5 space-y-5">
-                <HigieneBucal id={id} />
-                <div className="border-t border-gray-50 dark:border-slate-700 pt-5">
-                  <Alergias id={id} />
-                </div>
-                <div className="border-t border-gray-50 dark:border-slate-700 pt-5">
-                  <Alimentacion id={id} />
-                </div>
+                <fieldset disabled={!canEditClinical} className="contents">
+                  <HigieneBucal id={id} />
+                  <div className="border-t border-gray-50 dark:border-slate-700 pt-5">
+                    <Alergias id={id} />
+                  </div>
+                  <div className="border-t border-gray-50 dark:border-slate-700 pt-5">
+                    <Alimentacion id={id} />
+                  </div>
+                </fieldset>
               </div>
             </div>
 

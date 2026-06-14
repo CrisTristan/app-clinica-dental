@@ -1,12 +1,13 @@
 export const runtime = 'nodejs'
 
-import { requireStaff } from "@/lib/auth-guard"
+import { requireRole } from "@/lib/auth-guard"
+import { rolesFor } from "@/lib/permissions"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { generateReciboPDF } from "@/lib/pdf/recibo"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireStaff()
+    const auth = await requireRole(rolesFor('cobros'))
     if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
     const { id } = await params

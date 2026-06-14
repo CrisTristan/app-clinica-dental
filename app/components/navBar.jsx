@@ -7,6 +7,7 @@ import { SignOut } from "./signOut"
 import { ThemeToggle } from "./theme-toggle"
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
+import { can } from "@/lib/permissions"
 
 export default function NavBar() {
   const [session, setSession] = useState(null)
@@ -38,10 +39,10 @@ export default function NavBar() {
     }
   }, [])
 
-  const role     = session?.user?.role
-  const isAdmin  = role === "admin"
-  const hasAccess = role === "admin" || role === "recepcionista" || role === "dentista"
+  const role    = session?.user?.role
+  const isAdmin = role === "admin"
 
+  // El menú lee de la matriz central (lib/permissions): una sola fuente de verdad.
   const navLinks = [
     {
       href: "/", label: "Inicio",
@@ -51,13 +52,14 @@ export default function NavBar() {
         </svg>
       ),
     },
-    { href: "/agenda",            label: "Agenda",        show: hasAccess },
-    { href: "/servicios-activos", label: "Servicios",     show: hasAccess },
-    { href: "/recetas",           label: "Recetas",       show: isAdmin || role === "dentista" },
+    { href: "/agenda",            label: "Agenda",        show: can(role, 'agenda') },
+    { href: "/directorio",        label: "Pacientes",     show: can(role, 'pacientes') && !isAdmin },
+    { href: "/servicios-activos", label: "Servicios",     show: can(role, 'cobros') },
+    { href: "/recetas",           label: "Recetas",       show: can(role, 'recetas') },
     { href: "/pacientes",         label: "Panel Admin",   show: isAdmin },
     { href: "/dashboard",         label: "Dashboard",     show: isAdmin },
-    { href: "/reportes",          label: "Reportes",      show: isAdmin },
-    { href: "/auditoria",         label: "Auditoría",     show: isAdmin },
+    { href: "/reportes",          label: "Reportes",      show: can(role, 'reportes') },
+    { href: "/auditoria",         label: "Auditoría",     show: can(role, 'auditoria') },
   ].filter(l => l.show !== false)
 
   const initials = session?.user?.email?.[0]?.toUpperCase() ?? "?"

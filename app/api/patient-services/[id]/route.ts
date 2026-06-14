@@ -1,10 +1,11 @@
-import { requireStaff } from "@/lib/auth-guard"
+import { requireRole } from "@/lib/auth-guard"
+import { rolesFor } from "@/lib/permissions"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { logAudit, fullPatientName } from "@/lib/audit"
 import { NextRequest } from "next/server"
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireStaff()
+  const auth = await requireRole(rolesFor('cobros'))
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
   const { id } = await params
@@ -53,7 +54,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireStaff()
+  const auth = await requireRole(rolesFor('cobros'))
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
   const { id } = await params

@@ -4,7 +4,7 @@ import PatientServiceCard from "../../components/patient_service"
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { PatientServiceRow, Service } from "@/app/types/types"
 import { authentication } from "@/app/actions/authentication"
-import { hasAccess } from "@/lib/roles"
+import { can } from "@/lib/permissions"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,7 +52,7 @@ export default function ServiciosActivosPage() {
   useEffect(() => {
     const init = async () => {
       const session = await authentication()
-      if (!hasAccess(session?.user?.role)) { setCanAccess(false); return }
+      if (!can(session?.user?.role, 'cobros')) { setCanAccess(false); return }
       setCanAccess(true)
       loadServices()
     }

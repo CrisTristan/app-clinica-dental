@@ -1,4 +1,5 @@
-import { requireStaff } from "@/lib/auth-guard"
+import { requireRole } from "@/lib/auth-guard"
+import { rolesFor } from "@/lib/permissions"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { logAudit, fullPatientName } from "@/lib/audit"
 import { NextRequest } from "next/server"
@@ -6,7 +7,7 @@ import { NextRequest } from "next/server"
 const METODOS_VALIDOS = ['efectivo', 'tarjeta', 'transferencia']
 
 export async function GET(req: NextRequest) {
-  const auth = await requireStaff()
+  const auth = await requireRole(rolesFor('cobros'))
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
   const serviceId = new URL(req.url).searchParams.get('serviceId')
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireStaff()
+  const auth = await requireRole(rolesFor('cobros'))
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
   const { patient_service_id, abono, metodo_pago } = await req.json()

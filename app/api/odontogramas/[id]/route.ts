@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireStaff } from "@/lib/auth-guard";
+import { requireStaff, requireRole } from "@/lib/auth-guard";
+import { rolesFor } from "@/lib/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(
@@ -36,7 +37,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireStaff()
+  const auth = await requireRole(rolesFor('clinica.editar'))
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const body = await request.json();

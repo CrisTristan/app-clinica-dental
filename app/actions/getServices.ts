@@ -1,8 +1,12 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { requireStaff } from "@/lib/auth-guard"
 
 export const getServices = async () => {
+  const auth = await requireStaff()
+  if (!auth.ok) return null
+
   const supabase = createAdminClient()
 
   const { data, error } = await supabase

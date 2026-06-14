@@ -1,6 +1,14 @@
+import { requireStaff } from "@/lib/auth-guard"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function POST(req: Request) {
+  // Antes era público: cualquiera con un teléfono podía confirmar/cancelar la
+  // última cita de ese paciente (IDOR). Ahora exige sesión de personal.
+  // Para un flujo público de confirmación por link se necesitaría un token
+  // firmado por cita, no el teléfono como identificador.
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
   const supabase = createAdminClient()
   const confirmation = await req.json()
 
