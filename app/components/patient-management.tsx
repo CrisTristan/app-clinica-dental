@@ -74,10 +74,11 @@ export default function PatientManagement() {
   const [dialogOpen,      setDialogOpen]      = useState(false)
 
   const [newPatient, setNewPatient] = useState({
-    name: "", telefono: "998", apellido_pat: "", apellido_mat: "",
+    name: "", telefono: "998", apellido_pat: "", apellido_mat: "", email: "",
   })
   const [errorName,  setErrorName]  = useState("")
   const [errorPhone, setErrorPhone] = useState("")
+  const [errorEmail, setErrorEmail] = useState("")
   const [errorSave,  setErrorSave]  = useState(false)
 
   const router = useRouter()
@@ -133,10 +134,14 @@ export default function PatientManagement() {
     if (name === "telefono") {
       setErrorPhone(/^\d+$/.test(value) ? "" : "Solo dígitos")
     }
+    if (name === "email") {
+      // El correo es opcional: vacío es válido; si hay texto, valida el formato.
+      setErrorEmail(value === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? "" : "Correo no válido")
+    }
   }
 
   const handleSave = () => {
-    if (errorName || errorPhone) return
+    if (errorName || errorPhone || errorEmail) return
     if (newPatient.telefono.length < 10) { setErrorPhone("10 dígitos requeridos"); return }
 
     fetch("/patients/api", {
@@ -147,13 +152,14 @@ export default function PatientManagement() {
         phone: newPatient.telefono,
         apellidoPat: newPatient.apellido_pat,
         apellidoMat: newPatient.apellido_mat,
+        email: newPatient.email.trim() || null,
       }),
     })
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then(() => {
         setDialogOpen(false)
         setErrorSave(false)
-        setNewPatient({ name: "", telefono: "998", apellido_pat: "", apellido_mat: "" })
+        setNewPatient({ name: "", telefono: "998", apellido_pat: "", apellido_mat: "", email: "" })
         location.reload()
       })
       .catch(() => setErrorSave(true))
@@ -304,6 +310,7 @@ export default function PatientManagement() {
                           { label: "Apellido Paterno", field: "apellido_pat", ph: "Apellido paterno" },
                           { label: "Apellido Materno", field: "apellido_mat", ph: "Apellido materno" },
                           { label: "Teléfono",         field: "telefono",     ph: "10 dígitos" },
+                          { label: "Correo (opcional)", field: "email",       ph: "correo@ejemplo.com" },
                         ].map(({ label, field, ph }) => (
                           <div key={field} className="space-y-1">
                             <Label className="text-xs font-medium text-gray-600 dark:text-slate-300">{label}</Label>
@@ -316,6 +323,7 @@ export default function PatientManagement() {
                             />
                             {field === "name"     && errorName  && <p className="text-xs text-red-500">{errorName}</p>}
                             {field === "telefono" && errorPhone && <p className="text-xs text-red-500">{errorPhone}</p>}
+                            {field === "email"    && errorEmail && <p className="text-xs text-red-500">{errorEmail}</p>}
                           </div>
                         ))}
                         {errorSave && (

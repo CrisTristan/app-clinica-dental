@@ -43,49 +43,42 @@ export async function POST(req: NextRequest) {
 
   const supabase = createAdminClient()
 
+  // Contexto para la bitácora (lectura; no interviene en el cálculo del saldo).
   const { data: service } = await supabase
     .from('Patient_Services')
-    .select('balance, name, Patient(name, apellido_pat, apellido_mat)')
+    .select('name, Patient(name, apellido_pat, apellido_mat)')
     .eq('id', patient_service_id)
     .single()
 
-  if (!service) return Response.json({ error: "Servicio no encontrado" }, { status: 404 })
+  // Cobro atómico: inserta el abono y recalcula el balance en una sola
+  // transacción con bloqueo de fila (ver supabase/atomic_payments.sql).
+  const { data: rows, error } = await supabase.rpc('registrar_abono', {
+    p_service_id: patient_service_id,
+    p_abono:      abono,
+    p_metodo:     metodo,
+    p_user:       auth.userId,
+  })
+  if (error) return Response.json({ error: error.message }, { status: 500 })
 
-  const applied    = Math.min(abono, service.balance)
-  const newBalance = service.balance - applied
-  const fecha      = new Date().toISOString().split('T')[0]
+  const result = Array.isArray(rows) ? rows[0] : rows
+  if (!result) return Response.json({ error: "Servicio no encontrado" }, { status: 404 })
 
-  const { data: payment, error: payErr } = await supabase
-    .from('Payment_History')
-    .insert({
-      patient_service_id,
-      abono:          applied,
-      fecha,
-      metodo_pago:    metodo,
-      registrado_por: auth.userId,
-    })
-    .select()
-    .single()
-
-  if (payErr) return Response.json({ error: payErr.message }, { status: 500 })
-
-  await supabase
-    .from('Patient_Services')
-    .update({ balance: newBalance })
-    .eq('id', patient_service_id)
+  const applied    = Number(result.abono)
+  const newBalance = Number(result.new_balance)
+  const payment    = { id: Number(result.payment_id), abono: applied }
 
   await logAudit(supabase, {
     userId:      auth.userId,
     userName:    auth.nombre,
     action:      'crear',
     entity:      'abono',
-    entityId:    payment.id,
-    patientName: fullPatientName((service as any).Patient),
-    serviceName: (service as any).name,
+    entityId:    String(payment.id),
+    patientName: fullPatientName((service as any)?.Patient),
+    serviceName: (service as any)?.name,
     details: {
-      abono:           applied,
-      metodo_pago:     metodo,
-      balance_anterior: service.balance,
+      abono:            applied,
+      metodo_pago:      metodo,
+      balance_anterior: newBalance + applied,
       balance_nuevo:    newBalance,
     },
   })

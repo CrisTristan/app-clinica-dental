@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MoreVertical, Download, Mail, MessageCircle, CheckCircle2, X } from 'lucide-react'
+import { MoreVertical, Download, Copy, MessageCircle, CheckCircle2, X } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -27,7 +27,7 @@ interface AbonoResult {
 }
 
 export default function PatientServiceCard({
-  id, patient_name, patient_phone, name, price, balance, onRefresh,
+  id, patient_name, patient_phone, patient_email, name, price, balance, onRefresh,
 }: Props) {
   const paid     = (price ?? 0) - (balance ?? 0)
   const progress = price > 0 ? Math.min(Math.round((paid / price) * 100), 100) : 0
@@ -45,10 +45,7 @@ export default function PatientServiceCard({
   const [metodoPago, setMetodoPago]       = useState<MetodoPago>('efectivo')
   const [abonoLoading, setAbonoLoading]   = useState(false)
   const [abonoResult, setAbonoResult]     = useState<AbonoResult | null>(null)
-  const [emailInput, setEmailInput]       = useState('')
-  const [sendingEmail, setSendingEmail]   = useState(false)
-  const [sendingWA, setSendingWA]         = useState(false)
-  const [sendResult, setSendResult]       = useState<{ email?: string; whatsapp?: string } | null>(null)
+  const [copied,      setCopied]          = useState<string | null>(null)
 
   const handleAbonar = async () => {
     const amount = parseFloat(abonoAmount)
@@ -64,32 +61,40 @@ export default function PatientServiceCard({
     if (res.ok && data.payment) {
       setAbonoResult({ paymentId: data.payment.id, amount: data.payment.abono, newBalance: data.newBalance })
       setAbonoAmount('')
-      setSendResult(null)
-      onRefresh()
+      // No se refresca aquí: si el servicio se liquida, el refresco lo movería
+      // a la sección "Pagados" (colapsada) y desmontaría esta ventana de recibo.
+      // El refresco ocurre al cerrar (closeAbonar).
     }
-  }
-
-  const handleSendReceipt = async (channels: { email?: string; whatsapp?: boolean }) => {
-    if (!abonoResult) return
-    if (channels.email)    setSendingEmail(true)
-    if (channels.whatsapp) setSendingWA(true)
-    const res  = await fetch('/api/payment-history/send-receipt', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ paymentId: abonoResult.paymentId, channels }),
-    })
-    const data = await res.json()
-    setSendingEmail(false)
-    setSendingWA(false)
-    setSendResult(prev => ({ ...prev, ...data.results }))
   }
 
   const closeAbonar = () => {
     setAbonarOpen(false)
     setAbonoResult(null)
-    setEmailInput('')
-    setSendResult(null)
+    setCopied(null)
+    onRefresh()  // Refresca la lista al cerrar, ya con la ventana del recibo fuera.
   }
+
+  const copy = (text: string, key: string) => {
+    navigator.clipboard?.writeText(text)
+    setCopied(key)
+    setTimeout(() => setCopied(null), 1500)
+  }
+
+  // Mensaje del recibo para WhatsApp. wa.me solo PRE-LLENA el texto; el envío
+  // lo confirma la recepcionista (no hay auto-envío por link). El teléfono
+  // local de 10 dígitos se prefija con 52 (México).
+  const waText = abonoResult ? [
+    `*Clínica Dental — Recibo de pago*`,
+    `Folio: #${abonoResult.paymentId}`,
+    `Paciente: ${patient_name}`,
+    `Servicio: ${name}`,
+    `Abono recibido: ${fmt(abonoResult.amount)}`,
+    `Saldo restante: ${fmt(abonoResult.newBalance)}`,
+    abonoResult.newBalance === 0 ? `Servicio liquidado en su totalidad` : '',
+  ].filter(Boolean).join('\n') : ''
+  const waDigits = (patient_phone ?? '').replace(/\D/g, '')
+  const waPhone  = waDigits.length === 10 ? `52${waDigits}` : waDigits
+  const waLink   = `https://wa.me/${waPhone}?text=${encodeURIComponent(waText)}`
 
   // ── Editar ──────────────────────────────────────────────
   const [editarOpen, setEditarOpen]     = useState(false)
@@ -140,7 +145,13 @@ export default function PatientServiceCard({
     })
     setEditAbonoLoading(false)
     await loadHistorial()
-    onRefresh()
+    // El refresco de la lista ocurre al cerrar el historial (closeHistorial),
+    // para no desmontar este diálogo si la edición liquida el servicio.
+  }
+
+  const closeHistorial = (open: boolean) => {
+    setHistorialOpen(open)
+    if (!open) onRefresh()
   }
 
   return (
@@ -303,48 +314,58 @@ export default function PatientServiceCard({
                 Descargar recibo PDF
               </a>
 
-              {/* Enviar por correo */}
+              {/* Enviar recibo manualmente */}
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">Enviar recibo</p>
-                <div className="flex gap-2">
-                  <Input
-                    type="email" placeholder="Correo del paciente"
-                    value={emailInput} onChange={e => setEmailInput(e.target.value)}
-                    className="text-sm h-9"
-                  />
-                  <Button
-                    size="sm" variant="outline"
-                    disabled={sendingEmail || !emailInput || !!sendResult?.email}
-                    className="shrink-0 h-9 gap-1.5"
-                    onClick={() => handleSendReceipt({ email: emailInput })}
-                  >
-                    <Mail className="w-3.5 h-3.5" />
-                    {sendingEmail ? '…' : sendResult?.email === 'enviado' ? 'Enviado' : 'Email'}
-                  </Button>
+                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">Enviar recibo manualmente</p>
+
+                {/* Teléfono + WhatsApp */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-700/50">
+                    <span className="block text-[10px] text-gray-400 dark:text-slate-500 uppercase tracking-wide">Teléfono</span>
+                    <span className="block text-sm text-gray-700 dark:text-slate-200 truncate">{patient_phone || 'Sin teléfono'}</span>
+                  </div>
+                  {patient_phone && (
+                    <>
+                      <Button
+                        size="sm" variant="outline" className="shrink-0 h-9 gap-1.5"
+                        onClick={() => copy(patient_phone, 'tel')}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        {copied === 'tel' ? 'Copiado' : 'Copiar'}
+                      </Button>
+                      <a
+                        href={waLink}
+                        target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 shrink-0 h-9 px-3 rounded-md text-sm font-medium border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        WhatsApp
+                      </a>
+                    </>
+                  )}
                 </div>
 
-                {/* WhatsApp */}
-                {patient_phone && (
-                  <Button
-                    size="sm" variant="outline"
-                    disabled={sendingWA || !!sendResult?.whatsapp}
-                    className="w-full h-9 gap-1.5 border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
-                    onClick={() => handleSendReceipt({ whatsapp: true })}
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    {sendingWA ? 'Enviando…'
-                      : sendResult?.whatsapp === 'enviado' ? 'Enviado por WhatsApp'
-                      : `WhatsApp — ${patient_phone}`}
-                  </Button>
-                )}
+                {/* Correo */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-700/50">
+                    <span className="block text-[10px] text-gray-400 dark:text-slate-500 uppercase tracking-wide">Correo</span>
+                    <span className="block text-sm text-gray-700 dark:text-slate-200 truncate">{patient_email || 'Sin correo'}</span>
+                  </div>
+                  {patient_email && (
+                    <Button
+                      size="sm" variant="outline" className="shrink-0 h-9 gap-1.5"
+                      onClick={() => copy(patient_email, 'mail')}
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      {copied === 'mail' ? 'Copiado' : 'Copiar'}
+                    </Button>
+                  )}
+                </div>
 
-                {/* Errores de envío */}
-                {(sendResult?.email?.startsWith('error') || sendResult?.whatsapp?.startsWith('error')) && (
-                  <p className="text-xs text-red-500">
-                    {sendResult?.email?.startsWith('error') && `Email: ${sendResult.email}. `}
-                    {sendResult?.whatsapp?.startsWith('error') && `WhatsApp: ${sendResult.whatsapp}.`}
-                  </p>
-                )}
+                <p className="text-[11px] text-gray-400 dark:text-slate-500 leading-snug">
+                  WhatsApp abre el chat con el mensaje ya escrito; solo presiona enviar.
+                  Para mandar el PDF, descárgalo y adjúntalo.
+                </p>
               </div>
             </>
           )}
@@ -375,7 +396,7 @@ export default function PatientServiceCard({
       </Dialog>
 
       {/* ── Dialog: Historial ── */}
-      <Dialog open={historialOpen} onOpenChange={setHistorialOpen}>
+      <Dialog open={historialOpen} onOpenChange={closeHistorial}>
         <DialogContent className="sm:max-w-md bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700">
           <DialogHeader>
             <DialogTitle className="text-gray-800 dark:text-slate-100">Historial de pagos</DialogTitle>

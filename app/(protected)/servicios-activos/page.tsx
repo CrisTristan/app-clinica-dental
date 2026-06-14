@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Plus } from "lucide-react"
+import { Plus, ChevronDown } from "lucide-react"
 
 type SortKey = "name" | "pending-desc" | "pending-asc" | "total-desc" | "status"
 
@@ -29,7 +29,8 @@ export default function ServiciosActivosPage() {
   const [canAccess, setCanAccess]           = useState<boolean | null>(null)
   const [services, setServices]             = useState<PatientServiceRow[]>([])
   const [search,   setSearch]               = useState("")
-  const [sort,     setSort]                 = useState<SortKey>("name")
+  const [sort,     setSort]                 = useState<SortKey>("pending-desc")
+  const [showPaid, setShowPaid]             = useState(false)
 
   // ── Nuevo servicio ──────────────────────────────────────
   const [newServOpen, setNewServOpen]       = useState(false)
@@ -111,25 +112,38 @@ export default function ServiciosActivosPage() {
     return { total, pending, collected, paid, count: services.length }
   }, [services])
 
-  /* ── Filtro + orden ── */
-  const filtered = useMemo(() => {
-    const q    = search.toLowerCase()
-    const list = services.filter(r =>
+  /* ── Filtro + agrupación (pendientes arriba, pagados abajo) ── */
+  const sortByKey = useCallback((a: PatientServiceRow, b: PatientServiceRow) => {
+    if (sort === "name")         return a.patient_name.localeCompare(b.patient_name)
+    if (sort === "pending-desc") return (b.balance ?? 0) - (a.balance ?? 0)
+    if (sort === "pending-asc")  return (a.balance ?? 0) - (b.balance ?? 0)
+    if (sort === "total-desc")   return (b.price ?? 0) - (a.price ?? 0)
+    if (sort === "status") {
+      // sin pagar primero, luego en curso
+      const rank = (r: PatientServiceRow) => (r.balance >= r.price ? 0 : 1)
+      return rank(a) - rank(b)
+    }
+    return 0
+  }, [sort])
+
+  const searched = useMemo(() => {
+    const q = search.toLowerCase()
+    return services.filter(r =>
       r.patient_name.toLowerCase().includes(q) ||
       r.name.toLowerCase().includes(q)
     )
-    return list.sort((a, b) => {
-      if (sort === "name")         return a.patient_name.localeCompare(b.patient_name)
-      if (sort === "pending-desc") return (b.balance ?? 0) - (a.balance ?? 0)
-      if (sort === "pending-asc")  return (a.balance ?? 0) - (b.balance ?? 0)
-      if (sort === "total-desc")   return (b.price ?? 0) - (a.price ?? 0)
-      if (sort === "status") {
-        const rank = (r: PatientServiceRow) => r.balance === 0 ? 2 : r.balance >= r.price ? 0 : 1
-        return rank(b) - rank(a)
-      }
-      return 0
-    })
-  }, [services, search, sort])
+  }, [services, search])
+
+  const pendingList = useMemo(
+    () => searched.filter(r => (r.balance ?? 0) > 0).sort(sortByKey),
+    [searched, sortByKey]
+  )
+
+  const paidList = useMemo(
+    () => searched.filter(r => (r.balance ?? 0) === 0)
+      .sort((a, b) => a.patient_name.localeCompare(b.patient_name)),
+    [searched]
+  )
 
   const fmt = (n: number) =>
     n.toLocaleString("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 })
@@ -234,7 +248,7 @@ export default function ServiciosActivosPage() {
         </div>
 
         {/* ── Grid de tarjetas ── */}
-        {filtered.length === 0 ? (
+        {pendingList.length === 0 && paidList.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-14 h-14 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center mb-4">
               <svg className="w-7 h-7 text-gray-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -251,17 +265,54 @@ export default function ServiciosActivosPage() {
             }
           </div>
         ) : (
-          <>
-            <p className="text-xs text-gray-400 dark:text-slate-500">
-              {filtered.length} {filtered.length === 1 ? "resultado" : "resultados"}
-              {search && ` para "${search}"`}
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filtered.map(s => (
-                <PatientServiceCard key={s.id} {...s} onRefresh={loadServices} />
-              ))}
-            </div>
-          </>
+          <div className="space-y-8">
+            {/* ── En seguimiento (pendientes) ── */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-400" />
+                <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-200">En seguimiento</h2>
+                <span className="text-xs text-gray-400 dark:text-slate-500">
+                  {pendingList.length} {pendingList.length === 1 ? "servicio por cobrar" : "servicios por cobrar"}
+                  {search && ` · "${search}"`}
+                </span>
+              </div>
+              {pendingList.length === 0 ? (
+                <p className="text-sm text-gray-400 dark:text-slate-500 py-6 text-center">
+                  {search ? "Ningún pendiente coincide con tu búsqueda" : "No hay servicios pendientes 🎉"}
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {pendingList.map(s => (
+                    <PatientServiceCard key={s.id} {...s} onRefresh={loadServices} />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* ── Pagados (colapsable) ── */}
+            {paidList.length > 0 && (
+              <section className="space-y-3">
+                <button
+                  onClick={() => setShowPaid(v => !v)}
+                  className="flex items-center gap-2"
+                >
+                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                  <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-200">Pagados</h2>
+                  <span className="text-xs text-gray-400 dark:text-slate-500">
+                    {paidList.length} {paidList.length === 1 ? "liquidado" : "liquidados"}
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showPaid ? "rotate-180" : ""}`} />
+                </button>
+                {showPaid && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {paidList.map(s => (
+                      <PatientServiceCard key={s.id} {...s} onRefresh={loadServices} />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
         )}
       </div>
 
