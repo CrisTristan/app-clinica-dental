@@ -10,6 +10,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = Number.parseInt(searchParams.get('id') ?? '')
   const query = searchParams.get('q')?.trim()
+  const listOnly = searchParams.get('list') === '1'
 
   if (id) {
     const { data, error } = await supabase
@@ -39,6 +40,16 @@ export async function GET(request: Request) {
 
     if (error) return Response.json({ error: error.message }, { status: 500 });
     return Response.json(data);
+  }
+
+  if (listOnly) {
+    const { data, error } = await supabase
+      .from('Patient')
+      .select('id, name, apellido_pat, apellido_mat, telefono')
+      .order('name')
+
+    if (error) return Response.json({ error: error.message }, { status: 500 })
+    return Response.json(data)
   }
 
   const { data, error } = await supabase

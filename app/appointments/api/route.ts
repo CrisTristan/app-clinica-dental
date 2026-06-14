@@ -31,41 +31,58 @@ export async function POST(req: Request) {
   const supabase = createAdminClient()
   const appointment = await req.json()
 
-  const { data: patient } = await supabase
-    .from('Patient')
-    .select('id')
-    .eq('telefono', appointment.phone)
-    .single()
+  let patientId = Number(appointment.patientId) || null
 
-  if (patient) {
-    await supabase.from('Appointment').insert({
-      id: appointment.id,
-      nameId: patient.id,
-      desc: appointment.description,
-      startDate: appointment.startDate,
-      endDate: appointment.endDate,
-    })
+  if (patientId) {
+    const { data: patient, error: patientError } = await supabase
+      .from('Patient')
+      .select('id')
+      .eq('id', patientId)
+      .single()
+
+    if (patientError || !patient) {
+      return Response.json({ error: 'El paciente seleccionado no existe' }, { status: 400 })
+    }
   } else {
-    const { data: newPatient } = await supabase
+    const { data: existingPatient } = await supabase
+      .from('Patient')
+      .select('id')
+      .eq('telefono', appointment.phone)
+      .maybeSingle()
+
+    if (existingPatient) {
+      return Response.json(
+        { error: 'Ya existe un paciente con ese teléfono. Selecciónalo como paciente registrado.' },
+        { status: 409 },
+      )
+    }
+
+    const { data: newPatient, error: patientError } = await supabase
       .from('Patient')
       .insert({ name: appointment.name, telefono: appointment.phone, apellido_pat: appointment.apellido_pat, apellido_mat: appointment.apellido_mat })
       .select('id')
       .single()
-    if (newPatient) {
-      await supabase.from('Appointment').insert({
-        id: appointment.id,
-        nameId: newPatient.id,
-        desc: appointment.description,
-        startDate: appointment.startDate,
-        endDate: appointment.endDate,
-      })
+
+    if (patientError || !newPatient) {
+      return Response.json({ error: patientError?.message ?? 'No se pudo crear el paciente' }, { status: 500 })
     }
+
+    patientId = newPatient.id
   }
 
-  return new Response(JSON.stringify(appointment), {
-    headers: { "Content-Type": "application/json" },
-    status: 201,
+  const { error: appointmentError } = await supabase.from('Appointment').insert({
+    id: appointment.id,
+    nameId: patientId,
+    desc: appointment.description,
+    startDate: appointment.startDate,
+    endDate: appointment.endDate,
   })
+
+  if (appointmentError) {
+    return Response.json({ error: appointmentError.message }, { status: 500 })
+  }
+
+  return Response.json(appointment, { status: 201 })
 }
 
 // PUT y DELETE requieren autenticación de personal
