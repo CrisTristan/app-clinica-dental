@@ -86,10 +86,20 @@ export default function PatientManagement() {
   /* ── Fetch patients + pending counts ── */
   useEffect(() => {
     fetch("/patients/api")
-      .then(r => r.json()).then(setPatients).catch(console.error)
+      .then(async r => {
+        const data = await r.json()
+        if (!r.ok) throw new Error(data.error ?? `Error ${r.status}`)
+        return data
+      })
+      .then(setPatients)
+      .catch(console.error)
 
     fetch("/api/patient-services")
-      .then(r => r.json())
+      .then(async r => {
+        const data = await r.json()
+        if (!r.ok) throw new Error(data.error ?? `Error ${r.status}`)
+        return data
+      })
       .then((rows: { patient_id: number; balance: number }[]) => {
         const map = new Map<number, number>()
         rows.forEach(ps => {

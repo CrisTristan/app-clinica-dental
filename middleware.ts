@@ -45,6 +45,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
+  const isApiRoute = pathname.startsWith('/api/') || pathname.endsWith('/api')
 
   const isPublic = publicRoutes.some(
     route => pathname === route || pathname.startsWith(route + '/')
@@ -52,6 +53,10 @@ export async function middleware(request: NextRequest) {
 
   // Sin sesión → login
   if (!user && !isPublic) {
+    if (isApiRoute) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+    }
+
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -69,6 +74,10 @@ export async function middleware(request: NextRequest) {
 
     // Usuario autenticado sin perfil no puede acceder a rutas protegidas
     if (!isPublic && !role) {
+      if (isApiRoute) {
+        return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
+      }
+
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)
@@ -80,6 +89,10 @@ export async function middleware(request: NextRequest) {
     )
 
     if (isAdminRoute && role !== 'admin') {
+      if (isApiRoute) {
+        return NextResponse.json({ error: 'Permisos insuficientes' }, { status: 403 })
+      }
+
       const url = request.nextUrl.clone()
       const isStaff = role === 'recepcionista' || role === 'dentista'
       url.pathname = isStaff ? '/agenda' : '/login'

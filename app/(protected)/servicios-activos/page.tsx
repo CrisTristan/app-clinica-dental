@@ -45,6 +45,7 @@ export default function ServiciosActivosPage() {
   const loadServices = useCallback(async () => {
     const res  = await fetch("/api/patient-services")
     const data = await res.json()
+    if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`)
     setServices(Array.isArray(data) ? data : [])
   }, [])
 
@@ -64,6 +65,7 @@ export default function ServiciosActivosPage() {
     const timeout = setTimeout(async () => {
       const res  = await fetch(`/patients/api?q=${encodeURIComponent(patientQ)}`)
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`)
       setPatientResults(data ?? [])
     }, 300)
     return () => clearTimeout(timeout)
