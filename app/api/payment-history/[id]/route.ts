@@ -18,34 +18,35 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const supabase = createAdminClient()
 
+  // Contexto para la bitácora (lectura; no interviene en el cálculo del saldo).
   const [{ data: oldPayment }, { data: service }] = await Promise.all([
     supabase.from('Payment_History').select('abono, metodo_pago').eq('id', id).single(),
     supabase.from('Patient_Services')
-      .select('balance, price, name, Patient(name, apellido_pat, apellido_mat)')
+      .select('name, Patient(name, apellido_pat, apellido_mat)')
       .eq('id', patient_service_id).single(),
   ])
 
-  if (!oldPayment) return Response.json({ error: "Pago no encontrado" }, { status: 404 })
-  if (!service)    return Response.json({ error: "Servicio no encontrado" }, { status: 404 })
-
-  // Restore old amount then apply new
-  const restoredBalance = service.balance + oldPayment.abono
-  const newBalance      = Math.max(0, restoredBalance - abono)
-  const fecha           = new Date().toISOString().split('T')[0]
-
-  const { data: updated, error } = await supabase
-    .from('Payment_History')
-    .update({ abono, fecha, ...(metodo_pago ? { metodo_pago } : {}) })
-    .eq('id', id)
-    .select()
-    .single()
-
+  // Edición atómica: tope al saldo real y recálculo del balance en una sola
+  // transacción con bloqueo de fila (ver supabase/atomic_payments.sql).
+  const { data: rows, error } = await supabase.rpc('editar_abono', {
+    p_payment_id: Number(id),
+    p_service_id: patient_service_id,
+    p_abono:      abono,
+    p_metodo:     metodo_pago ?? null,
+  })
   if (error) return Response.json({ error: error.message }, { status: 500 })
 
-  await supabase
-    .from('Patient_Services')
-    .update({ balance: newBalance })
-    .eq('id', patient_service_id)
+  const result = Array.isArray(rows) ? rows[0] : rows
+  if (!result) return Response.json({ error: "Pago o servicio no encontrado" }, { status: 404 })
+
+  const applied    = Number(result.abono)
+  const newBalance = Number(result.new_balance)
+  const updated    = {
+    id:          Number(result.payment_id),
+    abono:       applied,
+    fecha:       result.fecha,
+    metodo_pago: metodo_pago ?? oldPayment?.metodo_pago ?? 'efectivo',
+  }
 
   await logAudit(supabase, {
     userId:      auth.userId,
@@ -53,11 +54,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     action:      'editar',
     entity:      'abono',
     entityId:    id,
-    patientName: fullPatientName((service as any).Patient),
-    serviceName: (service as any).name,
+    patientName: fullPatientName((service as any)?.Patient),
+    serviceName: (service as any)?.name,
     details: {
-      antes:   { abono: oldPayment.abono, metodo_pago: oldPayment.metodo_pago ?? 'efectivo' },
-      despues: { abono, metodo_pago: metodo_pago ?? oldPayment.metodo_pago ?? 'efectivo' },
+      antes:   { abono: oldPayment?.abono, metodo_pago: oldPayment?.metodo_pago ?? 'efectivo' },
+      despues: { abono: applied, metodo_pago: metodo_pago ?? oldPayment?.metodo_pago ?? 'efectivo' },
       balance_nuevo: newBalance,
     },
   })

@@ -63,6 +63,7 @@ export async function POST(req: Request) {
       telefono: body.phone,
       apellido_pat: body.apellidoPat,
       apellido_mat: body.apellidoMat,
+      email: body.email ?? null,
     })
     .select()
     .single()
