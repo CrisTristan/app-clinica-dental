@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { useSearchParams } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 
 declare global {
   interface Window {
@@ -34,6 +35,8 @@ export default function OdontogramaCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<any>(null);
   const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
 
   function getOdontogramStateForSaving() {
     const data = engineRef.current.getData();
@@ -56,21 +59,44 @@ export default function OdontogramaCanvas() {
   }
 
   async function saveOdontogramOnDB() {
-    const payload = {
-      patientData: engineRef.current.treatmentData,
-      odontogramData: JSON.stringify(getOdontogramStateForSaving()),
-    };
-    //Obtener el query param id de la URL actual
-    const id = searchParams.get("id") || "0";
-    await fetch(`/api/odontogramas/${id}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    if (!engineRef.current || isSaving) return;
 
-    console.log("Guardado:", payload);
+    setIsSaving(true);
+
+    try {
+      const payload = {
+        patientData: engineRef.current.treatmentData,
+        odontogramData: JSON.stringify(getOdontogramStateForSaving()),
+      };
+      const id = searchParams.get("id") || "0";
+      const response = await fetch(`/api/odontogramas/${id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || result?.ok === false) {
+        throw new Error(result?.error || "No se pudo guardar el odontograma");
+      }
+
+      toast({
+        title: "Odontograma guardado",
+        description: "Los datos se guardaron correctamente.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error al guardar",
+        description: error instanceof Error
+          ? error.message
+          : "Ocurrió un error al guardar el odontograma.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function getOdontogramFromDB() {
@@ -210,8 +236,13 @@ export default function OdontogramaCanvas() {
           onContextMenu={(event) => event.preventDefault()}
         />
 
-        <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" type="button" onClick={saveOdontogramOnDB}>
-          Guardar
+        <button
+          className="rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          type="button"
+          onClick={saveOdontogramOnDB}
+          disabled={isSaving}
+        >
+          {isSaving ? "Guardando..." : "Guardar"}
         </button>
       </div>
     </>
