@@ -42,7 +42,7 @@ export default function DirectorioPacientes() {
   )
 
   const open = (p: PatientLite) =>
-    router.push(`/pacientes/${encodeURIComponent(p.id)}/?id=${p.id}&name=${encodeURIComponent(p.name)}`)
+    router.push(`/pacientes/${p.id}/?id=${p.id}&name=${p.name}`)
 
   if (canAccess === null)
     return (
