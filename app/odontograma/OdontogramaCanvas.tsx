@@ -134,7 +134,6 @@ export default function OdontogramaCanvas() {
 
     canvasRef.current.addEventListener("mousedown", engine.onMouseClick.bind(engine));
     canvasRef.current.addEventListener("mousemove", engine.onMouseMove.bind(engine));
-    window.addEventListener("keydown", engine.onButtonClick.bind(engine));
 
     engine.loadPatientData(
       "New York",
@@ -172,7 +171,6 @@ export default function OdontogramaCanvas() {
       if (engineRef.current && canvasRef.current) {
         canvasRef.current.removeEventListener("mousedown", engineRef.current.onMouseClick);
         canvasRef.current.removeEventListener("mousemove", engineRef.current.onMouseMove);
-        window.removeEventListener("keydown", engineRef.current.onButtonClick);
         engineRef.current = null;
       }
     };
