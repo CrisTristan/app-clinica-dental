@@ -1,15 +1,34 @@
 "use server"
 import {v2 as Cloudinary} from "cloudinary"
-import { ImageFormat } from "../types/types";
+import { requireStaff } from "@/lib/auth-guard";
 
-export async function getAllPatientImages(patientName : string | null, patientID : string | null): Promise<string[]>{
+export interface PatientFile {
+    publicId: string;
+    format: string;
+    resourceType: "image" | "video" | "raw";
+    type: "upload" | "private" | "authenticated";
+}
+
+interface CloudinarySearchResource {
+    public_id: string;
+    format: string;
+    resource_type: PatientFile["resourceType"];
+    type: PatientFile["type"];
+}
+
+export async function getAllPatientImages(
+    patientName: string | null,
+    patientID: string | null
+): Promise<PatientFile[]> {
+    const auth = await requireStaff();
+    if (!auth.ok || !patientName || !patientID) return [];
+
     const response = await Cloudinary.search.expression(`folder="pacientes/${patientName+"_"+patientID}"`).execute();
-    const resources = response.resources;
-    const images : string[] = [];
-    resources.map((image: ImageFormat) =>{
-        if (image.secure_url) images.push(image.secure_url);
-    })
-
-    return images;
+    return (response.resources as CloudinarySearchResource[]).map((image) => ({
+        publicId: image.public_id,
+        format: image.format,
+        resourceType: image.resource_type,
+        type: image.type,
+    }));
 }
 

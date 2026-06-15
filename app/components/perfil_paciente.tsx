@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input"
 import { X, Save, Camera, Upload, ArrowLeft, User, Phone, MapPin, Calendar, Mail, Stethoscope, ClipboardList, Activity, Heart, Droplets, Apple, FileImage } from "lucide-react"
 import { Patient } from '../types/types'
 import { getProfilePhoto } from '../actions/getProfilePhoto'
-import { CldUploadWidget, CldImage } from "next-cloudinary"
-import { getAllPatientImages } from '../actions/getAllImages'
+import { CldUploadWidget } from "next-cloudinary"
+import { getAllPatientImages, type PatientFile } from '../actions/getAllImages'
 import { deleteOneImage } from '../actions/deleteOneImage'
 import DeleteButtonNotify from './deleteButtonNotify'
 import ExamenTejidos from "./DentalData/ExamenTejitos"
@@ -25,14 +25,14 @@ import { can } from '@/lib/permissions'
 
 /* ── Field map: key → Spanish label ── */
 const FIELD_LABELS: Record<string, string> = {
-  name:            "Nombre",
-  apellido_pat:    "Apellido Paterno",
-  apellido_mat:    "Apellido Materno",
-  telefono:        "Teléfono",
-  edad:            "Edad",
-  email:           "Correo Electrónico",
-  domicilio:       "Domicilio",
-  sexo:            "Sexo",
+  name: "Nombre",
+  apellido_pat: "Apellido Paterno",
+  apellido_mat: "Apellido Materno",
+  telefono: "Teléfono",
+  edad: "Edad",
+  email: "Correo Electrónico",
+  domicilio: "Domicilio",
+  sexo: "Sexo",
   fechaNacimiento: "Fecha de Nacimiento",
 }
 const FIELD_ORDER = ["name","apellido_pat","apellido_mat","telefono","edad","email","domicilio","sexo","fechaNacimiento"] as const
@@ -151,6 +151,17 @@ export default function PerfilPaciente({
   const initials = [patient?.name?.[0], patient?.apellido_pat?.[0]]
     .filter(Boolean).join("").toUpperCase() || "?"
 
+  const getPrivateAssetUrl = (file: PatientFile) => {
+    const params = new URLSearchParams({
+      public_id: file.publicId,
+      format: file.format,
+      resource_type: file.resourceType,
+      type: file.type,
+    })
+
+    return `/api/cloudinary/private-asset?${params.toString()}`
+  }
+
   if (!patient)
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -198,7 +209,7 @@ export default function PerfilPaciente({
                 {/* Change photo widget */}
                 <CldUploadWidget
                   signatureEndpoint="/api/sign-cloudinary-params"
-                  options={{ sources: ["local","camera","url"], folder: `${pathFolder}/fotoPerfil`, tags: ["perfil"] }}
+                  options={{ sources: ["local", "camera", "url"], folder: `${pathFolder}/fotoPerfil`, tags: ["perfil"] }}
                   onSuccess={r => r.info && typeof r.info === "object" && setPatient(p => p ? { ...p, foto: (r.info as any).url } : p)}
                 >
                   {({ open }) => (
@@ -381,8 +392,36 @@ export default function PerfilPaciente({
           {/* Upload button */}
           <CldUploadWidget
             signatureEndpoint="/api/sign-cloudinary-params"
-            options={{ sources: ["local","url","google_drive","camera"], folder: pathFolder, tags: ["archivo"] }}
-            onSuccess={r => r.info && typeof r.info === "object" && setArchivos(p => [...p, (r.info as any).url])}
+            options={{
+              sources: ["local", "url", "google_drive", "camera"],
+              folder: pathFolder,
+              tags: ["archivo"]
+            }}
+            onSuccess={async (r) => {
+              if (!r.info || typeof r.info !== "object") return;
+
+              const info = r.info as any;
+
+              const response = await fetch("/api/cloudinary/restrict-asset", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  public_id: info.public_id,
+                  resource_type: info.resource_type,
+                  type: info.type ?? "upload",
+                }),
+              });
+
+              if (!response.ok) {
+                console.error("No se pudo restringir el archivo")
+                return
+              }
+
+              const { asset } = await response.json() as { asset: PatientFile }
+              setArchivos((p) => [...p, asset]);
+            }}
           >
             {({ open }) => (
               <button
@@ -404,14 +443,15 @@ export default function PerfilPaciente({
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {archivos.map((url, i) => (
-                <Dialog key={i}>
+              {archivos.map((file, i) => (
+                <Dialog key={file.publicId}>
                   <DialogTrigger asChild>
                     <div className="relative cursor-pointer rounded-xl overflow-hidden border border-gray-100 dark:border-slate-700 hover:ring-2 hover:ring-sky-400 transition-all group">
-                      <CldImage
-                        src={url}
+                      <Image
+                        src={getPrivateAssetUrl(file)}
                         alt={`Archivo ${i + 1}`}
                         width={200} height={200}
+                        unoptimized
                         className="w-full h-32 object-cover"
                       />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
@@ -423,19 +463,20 @@ export default function PerfilPaciente({
                     </DialogHeader>
                     <div className="relative">
                       <Image
-                        src={url}
+                        src={getPrivateAssetUrl(file)}
                         alt={`Archivo ${i + 1}`}
                         width={1200} height={900}
+                        unoptimized
                         className="w-full rounded-xl object-contain max-h-[65vh]"
                       />
                     </div>
                     <div className="flex justify-end pt-2">
                       <DeleteButtonNotify
                         onDelete={() => {
-                          deleteOneImage(url)
-                          setArchivos(p => p.filter(u => u !== url))
+                          deleteOneImage(file.publicId, file.type)
+                          setArchivos(p => p.filter(item => item.publicId !== file.publicId))
                         }}
-                        nextAction={() => {}}
+                        nextAction={() => { }}
                       />
                     </div>
                   </DialogContent>
