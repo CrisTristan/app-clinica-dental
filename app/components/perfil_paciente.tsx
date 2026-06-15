@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { X, Save, Camera, Upload, ArrowLeft, User, Phone, MapPin, Calendar, Mail, Stethoscope, ClipboardList, Activity, Heart, Droplets, Apple, FileImage } from "lucide-react"
-import Odontogram from './Odontogram'
 import { Patient } from '../types/types'
 import { getProfilePhoto } from '../actions/getProfilePhoto'
 import { CldUploadWidget, CldImage } from "next-cloudinary"
@@ -36,7 +35,7 @@ const FIELD_LABELS: Record<string, string> = {
   sexo:            "Sexo",
   fechaNacimiento: "Fecha de Nacimiento",
 }
-const FIELD_ORDER = ["name","apellido_pat","apellido_mat","telefono","edad","email","domicilio","sexo","fechaNacimiento"]
+const FIELD_ORDER = ["name","apellido_pat","apellido_mat","telefono","edad","email","domicilio","sexo","fechaNacimiento"] as const
 
 /* ── Dental data section card ── */
 function DentalCard({
@@ -115,9 +114,8 @@ export default function PerfilPaciente({
 
   useEffect(() => {
     if (!paciente) return
-    console.log("Paciente recibido en componente:", paciente)
     setPatient(paciente)
-    getProfilePhoto(nombre, id).then(url => setPatient(prev => prev ? { ...prev, foto: url } : prev))
+    getProfilePhoto(nombre, id).then(url => setPatient(prev => prev ? { ...prev, foto: url ?? '' } : prev))
     getAllPatientImages(nombre, id).then(setArchivos)
   }, [paciente])
 
@@ -239,7 +237,7 @@ export default function PerfilPaciente({
         <Section title="Datos Personales" icon={User}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {FIELD_ORDER.map(key => {
-              const value = ((patient as any)[key] === 'email' ? patient.correo_electronico : (patient as any)[key]) ?? ''
+              const value = patient[key] ?? ''
               const label = FIELD_LABELS[key] ?? key
               const isDisabled = key === "telefono"
 

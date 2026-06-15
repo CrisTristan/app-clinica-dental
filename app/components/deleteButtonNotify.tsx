@@ -16,11 +16,11 @@ import {
 } from "@/components/ui/alert-dialog"
 
 interface DeleteButtonProps {
-  onDelete: () => Promise<string> | void;
+  onDelete: () => void | Promise<unknown>;
   itemName?: string;
   nextAction?: Dispatch<SetStateAction<string | null>>,
   text?: string
-  size?: string
+  size?: "default" | "lg" | "sm" | "icon"
 }
 
 export default function DeleteButtonNotify({ onDelete, itemName = 'este elemento', nextAction , text, size}: DeleteButtonProps) {

@@ -37,7 +37,7 @@ export default function AdministradorAnuncios() {
       const reader = new FileReader()
       reader.onload = (e) => {
         if (e.target && typeof e.target.result === 'string') {
-          setAnuncios([...anuncios, e.target.result])
+          setAnuncios([...anuncios, { url: e.target.result, width: 800, height: 600 }])
         }
       }
       reader.readAsDataURL(file)
@@ -91,7 +91,7 @@ export default function AdministradorAnuncios() {
       )}
       <CldUploadWidget signatureEndpoint="/api/sign-cloudinary-params"
           options={{sources: ['local', 'url', 'google_drive', 'camera'], folder: "/anuncios", tags: []}}
-          onSuccess={(results)=> {handleAddAdvertisment(results.info); console.log(results.info)}}
+          onSuccess={(results)=> { if (results.info && typeof results.info === 'object') handleAddAdvertisment(results.info as ImageFormat) }}
           >
             {({ open }) => {
             return (

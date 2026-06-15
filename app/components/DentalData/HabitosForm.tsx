@@ -59,7 +59,7 @@ function ChipGroup({
   )
 }
 
-export default function HabitosForm({ id }: { id: string }) {
+export default function HabitosForm({ id }: { id: string | null }) {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: { items: [] },

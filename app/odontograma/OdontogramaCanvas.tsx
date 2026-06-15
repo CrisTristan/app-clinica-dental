@@ -100,11 +100,9 @@ export default function OdontogramaCanvas() {
   }
 
   async function getOdontogramFromDB() {
-    console.log("Cargando odontograma desde DB...");
     const id = searchParams.get("id") || "0";
     const response = await fetch(`/api/odontogramas/${id}`);
     const dbPayload = await response.json();
-    console.log("Datos recibidos:", dbPayload);
     let odontogramData = dbPayload.data?.odontogramData ?? "[]";
 
     if (typeof odontogramData === "string") {

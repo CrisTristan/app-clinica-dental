@@ -15,7 +15,6 @@ export async function uploadImage(path: string, patientName: string, patientid: 
     try {
       // Upload the image
       const result = await Cloudinary.uploader.upload(allPath, options);
-      console.log(result);
       return result.public_id;
     } catch (error) {
       console.error(error);

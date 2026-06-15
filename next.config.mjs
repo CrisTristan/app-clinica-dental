@@ -22,9 +22,6 @@ const nextConfig = {
         }
       ],
     },
-    typescript: {
-      ignoreBuildErrors: true,
-    },
     reactStrictMode: false
 };
 

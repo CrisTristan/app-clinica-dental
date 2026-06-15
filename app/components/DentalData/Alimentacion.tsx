@@ -1,5 +1,5 @@
 import { Textarea } from "@/components/ui/textarea";
-import { useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 
 export default function Alimentacion({ id }: { id: string | null }) {
 
@@ -49,7 +49,7 @@ export default function Alimentacion({ id }: { id: string | null }) {
           })
     }
 
-    const handleTextChange = (e) => {
+    const handleTextChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
         //console.log(e.target.value)
         setText(e.target.value)
     }

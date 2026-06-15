@@ -30,7 +30,7 @@ export function CheckboxReactHookFormSingle() {
   })
 
   function onSubmit(data: z.infer<typeof FormSchema>) {
-    console.log(data);
+    // TODO: enviar la selección al backend cuando se use este formulario
   }
 
   return (

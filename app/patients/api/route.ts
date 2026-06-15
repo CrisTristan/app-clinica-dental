@@ -31,7 +31,6 @@ export async function GET(request: Request) {
     const terms = search.split(/\s+/);
     const conditions = terms.map(term => `name.ilike.%${term}%`).join(',');
 
-    console.log("Buscando pacientes para:", search);
     const { data, error } = await supabase
       .from('Patient')
       .select('id, name, apellido_pat, apellido_mat, telefono')

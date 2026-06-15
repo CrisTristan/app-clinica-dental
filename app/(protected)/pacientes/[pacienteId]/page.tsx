@@ -39,15 +39,12 @@ export default function PatientDetails({params} : {
 
     useEffect(()=>{
         const someFunction = async ()=>{
-            const url = `${pathName}?${searchParams}`
-            console.log(url)
             try{
               const res = await fetch(`/patients/api?id=${id}`)
               const data = await res.json();
-              console.log(data);
               setPatient(data);
             }catch(error){
-              console.log(error)
+              console.error(error)
             }
 
             

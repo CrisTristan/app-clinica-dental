@@ -27,7 +27,7 @@ export interface Patient {
 
 export interface ImageFormat{
     secure_url?: string,
-    url: string | undefined,
+    url: string,
     width: number,
     height: number
 }
