@@ -25,3 +25,5 @@ export const toDbTimestamp = (value: Date | string | number) => {
 };
 
 export const dateOnlyToDbStartOfDay = (value: string) => `${value}T00:00:00.000`;
+
+export const dateOnlyToDbEndOfDay = (value: string) => `${value}T23:59:59.999`;

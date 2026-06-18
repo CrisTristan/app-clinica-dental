@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { addDays, format, startOfWeek } from "date-fns"
 import CitasDentales from "./CitasDentales"
 
 export default function ProximasCitas() {
@@ -10,8 +11,11 @@ export default function ProximasCitas() {
   useEffect(() => {
     const fetch_ = async () => {
       try {
-        const today = new Date().toISOString().split("T")[0]
-        const res   = await fetch(`/appointments/api?startDate=${today}`)
+        const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
+        const weekEnd = addDays(weekStart, 5)
+        const startDate = format(weekStart, "yyyy-MM-dd")
+        const endDate = format(weekEnd, "yyyy-MM-dd")
+        const res   = await fetch(`/appointments/api?startDate=${startDate}&endDate=${endDate}`)
         const data  = await res.json()
         setAppointments(data)
       } catch (e) {
