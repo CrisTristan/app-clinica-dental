@@ -16,11 +16,14 @@ datasource db {
 model Appointment {
   id        String   @id
   desc      String?
+  reason    String?
   startDate DateTime
   endDate   DateTime
   status    AppointmentStatus? @default(toBeConfirmed)
   name      Patient  @relation(fields: [nameId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   nameId    Int
+  dentist   Profile? @relation(fields: [dentistId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  dentistId String?  @db.Uuid
 }
 
 model Patient {
@@ -42,6 +45,7 @@ enum AppointmentStatus {
   Confirmed
   toBeConfirmed
   Cancelled
+  Completed
 }
 
 enum Gender {
@@ -98,4 +102,15 @@ model DentalData {
   alimentacion String? @db.VarChar(200)
   name          Patient @relation(fields: [nameId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   nameId        Int     @unique
+}
+
+model Profile {
+  id           String        @id @db.Uuid
+  role         String
+  nombre       String?
+  created_at   DateTime?     @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime?     @default(now()) @db.Timestamptz(6)
+  appointments Appointment[]
+
+  @@map("profiles")
 }

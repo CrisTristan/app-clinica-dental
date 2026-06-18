@@ -29,8 +29,23 @@ interface ServiceOption {
   price: number;
 }
 
+interface DentistOption {
+  id: string;
+  nombre: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
 type PatientType = "new" | "registered";
-type AppointmentStatus = "Confirmed" | "toBeConfirmed" | "Cancelled";
+type AppointmentStatus = "Confirmed" | "toBeConfirmed" | "Cancelled" | "Completed";
+type SchedulerEvent = ProcessedEvent & {
+  dentistId?: string | null;
+  dentist?: DentistOption | null;
+  serviceId?: number | null;
+  serviceName?: string | null;
+  unitPrice?: number;
+  reason?: string | null;
+};
 
 const DEFAULT_STATUS: AppointmentStatus = "toBeConfirmed";
 
@@ -53,17 +68,29 @@ const STATUS_CONFIG: Record<AppointmentStatus, { label: string; dot: string; bad
     badge: "bg-red-100 text-red-700 border-red-200",
     color: "#dc2626",
   },
+  Completed: {
+    label: "Completada",
+    dot: "bg-indigo-500",
+    badge: "bg-indigo-100 text-indigo-700 border-indigo-200",
+    color: "#4f46e5",
+  },
 };
 
 const STATUS_OPTIONS = Object.keys(STATUS_CONFIG) as AppointmentStatus[];
 
 const normalizeStatus = (status?: string): AppointmentStatus =>
-  status === "Confirmed" || status === "Cancelled" || status === "toBeConfirmed"
+  status === "Confirmed" || status === "Cancelled" || status === "toBeConfirmed" || status === "Completed"
     ? status
     : DEFAULT_STATUS;
 
 const patientFullName = (patient: PatientOption) =>
   [patient.name, patient.apellido_pat, patient.apellido_mat].filter(Boolean).join(" ");
+
+const dentistDisplayName = (dentist?: DentistOption | null) =>
+  dentist?.nombre?.trim() || dentist?.email || "Dentista sin nombre";
+
+const isValidPersonText = (value: string) =>
+  /^[\p{L}\s'.-]{3,}$/u.test(value.trim());
 
 function Field({
   label,
@@ -105,7 +132,7 @@ function App() {
   const [events, setEvents] = useState<ProcessedEvent[]>([]);
 
   const CustomEditor = ({ scheduler }: CustomEditorProps) => {
-    const event = scheduler.edited;
+    const event = scheduler.edited as SchedulerEvent | undefined;
     const isEdit = Boolean(event);
     const nameParts = isEdit && event?.title
       ? String(event.title).trim().split(/\s+/)
@@ -115,29 +142,40 @@ function App() {
     const startLabel = startVal ? format(new Date(startVal), "d MMM · HH:mm", { locale: es }) : "";
     const endLabel = endVal ? format(new Date(endVal), "HH:mm", { locale: es }) : "";
 
+    const initialServiceValue = event?.serviceId ? String(event.serviceId) : "";
+
     const [state, setState] = useState({
       id: nanoid(),
       patientId: null as number | null,
       name: nameParts[0] || "",
       apellido_pat: nameParts[1] || "",
       apellido_mat: nameParts.slice(2).join(" "),
-      description: String(event?.subtitle || ""),
       phone: String(event?.description || (isEdit ? "" : "998")),
     });
     const [patientType, setPatientType] = useState<PatientType | null>(isEdit ? "registered" : null);
+    const [editorStep, setEditorStep] = useState<1 | 2 | 3>(isEdit ? 3 : 1);
     const [patients, setPatients] = useState<PatientOption[]>([]);
     const [services, setServices] = useState<ServiceOption[]>([]);
-    const [selectedService, setSelectedService] = useState(String(event?.subtitle || ""));
-    const [otherReason, setOtherReason] = useState("");
+    const [dentists, setDentists] = useState<DentistOption[]>([]);
+    const [reason, setReason] = useState(String(event?.reason || event?.subtitle || ""));
+    const [willDoService, setWillDoService] = useState(Boolean(event?.serviceId));
+    const [selectedServiceId, setSelectedServiceId] = useState(initialServiceValue);
+    const [selectedDentistId, setSelectedDentistId] = useState(String(event?.dentistId || event?.dentist?.id || ""));
     const [patientSearch, setPatientSearch] = useState("");
     const [isLoadingPatients, setIsLoadingPatients] = useState(false);
     const [isLoadingServices, setIsLoadingServices] = useState(true);
+    const [isLoadingDentists, setIsLoadingDentists] = useState(true);
     const [loadPatientsError, setLoadPatientsError] = useState("");
     const [loadServicesError, setLoadServicesError] = useState("");
+    const [loadDentistsError, setLoadDentistsError] = useState("");
     const [submitError, setSubmitError] = useState("");
     const [errorName, setErrorName] = useState("");
+    const [errorApellidoPat, setErrorApellidoPat] = useState("");
+    const [errorApellidoMat, setErrorApellidoMat] = useState("");
     const [errorPhone, setErrorPhone] = useState("");
+    const [errorReason, setErrorReason] = useState("");
     const [errorService, setErrorService] = useState("");
+    const [errorDentist, setErrorDentist] = useState("");
 
     const set = (field: keyof typeof state) => (value: string) =>
       setState(previous => ({ ...previous, [field]: value }));
@@ -145,6 +183,7 @@ function App() {
     useEffect(() => {
       const controller = new AbortController();
 
+      // Carga los servicios disponibles para que el motivo de la cita sea consistente.
       fetch("/api/catalog", { signal: controller.signal })
         .then(response => {
           if (!response.ok) throw new Error("No se pudieron cargar los servicios");
@@ -153,10 +192,10 @@ function App() {
         .then((data: ServiceOption[]) => {
           setServices(data);
 
-          const currentReason = String(event?.subtitle || "");
-          if (currentReason && !data.some(service => service.name === currentReason)) {
-            setSelectedService("__other__");
-            setOtherReason(currentReason);
+          const currentServiceId = event?.serviceId ? String(event.serviceId) : "";
+          if (currentServiceId && data.some(service => String(service.id) === currentServiceId)) {
+            setWillDoService(true);
+            setSelectedServiceId(currentServiceId);
           }
         })
         .catch(error => {
@@ -166,6 +205,28 @@ function App() {
         })
         .finally(() => {
           if (!controller.signal.aborted) setIsLoadingServices(false);
+        });
+
+      return () => controller.abort();
+    }, []);
+
+    useEffect(() => {
+      const controller = new AbortController();
+
+      // Carga solo usuarios con rol dentista desde profiles para asignarlos a la cita.
+      fetch("/api/dentists", { signal: controller.signal })
+        .then(response => {
+          if (!response.ok) throw new Error("No se pudieron cargar los dentistas");
+          return response.json();
+        })
+        .then((data: DentistOption[]) => setDentists(data))
+        .catch(error => {
+          if ((error as Error).name !== "AbortError") {
+            setLoadDentistsError("No se pudieron cargar los dentistas.");
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setIsLoadingDentists(false);
         });
 
       return () => controller.abort();
@@ -212,67 +273,114 @@ function App() {
         phone: patient.telefono,
       }));
       setErrorName("");
+      setErrorApellidoPat("");
+      setErrorApellidoMat("");
       setErrorPhone("");
+      setEditorStep(2);
+    };
+
+    const validatePatientFields = () => {
+      setErrorName("");
+      setErrorApellidoPat("");
+      setErrorApellidoMat("");
+      setErrorPhone("");
+
+      if (!isValidPersonText(state.name)) {
+        setErrorName("Solo letras, mínimo 3 caracteres");
+        return false;
+      }
+      if (!isValidPersonText(state.apellido_pat)) {
+        setErrorApellidoPat("Solo letras, mínimo 3 caracteres");
+        return false;
+      }
+      if (!isValidPersonText(state.apellido_mat)) {
+        setErrorApellidoMat("Solo letras, mínimo 3 caracteres");
+        return false;
+      }
+      if (!/^\d+$/.test(state.phone)) {
+        setErrorPhone("Solo números");
+        return false;
+      }
+      if (state.phone.length !== 10) {
+        setErrorPhone("Debe tener 10 dígitos");
+        return false;
+      }
+      if (!isEdit && patientType === "registered" && !state.patientId) {
+        setErrorName("Selecciona un paciente registrado");
+        return false;
+      }
+
+      return true;
+    };
+
+    const goToAppointmentDetails = () => {
+      if (validatePatientFields()) {
+        setEditorStep(3);
+      }
     };
 
     const resetPatientSelection = () => {
       setPatientType(null);
+      setEditorStep(1);
       setPatientSearch("");
       setSubmitError("");
-      setSelectedService("");
-      setOtherReason("");
+      setReason("");
+      setWillDoService(false);
+      setSelectedServiceId("");
+      setSelectedDentistId("");
       setState(previous => ({
         ...previous,
         patientId: null,
         name: "",
         apellido_pat: "",
         apellido_mat: "",
-        description: "",
         phone: "",
       }));
     };
 
     const handleSubmit = async () => {
-      setErrorName("");
-      setErrorPhone("");
+      if (!validatePatientFields()) return;
+
+      setErrorReason("");
       setErrorService("");
+      setErrorDentist("");
       setSubmitError("");
 
-      if (state.name.trim().length < 3) {
-        setErrorName("Mínimo 3 caracteres");
+      if (reason.trim().length < 3) {
+        setErrorReason("Escribe el motivo de la consulta");
         return;
       }
-      if (!/^\d+$/.test(state.phone)) {
-        setErrorPhone("Solo números");
+      if (willDoService && !selectedServiceId) {
+        setErrorService("Selecciona el servicio que se realizará");
         return;
       }
-      if (state.phone.length !== 10) {
-        setErrorPhone("Debe tener 10 dígitos");
-        return;
-      }
-      if (!selectedService) {
-        setErrorService("Selecciona un servicio o la opción Otro");
-        return;
-      }
-      if (selectedService === "__other__" && !otherReason.trim()) {
-        setErrorService("Escribe el motivo de la cita");
-        return;
-      }
-      if (!isEdit && patientType === "registered" && !state.patientId) {
-        setErrorName("Selecciona un paciente registrado");
+      if (!selectedDentistId) {
+        setErrorDentist("Selecciona el dentista que atenderá la cita");
         return;
       }
 
-      const appointmentReason = selectedService === "__other__"
-        ? otherReason.trim()
-        : selectedService;
+      const selectedCatalogService = willDoService
+        ? services.find(service => String(service.id) === selectedServiceId) ?? null
+        : null;
+      if (willDoService && !selectedCatalogService) {
+        setErrorService("El servicio seleccionado ya no existe en el catálogo");
+        return;
+      }
+      const appointmentReason = reason.trim();
+      const selectedDentist = dentists.find(dentist => dentist.id === selectedDentistId) || event?.dentist || null;
 
       try {
         scheduler.loading(true);
-        let result: ProcessedEvent;
+        let result: SchedulerEvent;
 
         if (event?.event_id) {
-          await onUpdateSomeField(event, { ...state, description: appointmentReason });
+          await onUpdateSomeField(event, {
+            ...state,
+            reason: appointmentReason,
+            dentistId: selectedDentistId,
+            // En edicion, este id sincroniza appointment_services y reason se guarda en Appointment.reason.
+            serviceId: selectedCatalogService?.id ?? null,
+          });
           const status = normalizeStatus(event.status as string);
           result = {
             event_id: event.event_id,
@@ -283,6 +391,12 @@ function App() {
             description: state.phone,
             status,
             color: STATUS_CONFIG[status].color,
+            dentistId: selectedDentistId,
+            dentist: selectedDentist,
+            serviceId: selectedCatalogService?.id ?? null,
+            serviceName: selectedCatalogService?.name ?? null,
+            unitPrice: selectedCatalogService?.price ?? 0,
+            reason: appointmentReason,
           };
         } else {
           const response = await fetch("/appointments/api", {
@@ -294,8 +408,12 @@ function App() {
               name: state.name,
               apellido_pat: state.apellido_pat,
               apellido_mat: state.apellido_mat,
-              description: appointmentReason,
               phone: state.phone,
+              reason: appointmentReason,
+              //La API usa este id para asignar la cita al dentista correcto y validar que el usuario tiene rol de dentista.
+              dentistId: selectedDentistId,
+              // La API usa este id para crear la fila en appointment_services.
+              serviceId: selectedCatalogService?.id ?? null,
               startDate: toDbTimestamp(scheduler.state.start.value),
               endDate: toDbTimestamp(scheduler.state.end.value),
             }),
@@ -315,6 +433,12 @@ function App() {
             description: state.phone,
             status: DEFAULT_STATUS,
             color: STATUS_CONFIG[DEFAULT_STATUS].color,
+            dentistId: selectedDentistId,
+            dentist: selectedDentist,
+            serviceId: selectedCatalogService?.id ?? null,
+            serviceName: selectedCatalogService?.name ?? null,
+            unitPrice: selectedCatalogService?.price ?? 0,
+            reason: appointmentReason,
           };
         }
 
@@ -333,9 +457,10 @@ function App() {
       }
     };
 
-    const showForm = isEdit
-      || patientType === "new"
-      || (patientType === "registered" && Boolean(state.patientId));
+    const showPatientForm = editorStep === 2
+      && (isEdit || patientType === "new" || (patientType === "registered" && Boolean(state.patientId)));
+    const showAppointmentDetails = editorStep === 3
+      && (isEdit || patientType === "new" || (patientType === "registered" && Boolean(state.patientId)));
 
     return (
       <div className="overflow-hidden bg-white" style={{ minWidth: 340, maxWidth: 400 }}>
@@ -372,7 +497,10 @@ function App() {
               </div>
               <button
                 type="button"
-                onClick={() => setPatientType("new")}
+                onClick={() => {
+                  setPatientType("new");
+                  setEditorStep(2);
+                }}
                 className="w-full rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:border-sky-400 hover:bg-sky-50"
               >
                 <span className="block text-sm font-semibold text-gray-800">Nuevo paciente</span>
@@ -380,7 +508,10 @@ function App() {
               </button>
               <button
                 type="button"
-                onClick={() => setPatientType("registered")}
+                onClick={() => {
+                  setPatientType("registered");
+                  setEditorStep(1);
+                }}
                 className="w-full rounded-xl border border-gray-200 bg-white p-4 text-left transition hover:border-sky-400 hover:bg-sky-50"
               >
                 <span className="block text-sm font-semibold text-gray-800">Paciente registrado</span>
@@ -429,7 +560,7 @@ function App() {
             </div>
           )}
 
-          {showForm && (
+          {showPatientForm && (
             <>
               {!isEdit && (
                 <div className="flex items-center justify-between rounded-lg bg-sky-50 px-3 py-2">
@@ -456,6 +587,7 @@ function App() {
                   value={state.apellido_pat}
                   onChange={set("apellido_pat")}
                   disabled={isEdit || patientType === "registered"}
+                  error={errorApellidoPat}
                 />
                 <Field
                   label="Apellido materno"
@@ -463,49 +595,8 @@ function App() {
                   value={state.apellido_mat}
                   onChange={set("apellido_mat")}
                   disabled={isEdit || patientType === "registered"}
+                  error={errorApellidoMat}
                 />
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
-                    Motivo de consulta
-                  </label>
-                  <select
-                    value={selectedService}
-                    onChange={selectEvent => {
-                      const value = selectEvent.target.value;
-                      setSelectedService(value);
-                      set("description")(value === "__other__" ? otherReason.trim() : value);
-                      setErrorService("");
-                    }}
-                    disabled={isLoadingServices}
-                    className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400 disabled:bg-gray-100"
-                  >
-                    <option value="">
-                      {isLoadingServices ? "Cargando servicios..." : "Selecciona un servicio"}
-                    </option>
-                    {services.map(service => (
-                      <option key={service.id} value={service.name}>
-                        {service.name} - ${service.price.toLocaleString("es-MX")}
-                      </option>
-                    ))}
-                    <option value="__other__">Otro</option>
-                  </select>
-                  {selectedService === "__other__" && (
-                    <input
-                      value={otherReason}
-                      onChange={inputEvent => {
-                        const value = inputEvent.target.value;
-                        setOtherReason(value);
-                        set("description")(value);
-                        setErrorService("");
-                      }}
-                      placeholder="Escribe el motivo de la cita"
-                      maxLength={200}
-                      className="mt-2 h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400"
-                    />
-                  )}
-                  {errorService && <p className="text-xs text-red-500">{errorService}</p>}
-                  {loadServicesError && <p className="text-xs text-red-500">{loadServicesError}</p>}
-                </div>
                 <Field
                   label="Teléfono"
                   placeholder="10 dígitos"
@@ -519,6 +610,100 @@ function App() {
               </div>
             </>
           )}
+
+          {showAppointmentDetails && (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
+                  Motivo de consulta
+                </label>
+                <textarea
+                  value={reason}
+                  onChange={textareaEvent => {
+                    setReason(textareaEvent.target.value);
+                    setErrorReason("");
+                  }}
+                  placeholder="Describe el motivo de la consulta"
+                  maxLength={240}
+                  className="min-h-20 w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                />
+                {errorReason && <p className="text-xs text-red-500">{errorReason}</p>}
+              </div>
+
+              <label className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={willDoService}
+                  onChange={checkboxEvent => {
+                    setWillDoService(checkboxEvent.target.checked);
+                    if (!checkboxEvent.target.checked) setSelectedServiceId("");
+                    setErrorService("");
+                  }}
+                  className="h-4 w-4 rounded border-gray-300 text-sky-600"
+                />
+                Se realizará un servicio
+              </label>
+
+              {willDoService && (
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
+                    Servicio a realizar
+                  </label>
+                  <select
+                    value={selectedServiceId}
+                    onChange={selectEvent => {
+                      setSelectedServiceId(selectEvent.target.value);
+                      setErrorService("");
+                    }}
+                    disabled={isLoadingServices}
+                    className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400 disabled:bg-gray-100"
+                  >
+                    <option value="">
+                      {isLoadingServices ? "Cargando servicios..." : "Selecciona un servicio"}
+                    </option>
+                    {services.map(service => (
+                      <option key={service.id} value={service.id}>
+                        {service.name} - ${service.price.toLocaleString("es-MX")}
+                      </option>
+                    ))}
+                  </select>
+                  {errorService && <p className="text-xs text-red-500">{errorService}</p>}
+                  {loadServicesError && <p className="text-xs text-red-500">{loadServicesError}</p>}
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
+                  Dentista que atiende
+                </label>
+                <select
+                  value={selectedDentistId}
+                  onChange={selectEvent => {
+                    setSelectedDentistId(selectEvent.target.value);
+                    setErrorDentist("");
+                  }}
+                  disabled={isLoadingDentists}
+                  className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400 disabled:bg-gray-100"
+                >
+                  <option value="">
+                    {isLoadingDentists ? "Cargando dentistas..." : "Selecciona un dentista"}
+                  </option>
+                  {dentists.map(dentist => (
+                    <option key={dentist.id} value={dentist.id}>
+                      {dentistDisplayName(dentist)}
+                    </option>
+                  ))}
+                </select>
+                {errorDentist && <p className="text-xs text-red-500">{errorDentist}</p>}
+                {loadDentistsError && <p className="text-xs text-red-500">{loadDentistsError}</p>}
+                {!isLoadingDentists && !dentists.length && !loadDentistsError && (
+                  <p className="text-xs text-red-500">No hay dentistas registrados en profiles.</p>
+                )}
+              </div>
+
+              {submitError && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{submitError}</p>}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 bg-white px-5 py-3">
@@ -529,11 +714,29 @@ function App() {
           >
             Cancelar
           </button>
-          {showForm && (
+          {!isEdit && showAppointmentDetails && (
+            <button
+              type="button"
+              onClick={() => setEditorStep(2)}
+              className="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+            >
+              Atrás
+            </button>
+          )}
+          {showPatientForm && (
+            <button
+              type="button"
+              onClick={goToAppointmentDetails}
+              className="rounded-lg bg-gradient-to-r from-sky-500 to-cyan-500 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:from-sky-600 hover:to-cyan-600"
+            >
+              Continuar
+            </button>
+          )}
+          {showAppointmentDetails && (
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={isLoadingServices}
+              disabled={isLoadingServices || isLoadingDentists}
               className="rounded-lg bg-gradient-to-r from-sky-500 to-cyan-500 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:from-sky-600 hover:to-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isEdit ? "Guardar cambios" : "Crear cita"}
@@ -549,18 +752,31 @@ function App() {
     if (!response.ok) throw new Error("Error al cargar citas");
     const data = await response.json();
 
-    const formatted: ProcessedEvent[] = data.map((appointment: any) => ({
-      event_id: appointment.id,
-      title: [appointment.name.name, appointment.name.apellido_pat, appointment.name.apellido_mat]
-        .filter(Boolean)
-        .join(" "),
-      description: appointment.name.telefono,
-      subtitle: appointment.desc,
-      status: appointment.status,
-      color: STATUS_CONFIG[normalizeStatus(appointment.status)].color,
-      start: new Date(appointment.startDate),
-      end: new Date(appointment.endDate),
-    }));
+    const formatted: SchedulerEvent[] = data.map((appointment: any) => {
+      const appointmentService = appointment.appointmentService;
+      const serviceName = appointmentService?.serviceName ?? null;
+      const reason = appointment.reason || "Sin motivo";
+
+      return {
+        event_id: appointment.id,
+        title: [appointment.name.name, appointment.name.apellido_pat, appointment.name.apellido_mat]
+          .filter(Boolean)
+          .join(" "),
+        description: appointment.name.telefono,
+        // El scheduler usa subtitle, pero ahora se alimenta desde Appointment.reason.
+        subtitle: reason,
+        status: appointment.status,
+        color: STATUS_CONFIG[normalizeStatus(appointment.status)].color,
+        start: new Date(appointment.startDate),
+        end: new Date(appointment.endDate),
+        dentistId: appointment.dentistId,
+        dentist: appointment.dentist,
+        serviceId: appointmentService?.serviceId ?? null,
+        serviceName,
+        unitPrice: appointmentService?.unitPrice ?? 0,
+        reason,
+      };
+    });
 
     setEvents(formatted);
     return formatted;
@@ -598,7 +814,6 @@ function App() {
         id: updatedEvent.event_id,
         name: updatedEvent.name,
         phone: updatedEvent.description,
-        description: updatedEvent.subtitle,
         startDate: toDbTimestamp(droppedOn),
         endDate: toDbTimestamp(newEnd),
       }),
@@ -637,7 +852,7 @@ function App() {
       translations={{
         navigation: { month: "Mes", week: "Semana", day: "Día", today: "Hoy", agenda: "Agenda" },
         form: { addTitle: "Nueva cita", editTitle: "Editar cita", confirm: "Confirmar", delete: "Eliminar", cancel: "Cancelar" },
-        event: { title: "Paciente", subtitle: "Teléfono", start: "Inicio", end: "Fin", allDay: "Todo el día" },
+        event: { title: "Paciente", subtitle: "Motivo", start: "Inicio", end: "Fin", allDay: "Todo el día" },
         moreEvents: "más...",
         noDataToDisplay: "Sin citas registradas",
         loading: "Cargando...",
@@ -656,6 +871,7 @@ function App() {
       }}
       customEditor={scheduler => <CustomEditor scheduler={scheduler} />}
       viewerExtraComponent={(_fields, event) => {
+        const schedulerEvent = event as SchedulerEvent;
         const status = normalizeStatus(event.status as string);
         const config = STATUS_CONFIG[status];
 
@@ -668,6 +884,24 @@ function App() {
             {event.description && (
               <p className="text-sm leading-relaxed text-gray-600">{event.description}</p>
             )}
+            {schedulerEvent.dentist && (
+              <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Dentista asignado</p>
+                <p className="mt-1 text-sm font-medium text-gray-800">{dentistDisplayName(schedulerEvent.dentist)}</p>
+                {schedulerEvent.dentist.email && (
+                  <p className="text-xs text-gray-500">{schedulerEvent.dentist.email}</p>
+                )}
+                {schedulerEvent.dentist.phone && (
+                  <p className="text-xs text-gray-500">{schedulerEvent.dentist.phone}</p>
+                )}
+              </div>
+            )}
+            <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Servicio programado</p>
+              <p className="mt-1 text-sm font-medium text-gray-800">
+                {schedulerEvent.serviceName || "Sin servicio"}
+              </p>
+            </div>
             <div className="border-t border-gray-100 pt-3">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Cambiar estado</p>
               <RadioGroup
