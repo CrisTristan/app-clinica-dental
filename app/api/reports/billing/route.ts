@@ -1,6 +1,7 @@
 export const runtime = 'nodejs'
 
-import { requireAdmin } from "@/lib/auth-guard"
+import { requireRole } from "@/lib/auth-guard"
+import { rolesFor } from "@/lib/permissions"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { generateReporteFacturacionPDF, ReporteRow } from "@/lib/pdf/reporte-facturacion"
 import { NextRequest } from "next/server"
@@ -15,7 +16,7 @@ const METODO_LABELS: Record<string, string> = {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requireRole(rolesFor('reportes'))
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
   const params = new URL(req.url).searchParams

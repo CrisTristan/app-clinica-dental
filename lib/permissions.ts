@@ -12,6 +12,7 @@ import { type Role } from "@/lib/roles"
 // ============================================================
 
 export type Capability =
+  | 'dashboard'         // Resumen operativo
   | 'agenda'            // Citas / calendario
   | 'pacientes'         // Datos personales del paciente (alta, edición, listado)
   | 'pacientes.eliminar' // Borrar pacientes (más sensible que editar)
@@ -29,17 +30,18 @@ const ALL: Role[] = ['admin', 'recepcionista', 'dentista']
 
 // Matriz confirmada. Admin queda incluido en todo de forma explícita.
 export const CAPABILITIES: Record<Capability, Role[]> = {
+  'dashboard':         ['admin', 'dentista'],
   'agenda':            ALL,
   'pacientes':         ALL,
   'pacientes.eliminar': ['admin'],
   'clinica.ver':    ALL,                          // recepcionista: solo lectura
   'clinica.editar': ['admin', 'dentista'],
   'recetas':        ['admin', 'dentista'],
-  'cobros':         ['admin', 'recepcionista'],
-  'reportes':       ['admin'],
+  'cobros':         ALL,
+  'reportes':       ['admin', 'dentista'],
   'auditoria':      ['admin'],
-  'catalogo':       ['admin'],
-  'anuncios':       ['admin'],
+  'catalogo':       ['admin', 'dentista'],
+  'anuncios':       ALL,
   'colaboradores':  ['admin'],
 }
 

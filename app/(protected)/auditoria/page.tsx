@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { authentication } from "@/app/actions/authentication"
-import { isAdmin } from "@/lib/roles"
+import { can } from "@/lib/permissions"
 import { Button } from "@/components/ui/button"
 import { ScrollText, ChevronLeft, ChevronRight } from "lucide-react"
 import { METODO_PAGO_LABELS } from "@/app/types/types"
@@ -96,7 +96,7 @@ export default function AuditoriaPage() {
   const [error, setError]         = useState("")
 
   useEffect(() => {
-    authentication().then(s => setCanAccess(isAdmin(s?.user?.role)))
+    authentication().then(s => setCanAccess(can(s?.user?.role, "auditoria")))
   }, [])
 
   const load = useCallback(async (opts: { from: string; to: string; action: string; entity: string; page: number }) => {

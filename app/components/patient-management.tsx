@@ -22,6 +22,8 @@ import AdministradorAnuncios from './AdministradorAnuncios'
 import ProximasCitas from './proximasCitas'
 import CatalogoServicios from './CatalogoServicios'
 import GestionColaboradores from './GestionColaboradores'
+import { can, type Capability } from "@/lib/permissions"
+import { ROLE_LABELS, type Role } from "@/lib/roles"
 
 /* ── Helpers ── */
 function initials(name: string, ap?: string) {
@@ -34,12 +36,12 @@ function fmt(date?: string) {
 }
 
 /* ── Nav items ── */
-const NAV = [
+const NAV: { id: string; label: string; icon: React.ElementType; capability?: Capability }[] = [
   { id: "Pacientes",       label: "Pacientes",        icon: Users       },
   { id: "Proximas Citas",  label: "Próximas Citas",   icon: Calendar    },
-  { id: "Anuncios",        label: "Anuncios",         icon: FileText    },
-  { id: "Catalogo",        label: "Catálogo",         icon: ClipboardList },
-  { id: "Colaboradores",   label: "Colaboradores",    icon: UserCog     },
+  { id: "Anuncios",        label: "Anuncios",         icon: FileText,      capability: "anuncios" },
+  { id: "Catalogo",        label: "Catálogo",         icon: ClipboardList, capability: "catalogo" },
+  { id: "Colaboradores",   label: "Colaboradores",    icon: UserCog,       capability: "colaboradores" },
 ]
 
 /* ── Sidebar item ── */
@@ -65,10 +67,10 @@ function SidebarItem({
   )
 }
 
-export default function PatientManagement() {
+export default function PatientManagement({ role }: { role: Role }) {
   const [patients,        setPatients]        = useState<Patient[]>([])
   const [pendingCountMap, setPendingCountMap] = useState<Map<number, number>>(new Map())
-  const [currentPage,     setCurrentPage]     = useState("Pacientes")
+  const [currentPage,     setCurrentPage]     = useState(role === "recepcionista" ? "Proximas Citas" : "Pacientes")
   const [searchTerm,      setSearchTerm]      = useState("")
   const [checkedItems,    setCheckedItems]    = useState<string[]>([])
   const [sidebarOpen,     setSidebarOpen]     = useState(false)
@@ -84,9 +86,28 @@ export default function PatientManagement() {
   const [errorSave,  setErrorSave]  = useState(false)
 
   const router = useRouter()
+  const canDeletePatients = can(role, "pacientes.eliminar")
+  const navItems = useMemo(
+    () => {
+      if (role === "recepcionista") {
+        return NAV.filter(item => item.id === "Proximas Citas" || item.id === "Anuncios")
+      }
+
+      return NAV.filter(item => !item.capability || can(role, item.capability))
+    },
+    [role],
+  )
+
+  useEffect(() => {
+    if (!navItems.some(item => item.id === currentPage)) {
+      setCurrentPage(navItems[0]?.id ?? "")
+    }
+  }, [currentPage, navItems])
 
   /* ── Fetch patients + pending counts ── */
   useEffect(() => {
+    if (role === "recepcionista") return
+
     fetch("/patients/api")
       .then(async r => {
         const data = await r.json()
@@ -111,7 +132,7 @@ export default function PatientManagement() {
         setPendingCountMap(map)
       })
       .catch(console.error)
-  }, [])
+  }, [role])
 
 
   const filteredPatients = patients.filter(p =>
@@ -192,7 +213,7 @@ export default function PatientManagement() {
       .catch(() => setErrorSave(true))
   }
 
-  const activeLabel = NAV.find(n => n.id === currentPage)?.label ?? currentPage
+  const activeLabel = navItems.find(n => n.id === currentPage)?.label ?? currentPage
 
   /* ── Sidebar content (shared between desktop & mobile) ── */
   const SidebarContent = () => (
@@ -213,7 +234,7 @@ export default function PatientManagement() {
       {/* Nav */}
       <nav className="flex-1 space-y-1 px-2">
         <p className="text-[10px] font-semibold text-gray-400 dark:text-slate-600 uppercase tracking-widest px-3 mb-2">Módulos</p>
-        {NAV.map(item => (
+        {navItems.map(item => (
           <SidebarItem
             key={item.id}
             item={item}
@@ -283,7 +304,7 @@ export default function PatientManagement() {
           {/* Badge de módulo activo */}
           <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 border border-sky-200 dark:border-sky-800">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-            Administrador
+            {ROLE_LABELS[role]}
           </span>
         </div>
 
@@ -310,7 +331,7 @@ export default function PatientManagement() {
                   />
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {checkedItems.length > 0 && (
+                  {canDeletePatients && checkedItems.length > 0 && (
                     <DeleteButtonNotify onDelete={() => setDeleteConfirmOpen(true)} text="Eliminar" size="default" />
                   )}
                   <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -383,7 +404,7 @@ export default function PatientManagement() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-700/50">
-                      <TableHead className="w-10" />
+                      {canDeletePatients && <TableHead className="w-10" />}
                       <TableHead className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Paciente</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Teléfono</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Última Visita</TableHead>
@@ -394,7 +415,7 @@ export default function PatientManagement() {
                   <TableBody>
                     {filteredPatients.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-16 text-gray-400 dark:text-slate-500">
+                        <TableCell colSpan={canDeletePatients ? 6 : 5} className="text-center py-16 text-gray-400 dark:text-slate-500">
                           {searchTerm ? `Sin resultados para "${searchTerm}"` : "No hay pacientes registrados"}
                         </TableCell>
                       </TableRow>
@@ -413,15 +434,17 @@ export default function PatientManagement() {
                             key={id}
                             className="border-gray-50 dark:border-slate-700 hover:bg-sky-50/50 dark:hover:bg-slate-700/50 transition-colors group"
                           >
-                            <TableCell className="w-10">
-                              <input
-                                id={String(id)}
-                                type="checkbox"
-                                checked={checkedItems.includes(String(id))}
-                                onChange={handleCheckbox}
-                                className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 accent-sky-500"
-                              />
-                            </TableCell>
+                            {canDeletePatients && (
+                              <TableCell className="w-10">
+                                <input
+                                  id={String(id)}
+                                  type="checkbox"
+                                  checked={checkedItems.includes(String(id))}
+                                  onChange={handleCheckbox}
+                                  className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 accent-sky-500"
+                                />
+                              </TableCell>
+                            )}
 
                             <TableCell
                               onClick={() => router.push(`/pacientes/${encodeURIComponent(id)}/?id=${id}&name=${name}`)}
@@ -500,7 +523,7 @@ export default function PatientManagement() {
           {currentPage === "Anuncios"       && <AdministradorAnuncios />}
           {currentPage === "Catalogo"       && <CatalogoServicios />}
           {currentPage === "Proximas Citas" && <ProximasCitas />}
-          {currentPage === "Colaboradores"  && <GestionColaboradores />}
+          {currentPage === "Colaboradores" && can(role, "colaboradores") && <GestionColaboradores />}
 
         </div>
       </main>

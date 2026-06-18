@@ -1,7 +1,7 @@
 "use client"
 
 import { authentication } from "@/app/actions/authentication"
-import { isAdmin } from "@/lib/roles"
+import { can } from "@/lib/permissions"
 import { useEffect, useState, useMemo } from "react"
 import { format, parseISO, isSameDay } from "date-fns"
 import { es } from "date-fns/locale"
@@ -99,7 +99,7 @@ export default function DashboardPage() {
 
   /* ── Auth ── */
   useEffect(() => {
-    authentication().then(s => setCanAccess(isAdmin(s?.user?.role) ? true : false))
+    authentication().then(s => setCanAccess(can(s?.user?.role, "dashboard")))
   }, [])
 
   /* ── Fetch appointments ── */

@@ -1,10 +1,10 @@
 "use server"
 import { v2 as Cloudinary } from "cloudinary"
-import { requireAdmin } from "@/lib/auth-guard"
+import { requireRole } from "@/lib/auth-guard"
+import { rolesFor } from "@/lib/permissions"
 
 export async function deleteAddversitesment(url: string): Promise<string> {
-    // Los anuncios solo los gestiona el administrador.
-    const auth = await requireAdmin()
+    const auth = await requireRole(rolesFor('anuncios'))
     if (!auth.ok) throw new Error(auth.error)
 
     const urls = url.split("/anuncios/")

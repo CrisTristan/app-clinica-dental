@@ -2,7 +2,7 @@
 import Scheduler from "../../components/scheduler"
 import { useEffect, useState } from "react"
 import { authentication } from "@/app/actions/authentication"
-import { hasAccess } from "@/lib/roles"
+import { hasAccess, ROLE_LABELS, type Role } from "@/lib/roles"
 
 const DAYS = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"]
 const MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"]
@@ -14,7 +14,7 @@ function todayLabel() {
 
 export default function Agenda() {
   const [canAccess, setCanAccess] = useState<boolean | null>(null)
-  const [role, setRole]           = useState<string | null>(null)
+  const [role, setRole]           = useState<Role | null>(null)
 
   useEffect(() => {
     authentication().then(session => {
@@ -65,7 +65,7 @@ export default function Agenda() {
                   : "bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400"
                 }`}>
                 <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                {role === "admin" ? "Administrador" : "Recepcionista"}
+                {role ? ROLE_LABELS[role] : ""}
               </span>
             </div>
 

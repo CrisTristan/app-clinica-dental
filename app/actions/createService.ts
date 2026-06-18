@@ -1,10 +1,11 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
-import { requireAdmin } from "@/lib/auth-guard"
+import { requireRole } from "@/lib/auth-guard"
+import { rolesFor } from "@/lib/permissions"
 
 export const createService = async (name: string, price: number) => {
-  const auth = await requireAdmin()
+  const auth = await requireRole(rolesFor('catalogo'))
   if (!auth.ok) return null
 
   const supabase = createAdminClient()

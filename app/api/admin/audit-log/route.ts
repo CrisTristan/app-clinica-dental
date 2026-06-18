@@ -1,4 +1,5 @@
-import { requireAdmin } from "@/lib/auth-guard"
+import { requireRole } from "@/lib/auth-guard"
+import { rolesFor } from "@/lib/permissions"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { NextRequest } from "next/server"
 
@@ -8,7 +9,7 @@ const ENTITIES  = ['servicio', 'abono']
 const PAGE_SIZE = 25
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin()
+  const auth = await requireRole(rolesFor('auditoria'))
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
   const params = new URL(req.url).searchParams

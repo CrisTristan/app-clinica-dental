@@ -14,18 +14,20 @@ const publicRoutes = [
 // Nota: '/pacientes' (lista/Panel Admin) se gestiona aparte para permitir que
 // el personal abra la ficha individual /pacientes/<id> (plan B).
 const adminOnlyRoutes = [
-  '/dashboard',
   '/register',
-  '/auditoria',
-  '/api/admin',
+  '/api/admin/users',
 ]
 
 // Páginas divididas por rol, derivadas de la matriz central (lib/permissions).
 // Un rol no permitido es redirigido a /agenda.
 const roleRoutes: { prefix: string; roles: readonly string[] }[] = [
+  { prefix: '/dashboard',         roles: rolesFor('dashboard') },
+  { prefix: '/directorio',        roles: ['admin', 'dentista'] },
   { prefix: '/servicios-activos', roles: rolesFor('cobros') },
   { prefix: '/recetas',           roles: rolesFor('recetas') },
   { prefix: '/reportes',          roles: rolesFor('reportes') },
+  { prefix: '/auditoria',         roles: rolesFor('auditoria') },
+  { prefix: '/odontograma',       roles: rolesFor('clinica.editar') },
 ]
 
 export async function middleware(request: NextRequest) {
@@ -110,10 +112,16 @@ export async function middleware(request: NextRequest) {
 
     // Panel Admin (lista /pacientes) es solo admin; la ficha individual
     // /pacientes/<id> la consulta todo el personal (plan B).
-    if (pathname === '/pacientes' && role !== 'admin') {
+    if (pathname === '/pacientes' && role !== 'admin' && role !== 'dentista' && role !== 'recepcionista') {
       const url = request.nextUrl.clone()
       const isStaff = role === 'recepcionista' || role === 'dentista'
       url.pathname = isStaff ? '/agenda' : '/login'
+      return NextResponse.redirect(url)
+    }
+
+    if (pathname.startsWith('/pacientes/') && role === 'recepcionista') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/pacientes'
       return NextResponse.redirect(url)
     }
 
