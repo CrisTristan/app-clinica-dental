@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MoreVertical, Download, Copy, MessageCircle, CheckCircle2, X } from 'lucide-react'
+import { MoreVertical, Download, Copy, MessageCircle, CheckCircle2, X, CalendarDays } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -27,7 +27,7 @@ interface AbonoResult {
 }
 
 export default function PatientServiceCard({
-  id, patient_name, patient_phone, patient_email, name, price, balance, onRefresh,
+  id, patient_name, patient_phone, patient_email, name, price, balance, created_at, onRefresh,
 }: Props) {
   const paid     = (price ?? 0) - (balance ?? 0)
   const progress = price > 0 ? Math.min(Math.round((paid / price) * 100), 100) : 0
@@ -38,6 +38,11 @@ export default function PatientServiceCard({
     .split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase()
 
   const fmt = (n: number) => `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+  const createdAtLabel = (() => {
+    const date = new Date(created_at)
+    if (Number.isNaN(date.getTime())) return 'Sin fecha'
+    return date.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })
+  })()
 
   // ── Abonar ──────────────────────────────────────────────
   const [abonarOpen, setAbonarOpen]       = useState(false)
@@ -159,22 +164,21 @@ export default function PatientServiceCard({
 
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-cyan-400 grid place-items-center text-white text-sm font-bold shrink-0">
             <span className="leading-none">{initials}</span>
           </div>
-          <div className="min-w-0">
-            <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm truncate">{patient_name}</p>
-            <p className="text-xs text-gray-400 dark:text-slate-500 truncate">{name}</p>
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="font-semibold text-gray-800 dark:text-slate-100 text-sm leading-snug break-words">{patient_name}</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 leading-snug break-words">{name}</p>
+            <p className="inline-flex items-center gap-1 text-[11px] text-gray-400 dark:text-slate-500 leading-none">
+              <CalendarDays className="w-3 h-3 shrink-0" />
+              Creado: {createdAtLabel}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${status.badge}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-            {status.label}
-          </span>
-
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
@@ -196,6 +200,11 @@ export default function PatientServiceCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${status.badge}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+            {status.label}
+          </span>
         </div>
       </div>
 

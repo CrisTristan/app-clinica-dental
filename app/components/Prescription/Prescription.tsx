@@ -621,16 +621,6 @@ export default function Prescription() {
               {hasTemplate ? "Mi plantilla" : "Crear mi plantilla"}
             </Button>
           )}
-          {canEditTemplate && (
-            <Button
-              onClick={saveTemplate}
-              disabled={saving}
-              className="rounded-xl bg-sky-600 text-white hover:bg-sky-700 dark:bg-sky-600 dark:text-white"
-            >
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              {hasTemplate ? "Guardar cambios" : "Crear plantilla"}
-            </Button>
-          )}
         </div>
       </div>
 

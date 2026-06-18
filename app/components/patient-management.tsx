@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -17,6 +17,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { Patient } from '../types/types'
 import DeleteButtonNotify from './deleteButtonNotify'
+import TypedDeleteConfirmationDialog from './typedDeleteConfirmationDialog'
 import AdministradorAnuncios from './AdministradorAnuncios'
 import ProximasCitas from './proximasCitas'
 import CatalogoServicios from './CatalogoServicios'
@@ -72,6 +73,7 @@ export default function PatientManagement() {
   const [checkedItems,    setCheckedItems]    = useState<string[]>([])
   const [sidebarOpen,     setSidebarOpen]     = useState(false)
   const [dialogOpen,      setDialogOpen]      = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   const [newPatient, setNewPatient] = useState({
     name: "", telefono: "998", apellido_pat: "", apellido_mat: "", email: "",
@@ -117,22 +119,37 @@ export default function PatientManagement() {
     p.telefono.includes(searchTerm)
   )
 
+  const selectedPatients = useMemo(() => (
+    checkedItems
+      .map(id => patients.find(patient => String(patient.id) === id))
+      .filter((patient): patient is Patient => Boolean(patient))
+  ), [checkedItems, patients])
+
   const handleCheckbox = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, checked } = e.target
     setCheckedItems(prev => checked ? [...prev, id] : prev.filter(i => i !== id))
   }
 
   const handleDelete = async () => {
+    const idsToDelete = [...checkedItems]
+    const numericIdsToDelete = idsToDelete.map(Number)
+
+    if (idsToDelete.length === 0) return
+
     try {
       const res = await fetch("/patients/api", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: checkedItems }),
+        body: JSON.stringify({ ids: idsToDelete }),
       })
       if (!res.ok) throw new Error()
-      setPatients(prev => prev.filter(p => !checkedItems.map(Number).includes(p.id)))
+      setPatients(prev => prev.filter(p => !numericIdsToDelete.includes(p.id)))
       setCheckedItems([])
-    } catch { console.error("Error al eliminar") }
+      setDeleteConfirmOpen(false)
+    } catch (error) {
+      console.error("Error al eliminar")
+      throw error
+    }
   }
 
   const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -294,7 +311,7 @@ export default function PatientManagement() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {checkedItems.length > 0 && (
-                    <DeleteButtonNotify onDelete={handleDelete} text="Eliminar" size="default" />
+                    <DeleteButtonNotify onDelete={() => setDeleteConfirmOpen(true)} text="Eliminar" size="default" />
                   )}
                   <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
@@ -466,6 +483,17 @@ export default function PatientManagement() {
                   {searchTerm && ` · búsqueda: "${searchTerm}"`}
                 </p>
               )}
+
+              <TypedDeleteConfirmationDialog
+                open={deleteConfirmOpen}
+                onOpenChange={setDeleteConfirmOpen}
+                items={selectedPatients.map(patient => ({
+                  id: patient.id,
+                  name: patient.name,
+                  description: [patient.name, patient.apellido_pat, patient.apellido_mat].filter(Boolean).join(" "),
+                }))}
+                onConfirm={handleDelete}
+              />
             </div>
           )}
 
