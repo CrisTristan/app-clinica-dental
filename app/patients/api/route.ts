@@ -29,11 +29,18 @@ export async function GET(request: Request) {
     if (!search) return Response.json([]);
 
     const terms = search.split(/\s+/);
-    const conditions = terms.map(term => `name.ilike.%${term}%`).join(',');
+    const conditions = terms
+      .flatMap(term => [
+        `name.ilike.%${term}%`,
+        `apellido_pat.ilike.%${term}%`,
+        `apellido_mat.ilike.%${term}%`,
+        `telefono.ilike.%${term}%`,
+      ])
+      .join(',');
 
     const { data, error } = await supabase
       .from('Patient')
-      .select('id, name, apellido_pat, apellido_mat, telefono')
+      .select('id, name, apellido_pat, apellido_mat, telefono, edad')
       .or(conditions)
       .order('name')
       .limit(8);
@@ -45,7 +52,7 @@ export async function GET(request: Request) {
   if (listOnly) {
     const { data, error } = await supabase
       .from('Patient')
-      .select('id, name, apellido_pat, apellido_mat, telefono')
+      .select('id, name, apellido_pat, apellido_mat, telefono, edad')
       .order('name')
 
     if (error) return Response.json({ error: error.message }, { status: 500 })

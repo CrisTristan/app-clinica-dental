@@ -68,8 +68,7 @@ export async function PUT(request: NextRequest) {
     !values.doctorFirstName ||
     !values.doctorLastName ||
     !values.degreeInstitution ||
-    !values.professionalLicense ||
-    !values.clinicAddress
+    !values.professionalLicense
   ) {
     return Response.json({ error: "Faltan datos obligatorios de la plantilla." }, { status: 400 })
   }
@@ -96,7 +95,7 @@ export async function PUT(request: NextRequest) {
         degree_institution: values.degreeInstitution,
         professional_license: values.professionalLicense,
         specialty: values.specialty || null,
-        clinic_address: values.clinicAddress,
+        clinic_address: values.clinicAddress || "Domicilio pendiente de configurar",
         signature_data_url: values.signatureDataUrl || null,
         updated_at: new Date().toISOString(),
       },
