@@ -94,6 +94,12 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
+    if (pathname === '/login' && role) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/pacientes'
+      return NextResponse.redirect(url)
+    }
+
     // Rutas solo para admin
     const isAdminRoute = adminOnlyRoutes.some(
       route => pathname === route || pathname.startsWith(route + '/')

@@ -15,9 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { loginAction } from "../actions/auth-actions"
 import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import { loginSchema } from "@/lib/zod"
-import { isAdmin, hasAccess } from "@/lib/roles"
 
 export default function FormLogin({
   isVerified = false,
@@ -26,7 +24,6 @@ export default function FormLogin({
 }) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
-  const router = useRouter()
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -42,20 +39,7 @@ export default function FormLogin({
       const response = await loginAction(values)
       if (response.error) {
         setError(response.error)
-        return
       }
-      window.dispatchEvent(new Event("auth-state-changed"))
-
-      if (isAdmin(response.userRol)) {
-        router.push("/pacientes")
-      } else if (hasAccess(response.userRol)) {
-        router.push("/agenda")
-      } else {
-        setError("El usuario no tiene un rol válido asignado")
-        return
-      }
-
-      router.refresh()
     })
   }
 

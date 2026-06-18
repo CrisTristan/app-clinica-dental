@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { loginSchema, registerSchema } from "@/lib/zod"
+import { redirect } from "next/navigation"
 import { z } from "zod"
 
 export const loginAction = async (values: z.infer<typeof loginSchema>) => {
@@ -29,7 +30,7 @@ export const loginAction = async (values: z.infer<typeof loginSchema>) => {
     return { error: "Tu cuenta no tiene un rol asignado. Contacta al administrador." }
   }
 
-  return { success: true, userRol: profile.role }
+  redirect("/pacientes")
 }
 
 // Solo administradores autenticados pueden registrar nuevos usuarios

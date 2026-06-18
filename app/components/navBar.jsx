@@ -37,7 +37,7 @@ export default function NavBar() {
       window.removeEventListener("auth-state-changed", refreshSession)
       subscription.unsubscribe()
     }
-  }, [])
+  }, [pathname])
 
   const role    = session?.user?.role
   const isRecepcionista = role === "recepcionista"
