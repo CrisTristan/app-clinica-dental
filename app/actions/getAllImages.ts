@@ -11,9 +11,14 @@ export interface PatientFile {
 
 interface CloudinarySearchResource {
     public_id: string;
-    format: string;
+    format?: string;
     resource_type: PatientFile["resourceType"];
     type: PatientFile["type"];
+}
+
+const getAssetFormat = (publicId: string, format?: string) => {
+    // En PDFs raw Cloudinary puede dejar el formato en la extension del public_id.
+    return format ?? publicId.split(".").pop() ?? "";
 }
 
 export async function getAllPatientImages(
@@ -26,7 +31,7 @@ export async function getAllPatientImages(
     const response = await Cloudinary.search.expression(`folder="pacientes/${patientName+"_"+patientID}"`).execute();
     return (response.resources as CloudinarySearchResource[]).map((image) => ({
         publicId: image.public_id,
-        format: image.format,
+        format: getAssetFormat(image.public_id, image.format),
         resourceType: image.resource_type,
         type: image.type,
     }));

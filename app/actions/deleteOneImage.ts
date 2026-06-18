@@ -4,7 +4,8 @@ import { requireStaff } from "@/lib/auth-guard"
 
 export async function deleteOneImage(
     publicId: string,
-    type: "upload" | "private" | "authenticated" = "upload"
+    type: "upload" | "private" | "authenticated" = "upload",
+    resourceType: "image" | "video" | "raw" = "image"
 ): Promise<string> {
     const auth = await requireStaff()
     if (!auth.ok) throw new Error(auth.error)
@@ -12,7 +13,8 @@ export async function deleteOneImage(
 
     try {
         await Cloudinary.uploader.destroy(publicId, {
-            resource_type: "image",
+            // Los expedientes pueden incluir PDFs, que Cloudinary suele guardar como raw.
+            resource_type: resourceType,
             type,
             invalidate: true,
         })

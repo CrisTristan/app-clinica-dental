@@ -100,7 +100,7 @@ export default function PerfilPaciente({
   const pathFolder = `/pacientes/${nombre}_${id}`
 
   const [patient,  setPatient]  = useState<Patient | undefined>()
-  const [archivos, setArchivos] = useState<string[]>([])
+  const [archivos, setArchivos] = useState<PatientFile[]>([])
   const [saved,    setSaved]    = useState(false)
   // La info clínica solo la edita admin/dentista; la recepcionista la ve en
   // modo solo lectura (el servidor también lo impone en las APIs clínicas).
@@ -160,6 +160,11 @@ export default function PerfilPaciente({
     })
 
     return `/api/cloudinary/private-asset?${params.toString()}`
+  }
+
+  const isPdfFile = (file: PatientFile) => {
+    // Los PDFs autenticados no son imagenes; renderizarlos con next/image rompe la vista previa.
+    return file.format.toLowerCase() === "pdf" || file.publicId.toLowerCase().endsWith(".pdf")
   }
 
   if (!patient)
@@ -394,6 +399,8 @@ export default function PerfilPaciente({
             signatureEndpoint="/api/sign-cloudinary-params"
             options={{
               sources: ["local", "url", "google_drive", "camera"],
+              // Permite que Cloudinary clasifique PDFs como raw cuando aplique, en vez de forzarlos como imagen.
+              resourceType: "auto",
               folder: pathFolder,
               tags: ["archivo"]
             }}
@@ -447,13 +454,27 @@ export default function PerfilPaciente({
                 <Dialog key={file.publicId}>
                   <DialogTrigger asChild>
                     <div className="relative cursor-pointer rounded-xl overflow-hidden border border-gray-100 dark:border-slate-700 hover:ring-2 hover:ring-sky-400 transition-all group">
-                      <Image
-                        src={getPrivateAssetUrl(file)}
-                        alt={`Archivo ${i + 1}`}
-                        width={200} height={200}
-                        unoptimized
-                        className="w-full h-32 object-cover"
-                      />
+                      {isPdfFile(file) ? (
+                        <div className="relative h-32 bg-white dark:bg-slate-900">
+                          <iframe
+                            // Muestra la primera pagina del PDF sin capturar el click que abre el dialog.
+                            src={`${getPrivateAssetUrl(file)}#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                            title={`Vista previa PDF ${i + 1}`}
+                            className="pointer-events-none h-full w-full border-0 bg-white"
+                          />
+                          <span className="absolute left-2 top-2 rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                            PDF
+                          </span>
+                        </div>
+                      ) : (
+                        <Image
+                          src={getPrivateAssetUrl(file)}
+                          alt={`Archivo ${i + 1}`}
+                          width={200} height={200}
+                          unoptimized
+                          className="w-full h-32 object-cover"
+                        />
+                      )}
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
                     </div>
                   </DialogTrigger>
@@ -462,18 +483,27 @@ export default function PerfilPaciente({
                       <DialogTitle className="text-gray-800 dark:text-slate-100">Archivo {i + 1}</DialogTitle>
                     </DialogHeader>
                     <div className="relative">
-                      <Image
-                        src={getPrivateAssetUrl(file)}
-                        alt={`Archivo ${i + 1}`}
-                        width={1200} height={900}
-                        unoptimized
-                        className="w-full rounded-xl object-contain max-h-[65vh]"
-                      />
+                      {isPdfFile(file) ? (
+                        <iframe
+                          // La ruta local valida permisos y redirige a una URL firmada para assets bloqueados.
+                          src={getPrivateAssetUrl(file)}
+                          title={`Archivo ${i + 1}`}
+                          className="h-[70vh] w-full rounded-xl border border-gray-100 dark:border-slate-700"
+                        />
+                      ) : (
+                        <Image
+                          src={getPrivateAssetUrl(file)}
+                          alt={`Archivo ${i + 1}`}
+                          width={1200} height={900}
+                          unoptimized
+                          className="w-full rounded-xl object-contain max-h-[65vh]"
+                        />
+                      )}
                     </div>
                     <div className="flex justify-end pt-2">
                       <DeleteButtonNotify
                         onDelete={() => {
-                          deleteOneImage(file.publicId, file.type)
+                          deleteOneImage(file.publicId, file.type, file.resourceType)
                           setArchivos(p => p.filter(item => item.publicId !== file.publicId))
                         }}
                         nextAction={() => { }}

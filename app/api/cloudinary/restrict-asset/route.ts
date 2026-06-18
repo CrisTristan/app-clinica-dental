@@ -10,6 +10,11 @@ Cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+const getAssetFormat = (publicId: string, format?: string) => {
+  // Los PDFs raw pueden traer el formato solo como extension del public_id.
+  return format ?? publicId.split(".").pop() ?? "";
+};
+
 export async function POST(request: Request) {
   const auth = await requireStaff();
 
@@ -48,7 +53,7 @@ export async function POST(request: Request) {
       ok: true,
       asset: {
         publicId: result.public_id,
-        format: result.format,
+        format: getAssetFormat(result.public_id, result.format),
         resourceType: result.resource_type,
         type: result.type,
       },
