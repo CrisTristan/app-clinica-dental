@@ -1,6 +1,7 @@
 "use server"
 import {v2 as Cloudinary} from "cloudinary"
 import { requireStaff } from "@/lib/auth-guard"
+import {createAdminClient} from "@/lib/supabase/admin"
 
 export async function deleteOneImage(
     publicId: string,
@@ -18,8 +19,20 @@ export async function deleteOneImage(
             type,
             invalidate: true,
         })
-        return "imagen borrada"
+        
     } catch (error) {
         throw new Error("No se pudo borrar la imagen")
     }
+
+    //Borrar también de la base de datos
+    const supabase = createAdminClient();
+    const { error } = await supabase
+        .from("Patient_Files")
+        .delete()
+        .eq("publicId", publicId);
+    if (error) {
+        throw new Error("No se pudo borrar el archivo de la base de datos")
+    }
+
+    return "imagen borrada"
 }

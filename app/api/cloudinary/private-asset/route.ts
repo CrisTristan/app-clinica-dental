@@ -16,6 +16,7 @@ Cloudinary.config({
 const ALLOWED_TYPES = new Set(["upload", "private", "authenticated"]);
 const ALLOWED_RESOURCE_TYPES = new Set(["image", "video", "raw"]);
 
+// Este endpoint se encarga de generar URLs firmadas para acceder a archivos privados en Cloudinary.
 export async function GET(request: Request) {
   const auth = await requireStaff();
   if (!auth.ok) {

@@ -97,7 +97,7 @@ export default function PerfilPaciente({
   paciente: Patient | undefined; nombre: string | null; id: string | null
 }) {
   const router = useRouter()
-  const pathFolder = `/pacientes/${nombre}_${id}`
+  const pathFolder = `pacientes/${id}`
 
   const [patient,  setPatient]  = useState<Patient | undefined>()
   const [archivos, setArchivos] = useState<PatientFile[]>([])
@@ -115,7 +115,11 @@ export default function PerfilPaciente({
   useEffect(() => {
     if (!paciente) return
     setPatient(paciente)
-    getProfilePhoto(nombre, id).then(url => setPatient(prev => prev ? { ...prev, foto: url ?? '' } : prev))
+    getProfilePhoto(nombre, id).then(patientFile => {
+       const profile_photo= getPrivateAssetUrl(patientFile);
+       console.log("Profile photo URL:", profile_photo);
+       setPatient(prev => prev ? { ...prev, foto: profile_photo ?? '' } : prev)
+    })
     getAllPatientImages(nombre, id).then(setArchivos)
   }, [paciente])
 
@@ -204,6 +208,7 @@ export default function PerfilPaciente({
                     src={patient.foto}
                     alt={fullName}
                     width={96} height={96}
+                    unoptimized
                     className="w-24 h-24 rounded-2xl object-cover border-4 border-white dark:border-slate-800 shadow-md"
                   />
                 ) : (
@@ -214,8 +219,34 @@ export default function PerfilPaciente({
                 {/* Change photo widget */}
                 <CldUploadWidget
                   signatureEndpoint="/api/sign-cloudinary-params"
-                  options={{ sources: ["local", "camera", "url"], folder: `${pathFolder}/fotoPerfil`, tags: ["perfil"] }}
-                  onSuccess={r => r.info && typeof r.info === "object" && setPatient(p => p ? { ...p, foto: (r.info as any).url } : p)}
+                  options={{ sources: ["local", "camera", "url"], folder: `pacientes/${id}/fotoPerfil`, tags: ["perfil"] }}
+                  onSuccess={
+                    async (r) => {
+                      if (!r.info || typeof r.info !== "object") return;
+                      const info = r.info as any;
+
+                      const response = await fetch(`/api/patients/${id}/files?kind=profile_photo`, {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ 
+                          public_id: info.public_id,
+                          resource_type: info.resource_type,
+                          type: info.type ?? "upload",
+                        })
+                      });
+
+                      if (!response.ok) {
+                        console.error("No se pudo restringir el archivo")
+                        return
+                      }
+
+                      const { asset } = await response.json() as { asset: PatientFile }
+
+                      setPatient(prev => prev ? { ...prev, foto: getPrivateAssetUrl(asset) } : prev);
+                    }
+                  }
                 >
                   {({ open }) => (
                     <button
@@ -401,7 +432,7 @@ export default function PerfilPaciente({
               sources: ["local", "url", "google_drive", "camera"],
               // Permite que Cloudinary clasifique PDFs como raw cuando aplique, en vez de forzarlos como imagen.
               resourceType: "auto",
-              folder: pathFolder,
+              folder: `pacientes/${id}/archivos`,
               tags: ["archivo"]
             }}
             onSuccess={async (r) => {
@@ -409,7 +440,7 @@ export default function PerfilPaciente({
 
               const info = r.info as any;
 
-              const response = await fetch("/api/cloudinary/restrict-asset", {
+              const response = await fetch(`/api/patients/${id}/files?kind=clinical_file`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
