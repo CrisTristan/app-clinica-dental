@@ -70,60 +70,63 @@ export async function POST(request: Request) {
 
     //Restringimos el asset cambiando su tipo a "authenticated". Esto hace que el asset solo pueda ser accedido mediante URLs firmadas, 
     // lo cual es más seguro para archivos sensibles.
-    const result: CloudinaryResponse = await Cloudinary.uploader.rename(public_id, public_id, {
-        resource_type,
-        type,
-        to_type: "authenticated",
-        overwrite: true,
-        invalidate: true,
-    }).then(result => {
-        console.log("Asset restringido exitosamente:", result);
-        return {
-            publicId: result.public_id,
-            assetId: result.asset_id,
-            format: getAssetFormat(result.public_id, result.format),
-            resourceType: result.resource_type,
-            type: result.type,
-            bytes: result.bytes,
-            displayName: result.display_name,
+    try {
+        const result: CloudinaryResponse = await Cloudinary.uploader.rename(public_id, public_id, {
+            resource_type,
+            type,
+            to_type: "authenticated",
+            overwrite: true,
+            invalidate: true,
+        }).then(result => {
+            console.log("Asset restringido exitosamente:", result);
+            return {
+                publicId: result.public_id,
+                assetId: result.asset_id,
+                format: getAssetFormat(result.public_id, result.format),
+                resourceType: result.resource_type,
+                type: result.type,
+                bytes: result.bytes,
+                displayName: result.display_name,
+            }
+        }).catch(error => {
+            console.error("Error al restringir el asset:", error);
+            throw new Error("Archivo restringido pero no se pudo actualizar en Cloudinary");
+        });
+
+        //Guardar el resultado en la base de datos
+        const supabase = createAdminClient();
+        const { data, error } = await supabase
+            .from("Patient_Files")
+            .insert({
+                patient_id: extractPatientIdFromUrl(request.url),
+                publicId: result.publicId,
+                assetId: result.assetId,
+                format: result.format,
+                resourceType: result.resourceType,
+                type: result.type,
+                kind: kindFile,
+                bytes: result.bytes,
+                originalName: result.displayName,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error("Error al guardar el asset en la base de datos:", error);
+            throw new Error("Archivo restringido pero no se pudo guardar en la base de datos");
         }
-    }).catch(error => {
-        console.error("Error al restringir el asset:", error);
-        return Response.json(
-            { error: "No se pudo restringir el archivo" },
-            { status: 500 }
-        );
-    });
 
-    //Guardar el resultado en la base de datos
-    const supabase = createAdminClient();
-    const { data, error } = await supabase
-        .from("Patient_Files")
-        .insert({
-            patient_id: extractPatientIdFromUrl(request.url),
-            publicId: result.publicId,
-            assetId: result.assetId,
-            format: result.format,
-            resourceType: result.resourceType,
-            type: result.type,
-            kind: kindFile,
-            bytes: result.bytes,
-            originalName: result.displayName,
-        })
-        .select()
-        .single();
-
-    if (error) {
-        console.error("Error al guardar el asset en la base de datos:", error);
+        return Response.json({
+            ok: true,
+            asset: result,
+        });
+    } catch (error) {
         return Response.json(
-            { error: "Archivo restringido pero no se pudo guardar en la base de datos" },
+            { error: error instanceof Error ? error.message : "Error desconocido" },
             { status: 500 }
         );
     }
 
-    return Response.json({
-        ok: true,
-        asset: result,
-    });
+
 
 }
