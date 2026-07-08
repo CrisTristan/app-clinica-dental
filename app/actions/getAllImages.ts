@@ -8,6 +8,7 @@ export interface PatientFile {
     format: string;
     resourceType: "image" | "video" | "raw";
     type: "upload" | "private" | "authenticated";
+    Name?: string | null;
 }
 
 interface CloudinarySearchResource {
@@ -42,7 +43,7 @@ export async function getAllPatientImages(
 
     const { data, error } = await supabase
         .from("Patient_Files")
-        .select("publicId, format, resourceType, type")
+        .select("publicId, format, resourceType, type, Name")
         .eq("patient_id", patientID)
         .eq("kind", "clinical_file")
         .select();

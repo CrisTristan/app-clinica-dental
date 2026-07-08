@@ -106,7 +106,7 @@ export async function POST(request: Request) {
                 type: result.type,
                 kind: kindFile,
                 bytes: result.bytes,
-                originalName: result.displayName,
+                Name: result.displayName,
             })
             .select()
             .single();
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
 
         return Response.json({
             ok: true,
-            asset: result,
+            asset: { ...result, Name: result.displayName },
         });
     } catch (error) {
         return Response.json(

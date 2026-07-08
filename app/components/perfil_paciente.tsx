@@ -4,12 +4,13 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { X, Save, Camera, Upload, ArrowLeft, User, Phone, MapPin, Calendar, Mail, Stethoscope, ClipboardList, Activity, Heart, Droplets, Apple, FileImage } from "lucide-react"
+import { X, Save, Camera, Upload, ArrowLeft, User, Phone, MapPin, Calendar, Mail, Stethoscope, ClipboardList, Activity, Heart, Droplets, Apple, FileImage, Pencil, Check, Square, Minus } from "lucide-react"
 import { Patient } from '../types/types'
 import { getProfilePhoto } from '../actions/getProfilePhoto'
 import { CldUploadWidget } from "next-cloudinary"
 import { getAllPatientImages, type PatientFile } from '../actions/getAllImages'
 import { deleteOneImage } from '../actions/deleteOneImage'
+import { renameOneImage } from '../actions/renameOneImage'
 import DeleteButtonNotify from './deleteButtonNotify'
 import ExamenTejidos from "./DentalData/ExamenTejitos"
 import HabitosForm from "./DentalData/HabitosForm"
@@ -87,6 +88,189 @@ function Section({ title, icon: Icon, children, className = "" }: {
       </div>
       <div className="p-5">{children}</div>
     </div>
+  )
+}
+
+/* ── Tarjeta + modal de un archivo del expediente ── */
+function ArchivoDialog({
+  file, index, getPrivateAssetUrl, isPdfFile, onRename, onDelete,
+}: {
+  file: PatientFile
+  index: number
+  getPrivateAssetUrl: (file: PatientFile) => string
+  isPdfFile: (file: PatientFile) => boolean
+  onRename: (publicId: string, name: string) => Promise<void>
+  onDelete: () => void
+}) {
+  const fallbackName = `Archivo ${index + 1}`
+  const displayName = file.Name?.trim() || fallbackName
+
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(displayName)
+  const [saving, setSaving] = useState(false)
+  const [maximized, setMaximized] = useState(false)
+
+  const startEditing = () => {
+    setValue(file.Name?.trim() || "")
+    setEditing(true)
+  }
+
+  const cancelEditing = () => {
+    setEditing(false)
+  }
+
+  const submit = async () => {
+    const trimmed = value.trim()
+    if (!trimmed || trimmed === (file.Name?.trim() || "")) {
+      setEditing(false)
+      return
+    }
+    setSaving(true)
+    try {
+      await onRename(file.publicId, trimmed)
+      setEditing(false)
+    } catch (e) {
+      console.error("No se pudo renombrar el archivo", e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <div className="relative cursor-pointer rounded-xl overflow-hidden border border-gray-100 dark:border-slate-700 hover:ring-2 hover:ring-sky-400 transition-all group">
+          {isPdfFile(file) ? (
+            <div className="relative h-32 bg-white dark:bg-slate-900">
+              <iframe
+                // Muestra la primera pagina del PDF sin capturar el click que abre el dialog.
+                src={`${getPrivateAssetUrl(file)}#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                title={`Vista previa ${displayName}`}
+                className="pointer-events-none h-full w-full border-0 bg-white"
+              />
+              <span className="absolute left-2 top-2 rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                PDF
+              </span>
+            </div>
+          ) : (
+            <Image
+              src={getPrivateAssetUrl(file)}
+              alt={displayName}
+              width={200} height={200}
+              unoptimized
+              className="w-full h-32 object-cover"
+            />
+          )}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+          <span className="absolute inset-x-0 bottom-0 truncate bg-black/50 px-2 py-1 text-[11px] text-white">
+            {displayName}
+          </span>
+        </div>
+      </DialogTrigger>
+      <DialogContent
+        className={
+          (maximized
+            ? "w-screen max-w-none h-screen max-h-screen rounded-none sm:rounded-none overflow-y-auto"
+            : "sm:max-w-3xl") +
+          " bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700"
+        }
+      >
+        {/* Controles de ventana estilo Windows (maximizar / restaurar), a la izquierda de la "X" */}
+        <div className="absolute right-11 top-4 z-10 flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setMaximized(true)}
+            disabled={maximized}
+            title="Pantalla completa"
+            className="rounded-sm p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-sky-600 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-sky-400 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <Square className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setMaximized(false)}
+            disabled={!maximized}
+            title="Tamaño normal"
+            className="rounded-sm p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-sky-600 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-sky-400 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <Minus className="h-4 w-4" />
+          </button>
+        </div>
+        <DialogHeader className="pr-28">
+          <DialogTitle className="text-gray-800 dark:text-slate-100">
+            {editing ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={value}
+                  autoFocus
+                  disabled={saving}
+                  onChange={(e) => setValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); submit() }
+                    if (e.key === "Escape") { e.preventDefault(); cancelEditing() }
+                  }}
+                  className="h-8"
+                />
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={saving}
+                  className="shrink-0 rounded-lg p-1.5 text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-900/30 disabled:opacity-50"
+                  title="Guardar nombre"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  disabled={saving}
+                  className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
+                  title="Cancelar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="truncate">{displayName}</span>
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-sky-600 dark:hover:bg-slate-700 dark:hover:text-sky-400"
+                  title="Editar nombre"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="relative">
+          {isPdfFile(file) ? (
+            <iframe
+              // La ruta local valida permisos y redirige a una URL firmada para assets bloqueados.
+              src={getPrivateAssetUrl(file)}
+              title={displayName}
+              className={`w-full rounded-xl border border-gray-100 dark:border-slate-700 ${maximized ? "h-[82vh]" : "h-[70vh]"}`}
+            />
+          ) : (
+            <Image
+              src={getPrivateAssetUrl(file)}
+              alt={displayName}
+              width={1200} height={900}
+              unoptimized
+              className={`w-full rounded-xl object-contain ${maximized ? "max-h-[82vh]" : "max-h-[65vh]"}`}
+            />
+          )}
+        </div>
+        <div className="flex justify-end pt-2">
+          <DeleteButtonNotify
+            onDelete={onDelete}
+            nextAction={() => { }}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -169,6 +353,13 @@ export default function PerfilPaciente({
   const isPdfFile = (file: PatientFile) => {
     // Los PDFs autenticados no son imagenes; renderizarlos con next/image rompe la vista previa.
     return file.format.toLowerCase() === "pdf" || file.publicId.toLowerCase().endsWith(".pdf")
+  }
+
+  const handleRenameFile = async (publicId: string, name: string) => {
+    const nuevoNombre = await renameOneImage(publicId, name)
+    setArchivos(p => p.map(item =>
+      item.publicId === publicId ? { ...item, Name: nuevoNombre } : item
+    ))
   }
 
   if (!patient)
@@ -482,66 +673,18 @@ export default function PerfilPaciente({
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {archivos.map((file, i) => (
-                <Dialog key={file.publicId}>
-                  <DialogTrigger asChild>
-                    <div className="relative cursor-pointer rounded-xl overflow-hidden border border-gray-100 dark:border-slate-700 hover:ring-2 hover:ring-sky-400 transition-all group">
-                      {isPdfFile(file) ? (
-                        <div className="relative h-32 bg-white dark:bg-slate-900">
-                          <iframe
-                            // Muestra la primera pagina del PDF sin capturar el click que abre el dialog.
-                            src={`${getPrivateAssetUrl(file)}#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                            title={`Vista previa PDF ${i + 1}`}
-                            className="pointer-events-none h-full w-full border-0 bg-white"
-                          />
-                          <span className="absolute left-2 top-2 rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
-                            PDF
-                          </span>
-                        </div>
-                      ) : (
-                        <Image
-                          src={getPrivateAssetUrl(file)}
-                          alt={`Archivo ${i + 1}`}
-                          width={200} height={200}
-                          unoptimized
-                          className="w-full h-32 object-cover"
-                        />
-                      )}
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                    </div>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700">
-                    <DialogHeader>
-                      <DialogTitle className="text-gray-800 dark:text-slate-100">Archivo {i + 1}</DialogTitle>
-                    </DialogHeader>
-                    <div className="relative">
-                      {isPdfFile(file) ? (
-                        <iframe
-                          // La ruta local valida permisos y redirige a una URL firmada para assets bloqueados.
-                          src={getPrivateAssetUrl(file)}
-                          title={`Archivo ${i + 1}`}
-                          className="h-[70vh] w-full rounded-xl border border-gray-100 dark:border-slate-700"
-                        />
-                      ) : (
-                        <Image
-                          src={getPrivateAssetUrl(file)}
-                          alt={`Archivo ${i + 1}`}
-                          width={1200} height={900}
-                          unoptimized
-                          className="w-full rounded-xl object-contain max-h-[65vh]"
-                        />
-                      )}
-                    </div>
-                    <div className="flex justify-end pt-2">
-                      <DeleteButtonNotify
-                        onDelete={() => {
-                          deleteOneImage(file.publicId, file.type, file.resourceType)
-                          setArchivos(p => p.filter(item => item.publicId !== file.publicId))
-                        }}
-                        nextAction={() => { }}
-                      />
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <ArchivoDialog
+                  key={file.publicId}
+                  file={file}
+                  index={i}
+                  getPrivateAssetUrl={getPrivateAssetUrl}
+                  isPdfFile={isPdfFile}
+                  onRename={handleRenameFile}
+                  onDelete={() => {
+                    deleteOneImage(file.publicId, file.type, file.resourceType)
+                    setArchivos(p => p.filter(item => item.publicId !== file.publicId))
+                  }}
+                />
               ))}
             </div>
           )}
