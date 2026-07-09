@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { ChevronDown, IdCard, Save } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
+import SearchableSelect from "./SearchableSelect"
 
 type Estado = { catalog_key: string; entidad_federativa: string }
 type Nacionalidad = { codigo_pais: number; pais: string }
@@ -19,11 +20,6 @@ type Details = {
 }
 
 const EMPTY: Details = { curp: "", edonac: "", nacorigen: "", edo: "", mun: "", loc: "" }
-
-const selectClass =
-  "w-full h-9 px-3 text-sm rounded-lg border border-gray-200 dark:border-slate-600 " +
-  "bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 " +
-  "focus:outline-none focus:ring-2 focus:ring-sky-400 transition-colors"
 
 const labelClass =
   "block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide"
@@ -79,12 +75,29 @@ export default function DetallesPaciente({
 
   const handle = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
+    setDetails(prev => ({ ...prev, [name]: value }))
+  }
+
+  const setField = (name: keyof Details, value: string) => {
     setDetails(prev => {
       // Al cambiar de estado, el municipio previo deja de ser válido.
       if (name === "edo") return { ...prev, edo: value, mun: "" }
       return { ...prev, [name]: value }
     })
   }
+
+  const estadoOpts = useMemo(
+    () => estados.map(e => ({ value: e.catalog_key, label: e.entidad_federativa })),
+    [estados],
+  )
+  const nacionalidadOpts = useMemo(
+    () => nacionalidades.map(n => ({ value: String(n.codigo_pais), label: n.pais })),
+    [nacionalidades],
+  )
+  const municipioOpts = useMemo(
+    () => municipios.map(m => ({ value: m.catalog_key, label: m.municipio })),
+    [municipios],
+  )
 
   const handleSave = async () => {
     if (!id) return
@@ -105,7 +118,7 @@ export default function DetallesPaciente({
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm overflow-visible">
       {/* Cabecera expandible */}
       <button
         type="button"
@@ -159,53 +172,54 @@ export default function DetallesPaciente({
               {/* Estado de nacimiento */}
               <div className="space-y-1">
                 <label className={labelClass}>Estado de Nacimiento</label>
-                <select name="edonac" value={details.edonac} onChange={handle} className={selectClass}>
-                  <option value="">— Seleccionar —</option>
-                  {estados.map(e => (
-                    <option key={e.catalog_key} value={e.catalog_key}>{e.entidad_federativa}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  name="edonac"
+                  options={estadoOpts}
+                  value={details.edonac}
+                  onChange={v => setField("edonac", v)}
+                  placeholder="Buscar estado…"
+                  direction="up"
+                />
               </div>
 
               {/* Nacionalidad */}
               <div className="space-y-1">
                 <label className={labelClass}>Nacionalidad</label>
-                <select name="nacorigen" value={details.nacorigen} onChange={handle} className={selectClass}>
-                  <option value="">— Seleccionar —</option>
-                  {nacionalidades.map(n => (
-                    <option key={n.codigo_pais} value={n.codigo_pais}>{n.pais}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  name="nacorigen"
+                  options={nacionalidadOpts}
+                  value={details.nacorigen}
+                  onChange={v => setField("nacorigen", v)}
+                  placeholder="Buscar nacionalidad…"
+                  direction="up"
+                />
               </div>
 
               {/* Estado (domicilio) */}
               <div className="space-y-1">
                 <label className={labelClass}>Estado</label>
-                <select name="edo" value={details.edo} onChange={handle} className={selectClass}>
-                  <option value="">— Seleccionar —</option>
-                  {estados.map(e => (
-                    <option key={e.catalog_key} value={e.catalog_key}>{e.entidad_federativa}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  name="edo"
+                  options={estadoOpts}
+                  value={details.edo}
+                  onChange={v => setField("edo", v)}
+                  placeholder="Buscar estado…"
+                  direction="up"
+                />
               </div>
 
               {/* Municipio */}
               <div className="space-y-1">
                 <label className={labelClass}>Municipio</label>
-                <select
+                <SearchableSelect
                   name="mun"
+                  options={municipioOpts}
                   value={details.mun}
-                  onChange={handle}
+                  onChange={v => setField("mun", v)}
                   disabled={!details.edo}
-                  className={`${selectClass} ${!details.edo ? "opacity-60 cursor-not-allowed" : ""}`}
-                >
-                  <option value="">
-                    {details.edo ? "— Seleccionar —" : "Seleccione un estado primero"}
-                  </option>
-                  {municipios.map(m => (
-                    <option key={m.catalog_key} value={m.catalog_key}>{m.municipio}</option>
-                  ))}
-                </select>
+                  placeholder={details.edo ? "Buscar municipio…" : "Seleccione un estado primero"}
+                  direction="up"
+                />
               </div>
             </div>
 
