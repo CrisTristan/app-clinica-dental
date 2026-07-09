@@ -55,7 +55,11 @@ export async function POST(request: Request) {
     // }
 
     const body = await request.json();
-    const { public_id, resource_type = "image", type = "upload" } = body;
+    const { public_id, resource_type = "image", type = "upload", name } = body;
+
+    // Nombre legible que eligio el usuario al subir el archivo. Si por algun
+    // motivo no llega, se usa el display_name que devuelva Cloudinary.
+    const originalName = typeof name === "string" && name.trim() ? name.trim() : null;
 
     if (
         typeof public_id !== "string" ||
@@ -93,6 +97,8 @@ export async function POST(request: Request) {
             throw new Error("Archivo restringido pero no se pudo actualizar en Cloudinary");
         });
 
+        const fileName = originalName ?? result.displayName;
+
         //Guardar el resultado en la base de datos
         const supabase = createAdminClient();
         const { data, error } = await supabase
@@ -106,7 +112,7 @@ export async function POST(request: Request) {
                 type: result.type,
                 kind: kindFile,
                 bytes: result.bytes,
-                Name: result.displayName,
+                Name: fileName,
             })
             .select()
             .single();
@@ -118,7 +124,7 @@ export async function POST(request: Request) {
 
         return Response.json({
             ok: true,
-            asset: { ...result, Name: result.displayName },
+            asset: { ...result, Name: fileName },
         });
     } catch (error) {
         return Response.json(

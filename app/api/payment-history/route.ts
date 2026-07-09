@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   // Contexto para la bitácora (lectura; no interviene en el cálculo del saldo).
   const { data: service } = await supabase
     .from('Patient_Services')
-    .select('name, Patient(name, apellido_pat, apellido_mat)')
+    .select('name, Patient(nombre, apellido_pat, apellido_mat)')
     .eq('id', patient_service_id)
     .single()
 

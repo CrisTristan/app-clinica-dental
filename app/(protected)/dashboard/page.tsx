@@ -22,10 +22,10 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 /* ── Types ── */
 type Appointment = {
   id: string; desc: string; startDate: string; endDate: string; status?: string
-  name: { id: number; name: string; apellido_pat: string; telefono: string }
+  name: { id: number; nombre: string; apellido_pat: string; telefono: string }
 }
 type Patient = {
-  id: number; name: string; apellido_pat: string; apellido_mat: string; telefono: string
+  id: number; nombre: string; apellido_pat: string; apellido_mat: string; telefono: string
   Appointment?: { startDate: string }[]
 }
 type PSRow = { patient_id: number; balance: number }
@@ -160,7 +160,7 @@ export default function DashboardPage() {
 
   const filteredPatients = useMemo(() =>
     patients.filter(p =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.telefono.includes(searchTerm)
     ),
   [patients, searchTerm])
@@ -285,11 +285,11 @@ export default function DashboardPage() {
                   return (
                     <div key={apt.id} className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 dark:bg-slate-700/50 border border-gray-100 dark:border-slate-700">
                       <div className="shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-cyan-400 grid place-items-center text-white text-xs font-bold overflow-hidden">
-                        <span className="leading-none">{initials(apt.name.name, apt.name.apellido_pat)}</span>
+                        <span className="leading-none">{initials(apt.name.nombre, apt.name.apellido_pat)}</span>
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-gray-800 dark:text-slate-100 truncate">
-                          {apt.name.name} {apt.name.apellido_pat}
+                          {apt.name.nombre} {apt.name.apellido_pat}
                         </p>
                         <p className="text-[10px] text-sky-600 dark:text-sky-400 font-medium">
                           {format(parseISO(apt.startDate), "HH:mm")} – {format(parseISO(apt.endDate), "HH:mm")}
@@ -340,15 +340,15 @@ export default function DashboardPage() {
                     key={patient.id}
                     className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-slate-700
                                hover:bg-sky-50/50 dark:hover:bg-slate-700/50 transition-colors group cursor-pointer"
-                    onClick={() => router.push(`/pacientes/${encodeURIComponent(patient.id)}/?id=${patient.id}&name=${patient.name}`)}
+                    onClick={() => router.push(`/pacientes/${encodeURIComponent(patient.id)}/?id=${patient.id}&name=${patient.nombre}`)}
                   >
                     <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-cyan-400 grid place-items-center text-white text-sm font-bold shrink-0 overflow-hidden">
-                      <span className="leading-none">{initials(patient.name, patient.apellido_pat)}</span>
+                      <span className="leading-none">{initials(patient.nombre, patient.apellido_pat)}</span>
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-800 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors truncate">
-                        {[patient.name, patient.apellido_pat, patient.apellido_mat].filter(Boolean).join(" ")}
+                        {[patient.nombre, patient.apellido_pat, patient.apellido_mat].filter(Boolean).join(" ")}
                       </p>
                       <div className="flex items-center gap-3 mt-0.5">
                         <span className="text-[10px] text-gray-400 dark:text-slate-500">{patient.telefono}</span>

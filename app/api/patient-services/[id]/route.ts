@@ -19,7 +19,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const [{ data: payments }, { data: before }] = await Promise.all([
     supabase.from('Payment_History').select('abono').eq('patient_service_id', id),
     supabase.from('Patient_Services')
-      .select('name, price, Patient(name, apellido_pat, apellido_mat)')
+      .select('name, price, Patient(nombre, apellido_pat, apellido_mat)')
       .eq('id', id).single(),
   ])
 
@@ -62,7 +62,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const [{ data: service }, { data: payments }] = await Promise.all([
     supabase.from('Patient_Services')
-      .select('name, price, balance, Patient(name, apellido_pat, apellido_mat)')
+      .select('name, price, balance, Patient(nombre, apellido_pat, apellido_mat)')
       .eq('id', id).single(),
     supabase.from('Payment_History').select('abono').eq('patient_service_id', id),
   ])

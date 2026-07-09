@@ -38,7 +38,7 @@ type Cita = {
   nameId: number
   name: {
     id: number
-    name: string
+    nombre: string
     apellido_pat: string | null
     apellido_mat: string | null
     telefono: string
@@ -96,11 +96,11 @@ function initials(name: string, ap?: string | null) {
 }
 
 function fullPatientName(cita: Cita) {
-  return [cita.name.name, cita.name.apellido_pat, cita.name.apellido_mat].filter(Boolean).join(" ")
+  return [cita.name.nombre, cita.name.apellido_pat, cita.name.apellido_mat].filter(Boolean).join(" ")
 }
 
 function appointmentReminder(cita: Cita) {
-  return `Hola ${cita.name.name}, le recordamos su cita el ${format(parseISO(cita.startDate), "d 'de' MMMM 'a las' HH:mm", { locale: es })}...`
+  return `Hola ${cita.name.nombre}, le recordamos su cita el ${format(parseISO(cita.startDate), "d 'de' MMMM 'a las' HH:mm", { locale: es })}...`
 }
 
 function whatsappNumber(phone: string) {
@@ -384,7 +384,7 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
           <div className="space-y-3 p-5">
             {citasDelDia.map(cita => {
               const st = getStatus(cita.status)
-              const ini = initials(cita.name.name, cita.name.apellido_pat)
+              const ini = initials(cita.name.nombre, cita.name.apellido_pat)
               const appointmentText = cita.reason || cita.desc
               const isUpdating = updatingId === cita.id
               const isCompleted = cita.status === "Completed"
@@ -490,7 +490,7 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
                             <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center">
                               <MessageCircleMore className="w-4 h-4 text-white" />
                             </div>
-                            Mensaje a {cita.name.name}
+                            Mensaje a {cita.name.nombre}
                           </DialogTitle>
                           <p className="text-sm text-gray-500 dark:text-slate-400">
                             Envia un recordatorio de cita a {fullPatientName(cita)}
@@ -510,7 +510,7 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
                           />
                           <button
                             disabled={!message.trim() || sending}
-                            onClick={() => sendMessage(cita.name.telefono, cita.name.name)}
+                            onClick={() => sendMessage(cita.name.telefono, cita.name.nombre)}
                             className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors shadow-sm"
                           >
                             <Send className="w-4 h-4" />

@@ -11,7 +11,7 @@ export async function GET() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('Patient_Services')
-    .select('*, Patient(name, apellido_pat, apellido_mat, telefono, email)')
+    .select('*, Patient(nombre, apellido_pat, apellido_mat, telefono, email)')
     .order('created_at', { ascending: false })
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
@@ -19,7 +19,7 @@ export async function GET() {
   const rows = (data ?? []).map((row: any) => ({
     id:            row.id,
     patient_id:    row.patient_id,
-    patient_name:  [row.Patient?.name, row.Patient?.apellido_pat, row.Patient?.apellido_mat]
+    patient_name:  [row.Patient?.nombre, row.Patient?.apellido_pat, row.Patient?.apellido_mat]
       .filter(Boolean).join(' '),
     patient_phone: row.Patient?.telefono ?? '',
     patient_email: row.Patient?.email ?? '',
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase
     .from('Patient_Services')
     .insert({ id: Date.now().toString(), patient_id, name, price, balance: price })
-    .select('*, Patient(name, apellido_pat, apellido_mat)')
+    .select('*, Patient(nombre, apellido_pat, apellido_mat)')
     .single()
 
   if (error) return Response.json({ error: error.message }, { status: 500 })

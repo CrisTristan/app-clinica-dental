@@ -17,7 +17,7 @@ interface CustomEditorProps {
 
 interface PatientOption {
   id: number;
-  name: string;
+  nombre: string;
   apellido_pat?: string | null;
   apellido_mat?: string | null;
   telefono: string;
@@ -84,7 +84,7 @@ const normalizeStatus = (status?: string): AppointmentStatus =>
     : DEFAULT_STATUS;
 
 const patientFullName = (patient: PatientOption) =>
-  [patient.name, patient.apellido_pat, patient.apellido_mat].filter(Boolean).join(" ");
+  [patient.nombre, patient.apellido_pat, patient.apellido_mat].filter(Boolean).join(" ");
 
 const dentistDisplayName = (dentist?: DentistOption | null) =>
   dentist?.nombre?.trim() || dentist?.email || "Dentista sin nombre";
@@ -267,7 +267,7 @@ function App() {
       setState(previous => ({
         ...previous,
         patientId: patient.id,
-        name: patient.name,
+        name: patient.nombre,
         apellido_pat: patient.apellido_pat || "",
         apellido_mat: patient.apellido_mat || "",
         phone: patient.telefono,
@@ -759,7 +759,7 @@ function App() {
 
       return {
         event_id: appointment.id,
-        title: [appointment.name.name, appointment.name.apellido_pat, appointment.name.apellido_mat]
+        title: [appointment.name.nombre, appointment.name.apellido_pat, appointment.name.apellido_mat]
           .filter(Boolean)
           .join(" "),
         description: appointment.name.telefono,

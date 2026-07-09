@@ -23,7 +23,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const [{ data: oldPayment }, { data: service }] = await Promise.all([
     supabase.from('Payment_History').select('abono, metodo_pago').eq('id', id).single(),
     supabase.from('Patient_Services')
-      .select('name, Patient(name, apellido_pat, apellido_mat)')
+      .select('name, Patient(nombre, apellido_pat, apellido_mat)')
       .eq('id', patient_service_id).single(),
   ])
 

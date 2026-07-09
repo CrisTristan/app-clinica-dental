@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('Payment_History')
-    .select('id, abono, fecha, metodo_pago, Patient_Services(name, Patient(name, apellido_pat, apellido_mat)), profiles(nombre)')
+    .select('id, abono, fecha, metodo_pago, Patient_Services(name, Patient(nombre, apellido_pat, apellido_mat)), profiles(nombre)')
     .gte('fecha', from)
     .lte('fecha', to)
     .order('fecha', { ascending: true })
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     const patient = p.Patient_Services?.Patient
     return {
       fecha:         p.fecha,
-      paciente:      [patient?.name, patient?.apellido_pat, patient?.apellido_mat].filter(Boolean).join(' ') || '—',
+      paciente:      [patient?.nombre, patient?.apellido_pat, patient?.apellido_mat].filter(Boolean).join(' ') || '—',
       servicio:      p.Patient_Services?.name ?? '—',
       metodoPago:    p.metodo_pago ?? 'efectivo',
       registradoPor: p.profiles?.nombre ?? '—',

@@ -9,7 +9,7 @@ export interface Appointment {
 
 export interface Patient {
     id: number,
-    name: string,
+    nombre: string,
     apellido_pat: string,
     apellido_mat: string,
     telefono: string,

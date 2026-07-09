@@ -26,7 +26,7 @@ import { can } from '@/lib/permissions'
 
 /* ── Field map: key → Spanish label ── */
 const FIELD_LABELS: Record<string, string> = {
-  name: "Nombre",
+  nombre: "Nombre",
   apellido_pat: "Apellido Paterno",
   apellido_mat: "Apellido Materno",
   telefono: "Teléfono",
@@ -36,7 +36,7 @@ const FIELD_LABELS: Record<string, string> = {
   sexo: "Sexo",
   fechaNacimiento: "Fecha de Nacimiento",
 }
-const FIELD_ORDER = ["name","apellido_pat","apellido_mat","telefono","edad","email","domicilio","sexo","fechaNacimiento"] as const
+const FIELD_ORDER = ["nombre","apellido_pat","apellido_mat","telefono","edad","email","domicilio","sexo","fechaNacimiento"] as const
 
 /* ── Dental data section card ── */
 function DentalCard({
@@ -319,7 +319,7 @@ export default function PerfilPaciente({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: patient?.id,
-        name: patient?.name,
+        nombre: patient?.nombre,
         apellido_pat: patient?.apellido_pat,
         apellido_mat: patient?.apellido_mat,
         edad: patient?.edad,
@@ -333,10 +333,10 @@ export default function PerfilPaciente({
     setTimeout(() => setSaved(false), 2500)
   }
 
-  const fullName = [patient?.name, patient?.apellido_pat, patient?.apellido_mat]
+  const fullName = [patient?.nombre, patient?.apellido_pat, patient?.apellido_mat]
     .filter(Boolean).join(" ") || nombre || "Paciente"
 
-  const initials = [patient?.name?.[0], patient?.apellido_pat?.[0]]
+  const initials = [patient?.nombre?.[0], patient?.apellido_pat?.[0]]
     .filter(Boolean).join("").toUpperCase() || "?"
 
   const getPrivateAssetUrl = (file: PatientFile) => {
@@ -640,6 +640,8 @@ export default function PerfilPaciente({
                   public_id: info.public_id,
                   resource_type: info.resource_type,
                   type: info.type ?? "upload",
+                  // Nombre original elegido por el usuario; Cloudinary lo entrega sin extension.
+                  name: info.original_filename,
                 }),
               });
 

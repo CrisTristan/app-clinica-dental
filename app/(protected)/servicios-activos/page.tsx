@@ -36,7 +36,7 @@ export default function ServiciosActivosPage() {
   const [newServOpen, setNewServOpen]       = useState(false)
   const [catalog,     setCatalog]           = useState<Service[]>([])
   const [patientQ,    setPatientQ]          = useState('')
-  const [patientResults, setPatientResults] = useState<{ id: number; name: string; apellido_pat?: string }[]>([])
+  const [patientResults, setPatientResults] = useState<{ id: number; nombre: string; apellido_pat?: string }[]>([])
   const [selectedPatient, setSelectedPatient] = useState<{ id: number; label: string } | null>(null)
   const [newName,  setNewName]              = useState('')
   const [newPrice, setNewPrice]             = useState('')
@@ -354,12 +354,12 @@ export default function ServiciosActivosPage() {
                           key={p.id}
                           className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                           onClick={() => {
-                            setSelectedPatient({ id: p.id, label: [p.name, p.apellido_pat].filter(Boolean).join(' ') })
+                            setSelectedPatient({ id: p.id, label: [p.nombre, p.apellido_pat].filter(Boolean).join(' ') })
                             setPatientResults([])
                             setPatientQ('')
                           }}
                         >
-                          {[p.name, p.apellido_pat].filter(Boolean).join(' ')}
+                          {[p.nombre, p.apellido_pat].filter(Boolean).join(' ')}
                         </button>
                       ))}
                     </div>

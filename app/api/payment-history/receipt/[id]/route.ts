@@ -15,7 +15,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     const { data: payment, error: payErr } = await supabase
       .from('Payment_History')
-      .select('*, Patient_Services(id, name, price, patient_id, Patient(name, apellido_pat, apellido_mat, telefono))')
+      .select('*, Patient_Services(id, name, price, patient_id, Patient(nombre, apellido_pat, apellido_mat, telefono))')
       .eq('id', id)
       .single()
 
@@ -39,7 +39,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const totalPaid  = (prevPayments ?? []).reduce((s: number, p: any) => s + p.abono, 0)
     const newBalance = Math.max(0, service.price - totalPaid)
 
-    const patientName = [patient?.name, patient?.apellido_pat, patient?.apellido_mat]
+    const patientName = [patient?.nombre, patient?.apellido_pat, patient?.apellido_mat]
       .filter(Boolean).join(' ')
 
     const pdf = await generateReciboPDF({

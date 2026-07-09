@@ -136,7 +136,7 @@ export default function PatientManagement({ role }: { role: Role }) {
 
 
   const filteredPatients = patients.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.telefono.includes(searchTerm)
   )
 
@@ -421,12 +421,12 @@ export default function PatientManagement({ role }: { role: Role }) {
                       </TableRow>
                     ) : (
                       filteredPatients.map((patient) => {
-                        const { id, name, apellido_pat, apellido_mat, telefono } = patient
+                        const { id, nombre, apellido_pat, apellido_mat, telefono } = patient
                         const appts   = (patient as any).Appointment as { startDate: string }[] | undefined
                         const hoy     = new Date()
                         const ultima  = appts?.filter(a => new Date(a.startDate) < hoy) ?? []
                         const proxima = appts?.filter(a => new Date(a.startDate) > hoy) ?? []
-                        const fullName = [name, apellido_pat, apellido_mat].filter(Boolean).join(" ")
+                        const fullName = [nombre, apellido_pat, apellido_mat].filter(Boolean).join(" ")
                         const pending  = pendingCountMap.get(id) ?? 0
 
                         return (
@@ -447,12 +447,12 @@ export default function PatientManagement({ role }: { role: Role }) {
                             )}
 
                             <TableCell
-                              onClick={() => router.push(`/pacientes/${encodeURIComponent(id)}/?id=${id}&name=${name}`)}
+                              onClick={() => router.push(`/pacientes/${encodeURIComponent(id)}/?id=${id}&name=${nombre}`)}
                               className="cursor-pointer"
                             >
                               <div className="flex items-center gap-2.5">
                                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-cyan-400 grid place-items-center text-white text-xs font-bold shrink-0 overflow-hidden">
-                                  <span className="leading-none">{initials(name, apellido_pat)}</span>
+                                  <span className="leading-none">{initials(nombre, apellido_pat)}</span>
                                 </div>
                                 <span className="text-sm font-medium text-gray-800 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                                   {fullName}
@@ -461,21 +461,21 @@ export default function PatientManagement({ role }: { role: Role }) {
                             </TableCell>
 
                             <TableCell
-                              onClick={() => router.push(`/pacientes/${encodeURIComponent(id)}/?id=${id}&name=${name}`)}
+                              onClick={() => router.push(`/pacientes/${encodeURIComponent(id)}/?id=${id}&name=${nombre}`)}
                               className="cursor-pointer text-sm text-gray-500 dark:text-slate-400"
                             >
                               {telefono}
                             </TableCell>
 
                             <TableCell
-                              onClick={() => router.push(`/pacientes/${encodeURIComponent(id)}/?id=${id}&name=${name}`)}
+                              onClick={() => router.push(`/pacientes/${encodeURIComponent(id)}/?id=${id}&name=${nombre}`)}
                               className="cursor-pointer text-sm text-gray-500 dark:text-slate-400"
                             >
                               {fmt(ultima[ultima.length - 1]?.startDate)}
                             </TableCell>
 
                             <TableCell
-                              onClick={() => router.push(`/pacientes/${encodeURIComponent(id)}/?id=${id}&name=${name}`)}
+                              onClick={() => router.push(`/pacientes/${encodeURIComponent(id)}/?id=${id}&name=${nombre}`)}
                               className="cursor-pointer text-sm text-gray-500 dark:text-slate-400"
                             >
                               {fmt(proxima[proxima.length - 1]?.startDate)}
@@ -512,8 +512,8 @@ export default function PatientManagement({ role }: { role: Role }) {
                 onOpenChange={setDeleteConfirmOpen}
                 items={selectedPatients.map(patient => ({
                   id: patient.id,
-                  name: patient.name,
-                  description: [patient.name, patient.apellido_pat, patient.apellido_mat].filter(Boolean).join(" "),
+                  name: patient.nombre,
+                  description: [patient.nombre, patient.apellido_pat, patient.apellido_mat].filter(Boolean).join(" "),
                 }))}
                 onConfirm={handleDelete}
               />

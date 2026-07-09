@@ -208,7 +208,7 @@ export async function POST(req: Request) {
 
     const { data: newPatient, error: patientError } = await supabase
       .from('Patient')
-      .insert({ name: appointment.name, telefono: appointment.phone, apellido_pat: appointment.apellido_pat, apellido_mat: appointment.apellido_mat })
+      .insert({ nombre: appointment.name, telefono: appointment.phone, apellido_pat: appointment.apellido_pat, apellido_mat: appointment.apellido_mat })
       .select('id')
       .single()
 

@@ -7,17 +7,17 @@ import { can } from "@/lib/permissions"
 
 type PatientLite = {
   id: number
-  name: string
+  nombre: string
   apellido_pat?: string
   apellido_mat?: string
   telefono: string
 }
 
 const fullName = (p: PatientLite) =>
-  [p.name, p.apellido_pat, p.apellido_mat].filter(Boolean).join(" ")
+  [p.nombre, p.apellido_pat, p.apellido_mat].filter(Boolean).join(" ")
 
 const initials = (p: PatientLite) =>
-  `${p.name?.[0] ?? ""}${p.apellido_pat?.[0] ?? ""}`.toUpperCase() || "?"
+  `${p.nombre?.[0] ?? ""}${p.apellido_pat?.[0] ?? ""}`.toUpperCase() || "?"
 
 export default function DirectorioPacientes() {
   const [canAccess, setCanAccess] = useState<boolean | null>(null)
@@ -42,7 +42,7 @@ export default function DirectorioPacientes() {
   )
 
   const open = (p: PatientLite) =>
-    router.push(`/pacientes/${p.id}/?id=${p.id}&name=${p.name}`)
+    router.push(`/pacientes/${p.id}/?id=${p.id}&name=${p.nombre}`)
 
   if (canAccess === null)
     return (

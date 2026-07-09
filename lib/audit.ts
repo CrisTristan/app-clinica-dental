@@ -30,5 +30,5 @@ export async function logAudit(supabase: SupabaseClient, entry: AuditEntry) {
   if (error) console.error('[audit_log] No se pudo registrar la auditoría:', error.message)
 }
 
-export const fullPatientName = (p?: { name?: string; apellido_pat?: string; apellido_mat?: string } | null) =>
-  [p?.name, p?.apellido_pat, p?.apellido_mat].filter(Boolean).join(' ') || null
+export const fullPatientName = (p?: { nombre?: string; apellido_pat?: string; apellido_mat?: string } | null) =>
+  [p?.nombre, p?.apellido_pat, p?.apellido_mat].filter(Boolean).join(' ') || null

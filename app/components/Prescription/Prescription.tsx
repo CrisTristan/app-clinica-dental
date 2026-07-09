@@ -68,7 +68,7 @@ type Medicine = {
 
 type PatientSearchResult = {
   id: number
-  name: string
+  nombre: string
   apellido_pat?: string | null
   apellido_mat?: string | null
   telefono?: string | null
@@ -344,12 +344,12 @@ export default function Prescription() {
 
   const selectPatient = (patient: PatientSearchResult) => {
     setSelectedPatientId(patient.id)
-    setPatientSearch(fullName(patient.name, patient.apellido_pat ?? "", patient.apellido_mat ?? ""))
+    setPatientSearch(fullName(patient.nombre, patient.apellido_pat ?? "", patient.apellido_mat ?? ""))
     setPatientResults([])
     setShowPatientResults(false)
     setPrescription((current) => ({
       ...current,
-      patientFirstName: patient.name ?? "",
+      patientFirstName: patient.nombre ?? "",
       patientLastName: patient.apellido_pat ?? "",
       patientSecondLastName: patient.apellido_mat ?? "",
       patientAge: patient.edad == null ? "" : String(patient.edad),
@@ -923,7 +923,7 @@ export default function Prescription() {
                     </div>
                   ) : patientResults.length ? (
                     patientResults.map((patient) => {
-                      const name = fullName(patient.name, patient.apellido_pat ?? "", patient.apellido_mat ?? "")
+                      const name = fullName(patient.nombre, patient.apellido_pat ?? "", patient.apellido_mat ?? "")
                       return (
                         <button
                           key={patient.id}

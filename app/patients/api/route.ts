@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     const terms = search.split(/\s+/);
     const conditions = terms
       .flatMap(term => [
-        `name.ilike.%${term}%`,
+        `nombre.ilike.%${term}%`,
         `apellido_pat.ilike.%${term}%`,
         `apellido_mat.ilike.%${term}%`,
         `telefono.ilike.%${term}%`,
@@ -40,9 +40,9 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabase
       .from('Patient')
-      .select('id, name, apellido_pat, apellido_mat, telefono, edad')
+      .select('id, nombre, apellido_pat, apellido_mat, telefono, edad')
       .or(conditions)
-      .order('name')
+      .order('nombre')
       .limit(8);
 
     if (error) return Response.json({ error: error.message }, { status: 500 });
@@ -52,8 +52,8 @@ export async function GET(request: Request) {
   if (listOnly) {
     const { data, error } = await supabase
       .from('Patient')
-      .select('id, name, apellido_pat, apellido_mat, telefono, edad')
-      .order('name')
+      .select('id, nombre, apellido_pat, apellido_mat, telefono, edad')
+      .order('nombre')
 
     if (error) return Response.json({ error: error.message }, { status: 500 })
     return Response.json(data)
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
   const { data, error } = await supabase
     .from('Patient')
     .insert({
-      name: body.name,
+      nombre: body.name,
       telefono: body.phone,
       apellido_pat: body.apellidoPat,
       apellido_mat: body.apellidoMat,
@@ -95,11 +95,11 @@ export async function PUT(req: Request) {
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
   const supabase = createAdminClient()
-  const { id, name, apellido_pat, apellido_mat, telefono, edad, domicilio, sexo, fechaNacimiento, email }: Patient = await req.json()
+  const { id, nombre, apellido_pat, apellido_mat, telefono, edad, domicilio, sexo, fechaNacimiento, email }: Patient = await req.json()
 
   const { data, error } = await supabase
     .from('Patient')
-    .update({ name, apellido_pat, apellido_mat, telefono, edad: Number(edad), domicilio, sexo, fechaNacimiento, email })
+    .update({ nombre, apellido_pat, apellido_mat, telefono, edad: Number(edad), domicilio, sexo, fechaNacimiento, email })
     .eq('id', id)
     .select()
     .single()

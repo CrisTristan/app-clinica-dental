@@ -85,7 +85,7 @@ const syncPatientServicesForCompletedAppointment = async ({
 }) => {
   const { data: appointment, error: appointmentError } = await supabase
     .from("Appointment")
-    .select("nameId, name:Patient(name, apellido_pat, apellido_mat)")
+    .select("nameId, name:Patient(nombre, apellido_pat, apellido_mat)")
     .eq("id", appointmentId)
     .single()
 
