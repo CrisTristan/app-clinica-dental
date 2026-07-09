@@ -21,6 +21,9 @@ export default function SearchableSelect({
   emptyText = "Sin coincidencias",
   name,
   direction = "down",
+  displayLabel,
+  loading = false,
+  onOpen,
 }: {
   options: Option[]
   value: string
@@ -30,6 +33,12 @@ export default function SearchableSelect({
   emptyText?: string
   name?: string
   direction?: "up" | "down"
+  // Etiqueta a mostrar para el valor actual cuando aún no está en `options`
+  // (p. ej. opciones cargadas de forma diferida).
+  displayLabel?: string
+  loading?: boolean
+  // Se dispara al abrir la lista; útil para cargar opciones bajo demanda.
+  onOpen?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -37,6 +46,8 @@ export default function SearchableSelect({
   const inputRef = useRef<HTMLInputElement>(null)
 
   const selected = options.find(o => o.value === value)
+  // Nombre visible del valor actual: opción cargada > etiqueta externa.
+  const currentLabel = selected?.label ?? (value ? displayLabel ?? "" : "")
 
   const filtered = useMemo(() => {
     const q = norm(query.trim())
@@ -61,6 +72,7 @@ export default function SearchableSelect({
     if (disabled) return
     setQuery("")
     setOpen(true)
+    onOpen?.()
   }
 
   const pick = (opt: Option) => {
@@ -84,8 +96,8 @@ export default function SearchableSelect({
           name={name}
           disabled={disabled}
           autoComplete="off"
-          value={open ? query : (selected?.label ?? "")}
-          placeholder={open && selected ? selected.label : placeholder}
+          value={open ? query : currentLabel}
+          placeholder={open && currentLabel ? currentLabel : placeholder}
           onChange={e => { setQuery(e.target.value); setOpen(true) }}
           onFocus={openList}
           onKeyDown={e => {
@@ -113,7 +125,9 @@ export default function SearchableSelect({
         <ul className={`absolute z-50 w-full max-h-56 overflow-y-auto rounded-lg border border-gray-200 dark:border-slate-600
                        bg-white dark:bg-slate-800 shadow-lg py-1
                        ${direction === "up" ? "bottom-full mb-1" : "top-full mt-1"}`}>
-          {filtered.length === 0 ? (
+          {loading ? (
+            <li className="px-3 py-2 text-sm text-gray-400 dark:text-slate-500">Cargando…</li>
+          ) : filtered.length === 0 ? (
             <li className="px-3 py-2 text-sm text-gray-400 dark:text-slate-500">{emptyText}</li>
           ) : (
             filtered.map(opt => {

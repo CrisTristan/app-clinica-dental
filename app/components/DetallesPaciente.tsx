@@ -9,6 +9,7 @@ import SearchableSelect from "./SearchableSelect"
 type Estado = { catalog_key: string; entidad_federativa: string }
 type Nacionalidad = { codigo_pais: number; pais: string }
 type Municipio = { catalog_key: string; municipio: string }
+type Localidad = { cve_loc: string; nomgeo: string }
 
 type Details = {
   curp: string
@@ -35,6 +36,9 @@ export default function DetallesPaciente({
   const [estados, setEstados] = useState<Estado[]>([])
   const [nacionalidades, setNacionalidades] = useState<Nacionalidad[]>([])
   const [municipios, setMunicipios] = useState<Municipio[]>([])
+  const [localidades, setLocalidades] = useState<Localidad[]>([])
+  const [locName, setLocName] = useState("")      // nombre (nomgeo) de la localidad guardada
+  const [locLoading, setLocLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
   // Catálogos base (estados + nacionalidades) y datos ya capturados.
@@ -73,6 +77,35 @@ export default function DetallesPaciente({
       .catch(console.error)
   }, [details.edo])
 
+  // La lista de localidades depende de estado + municipio; se recarga bajo
+  // demanda (al abrir el select) para no consultar INEGI de más.
+  useEffect(() => { setLocalidades([]) }, [details.edo, details.mun])
+
+  // Nombre real (nomgeo) de la localidad guardada. Si ya está en la lista
+  // cargada la tomamos de ahí; si no, se consulta INEGI con las claves
+  // concatenadas (cve_ent+cve_mun+cve_loc).
+  useEffect(() => {
+    if (!details.edo || !details.mun || !details.loc) { setLocName(""); return }
+    const enLista = localidades.find(l => l.cve_loc === details.loc)
+    if (enLista) { setLocName(enLista.nomgeo); return }
+    const params = new URLSearchParams({ edo: details.edo, mun: details.mun, loc: details.loc })
+    fetch(`/api/patient-details/localidades?${params}`)
+      .then(r => r.json())
+      .then(d => setLocName(d.nomgeo ?? ""))
+      .catch(console.error)
+  }, [details.edo, details.mun, details.loc, localidades])
+
+  const loadLocalidades = () => {
+    if (!details.edo || !details.mun || localidades.length || locLoading) return
+    setLocLoading(true)
+    const params = new URLSearchParams({ edo: details.edo, mun: details.mun })
+    fetch(`/api/patient-details/localidades?${params}`)
+      .then(r => r.json())
+      .then(d => setLocalidades(d.localidades ?? []))
+      .catch(console.error)
+      .finally(() => setLocLoading(false))
+  }
+
   const handle = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setDetails(prev => ({ ...prev, [name]: value }))
@@ -80,8 +113,10 @@ export default function DetallesPaciente({
 
   const setField = (name: keyof Details, value: string) => {
     setDetails(prev => {
-      // Al cambiar de estado, el municipio previo deja de ser válido.
-      if (name === "edo") return { ...prev, edo: value, mun: "" }
+      // Cambiar de estado invalida municipio y localidad; cambiar de
+      // municipio invalida la localidad.
+      if (name === "edo") return { ...prev, edo: value, mun: "", loc: "" }
+      if (name === "mun") return { ...prev, mun: value, loc: "" }
       return { ...prev, [name]: value }
     })
   }
@@ -98,6 +133,10 @@ export default function DetallesPaciente({
     () => municipios.map(m => ({ value: m.catalog_key, label: m.municipio })),
     [municipios],
   )
+  const localidadOpts = useMemo(
+    () => localidades.map(l => ({ value: l.cve_loc, label: l.nomgeo })),
+    [localidades],
+  )
 
   const handleSave = async () => {
     if (!id) return
@@ -108,10 +147,17 @@ export default function DetallesPaciente({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ patient_id: Number(id), ...details }),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error || `Error ${res.status}`)
+      }
       toast({ title: "Detalles del paciente guardados" })
-    } catch {
-      toast({ title: "Error al guardar los detalles", variant: "destructive" })
+    } catch (e) {
+      toast({
+        title: "Error al guardar los detalles",
+        description: e instanceof Error ? e.message : undefined,
+        variant: "destructive",
+      })
     } finally {
       setSaving(false)
     }
@@ -154,18 +200,6 @@ export default function DetallesPaciente({
                   placeholder="Ingresar CURP"
                   maxLength={18}
                   className="h-9 text-sm uppercase"
-                />
-              </div>
-
-              {/* Localidad */}
-              <div className="space-y-1">
-                <label className={labelClass}>Localidad</label>
-                <Input
-                  name="loc"
-                  value={details.loc}
-                  onChange={handle}
-                  placeholder="Ingresar localidad"
-                  className="h-9 text-sm"
                 />
               </div>
 
@@ -218,6 +252,23 @@ export default function DetallesPaciente({
                   onChange={v => setField("mun", v)}
                   disabled={!details.edo}
                   placeholder={details.edo ? "Buscar municipio…" : "Seleccione un estado primero"}
+                  direction="up"
+                />
+              </div>
+
+              {/* Localidad — catálogo de INEGI (se guarda la clave cve_loc) */}
+              <div className="space-y-1">
+                <label className={labelClass}>Localidad</label>
+                <SearchableSelect
+                  name="loc"
+                  options={localidadOpts}
+                  value={details.loc}
+                  onChange={v => setField("loc", v)}
+                  onOpen={loadLocalidades}
+                  loading={locLoading}
+                  displayLabel={locName}
+                  disabled={!details.edo || !details.mun}
+                  placeholder={details.edo && details.mun ? "Buscar localidad…" : "Seleccione estado y municipio"}
                   direction="up"
                 />
               </div>
