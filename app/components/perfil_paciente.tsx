@@ -20,6 +20,7 @@ import HigieneBucal from './DentalData/HigieneBucal'
 import Alergias from './DentalData/Alergias'
 import Alimentacion from './DentalData/Alimentacion'
 import { useRouter } from 'next/navigation'
+import DetallesPaciente from './DetallesPaciente'
 import OdontogramaCanvas from '../odontograma/OdontogramaCanvas'
 import { authentication } from '../actions/authentication'
 import { can } from '@/lib/permissions'
@@ -530,6 +531,9 @@ export default function PerfilPaciente({
             )}
           </div>
         </Section>
+
+        {/* ── Detalles del paciente ── */}
+        <DetallesPaciente id={id} />
 
         {/* ── Odontograma ── */}
         <Section title="Odontograma" icon={Stethoscope} className="overflow-visible">
