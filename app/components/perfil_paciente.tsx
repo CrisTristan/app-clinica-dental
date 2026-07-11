@@ -21,6 +21,7 @@ import Alergias from './DentalData/Alergias'
 import Alimentacion from './DentalData/Alimentacion'
 import { useRouter } from 'next/navigation'
 import DetallesPaciente from './DetallesPaciente'
+import NuevoTratamiento from './NuevoTratamiento'
 import OdontogramaCanvas from '../odontograma/OdontogramaCanvas'
 import { authentication } from '../actions/authentication'
 import { can } from '@/lib/permissions'
@@ -466,6 +467,11 @@ export default function PerfilPaciente({
                     <span className="text-xs text-gray-400 dark:text-slate-500">{patient.edad} años</span>
                   )}
                 </div>
+              </div>
+
+              {/* Nuevo tratamiento — esquina superior derecha del hero */}
+              <div className="shrink-0 sm:ml-auto mt-2 sm:mt-0">
+                <NuevoTratamiento id={id} />
               </div>
 
             </div>
