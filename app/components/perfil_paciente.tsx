@@ -22,6 +22,7 @@ import Alimentacion from './DentalData/Alimentacion'
 import { useRouter } from 'next/navigation'
 import DetallesPaciente from './DetallesPaciente'
 import NuevoTratamiento from './NuevoTratamiento'
+import TratamientosActivos from './TratamientosActivos'
 import OdontogramaCanvas from '../odontograma/OdontogramaCanvas'
 import { authentication } from '../actions/authentication'
 import { can } from '@/lib/permissions'
@@ -469,8 +470,9 @@ export default function PerfilPaciente({
                 </div>
               </div>
 
-              {/* Nuevo tratamiento — esquina superior derecha del hero */}
-              <div className="shrink-0 sm:ml-auto mt-2 sm:mt-0">
+              {/* Tratamientos activos + nuevo tratamiento — esquina superior derecha del hero */}
+              <div className="shrink-0 sm:ml-auto mt-2 sm:mt-0 flex flex-wrap items-center gap-2">
+                <TratamientosActivos id={id} />
                 <NuevoTratamiento id={id} />
               </div>
 

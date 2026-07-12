@@ -76,3 +76,54 @@ export async function POST(request: Request) {
 
   return Response.json({ ok: true, treatmentPlanId: data })
 }
+
+// Lista los planes de tratamiento de un paciente para el modal "Tratamientos
+// activos". Resuelve el nombre del tratamiento (dental_treatments) y del
+// dentista (profiles) con búsquedas aparte para no depender de relaciones FK.
+//
+//   GET /api/treatment-plans?patientId=123
+//       → { plans: { id, nombre, dentista, status, created_at }[] }
+export async function GET(request: Request) {
+  const auth = await requireStaff()
+  if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
+  const patientId = Number(new URL(request.url).searchParams.get("patientId"))
+  if (!patientId) {
+    return Response.json({ error: "Falta paciente" }, { status: 400 })
+  }
+
+  const supabase = createAdminClient()
+
+  const { data: plans, error } = await supabase
+    .from("treatment_plans")
+    .select("id, status, created_at, treatment_id, dentist_id")
+    .eq("patient_id", patientId)
+    .order("created_at", { ascending: false })
+
+  if (error) return Response.json({ error: error.message }, { status: 500 })
+
+  const treatmentIds = [...new Set((plans ?? []).map(p => p.treatment_id).filter(Boolean))]
+  const dentistIds = [...new Set((plans ?? []).map(p => p.dentist_id).filter(Boolean))]
+
+  const [{ data: treatments }, { data: dentists }] = await Promise.all([
+    treatmentIds.length
+      ? supabase.from("dental_treatments").select("id, nombre").in("id", treatmentIds)
+      : Promise.resolve({ data: [] as { id: number; nombre: string }[] }),
+    dentistIds.length
+      ? supabase.from("profiles").select("id, nombre").in("id", dentistIds)
+      : Promise.resolve({ data: [] as { id: string; nombre: string }[] }),
+  ])
+
+  const treatmentMap = new Map((treatments ?? []).map(t => [t.id, t.nombre]))
+  const dentistMap = new Map((dentists ?? []).map(d => [d.id, d.nombre]))
+
+  return Response.json({
+    plans: (plans ?? []).map(p => ({
+      id: p.id,
+      nombre: treatmentMap.get(p.treatment_id) ?? "Tratamiento",
+      dentista: dentistMap.get(p.dentist_id) ?? null,
+      status: p.status,
+      created_at: p.created_at,
+    })),
+  })
+}
