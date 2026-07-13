@@ -1,17 +1,24 @@
 "use client"
 
-import { useState, useRef, useEffect, useMemo } from "react"
+import { useState, useRef, useEffect, useMemo, useLayoutEffect, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 import { ChevronDown, Check } from "lucide-react"
 
-export type Option = { value: string; label: string }
+export type Option = { value: string; label: string; badge?: string }
 
 // Normaliza para comparar sin acentos ni mayúsculas (útil para "México", etc.).
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
 
+// Alto máximo de la lista (equivale a max-h-56 = 14rem = 224px). Se usa para
+// evitar que la lista desplegada hacia los lados se corte por abajo.
+const LIST_MAX_HEIGHT = 224
+
 // Select con búsqueda: se escribe a la izquierda para filtrar y se hace clic
 // en la flecha de la derecha para desplegar. Reutilizable con cualquier lista
-// de opciones { value, label }.
+// de opciones { value, label }. La lista puede abrirse hacia arriba, abajo o a
+// los lados (right/left); en modo lateral se renderiza en un portal para no
+// quedar recortada por contenedores con overflow.
 export default function SearchableSelect({
   options,
   value,
@@ -24,6 +31,7 @@ export default function SearchableSelect({
   displayLabel,
   loading = false,
   onOpen,
+  listHeader,
 }: {
   options: Option[]
   value: string
@@ -32,18 +40,25 @@ export default function SearchableSelect({
   disabled?: boolean
   emptyText?: string
   name?: string
-  direction?: "up" | "down"
+  direction?: "up" | "down" | "right" | "left"
   // Etiqueta a mostrar para el valor actual cuando aún no está en `options`
   // (p. ej. opciones cargadas de forma diferida).
   displayLabel?: string
   loading?: boolean
   // Se dispara al abrir la lista; útil para cargar opciones bajo demanda.
   onOpen?: () => void
+  // Contenido fijo en la parte superior de la lista desplegada (p. ej. filtros).
+  listHeader?: ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+
+  const horizontal = direction === "right" || direction === "left"
+  // Posición fija (viewport) de la lista cuando se abre hacia los lados.
+  const [coords, setCoords] = useState<{ left: number; top: number; width: number } | null>(null)
 
   const selected = options.find(o => o.value === value)
   // Nombre visible del valor actual: opción cargada > etiqueta externa.
@@ -55,18 +70,58 @@ export default function SearchableSelect({
     return options.filter(o => norm(o.label).includes(q))
   }, [options, query])
 
-  // Cerrar al hacer clic fuera del componente.
+  // Cerrar al hacer clic fuera del componente (considera también la lista en portal).
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false)
-        setQuery("")
-      }
+      const target = e.target as Node
+      if (rootRef.current?.contains(target)) return
+      if (listRef.current?.contains(target)) return
+      setOpen(false)
+      setQuery("")
     }
     document.addEventListener("mousedown", onDown)
     return () => document.removeEventListener("mousedown", onDown)
   }, [open])
+
+  // Al abrir hacia los lados, calcula la posición fija a partir del campo y la
+  // mantiene sincronizada ante scroll/resize.
+  useLayoutEffect(() => {
+    if (!open || !horizontal) return
+
+    const update = () => {
+      const node = rootRef.current
+      if (!node) return
+      const rect = node.getBoundingClientRect()
+      const gap = 8
+      const width = Math.max(rect.width, 240)
+
+      // Preferencia según `direction`, con volteo si no cabe en el viewport.
+      let left = direction === "right" ? rect.right + gap : rect.left - width - gap
+      if (direction === "right" && left + width > window.innerWidth - 8) {
+        left = rect.left - width - gap
+      } else if (direction === "left" && left < 8) {
+        left = rect.right + gap
+      }
+      left = Math.max(8, Math.min(left, window.innerWidth - width - 8))
+
+      // Alinea con la parte superior del campo, sin salirse por abajo.
+      let top = rect.top
+      if (top + LIST_MAX_HEIGHT > window.innerHeight - 8) {
+        top = Math.max(8, window.innerHeight - 8 - LIST_MAX_HEIGHT)
+      }
+
+      setCoords({ left, top, width })
+    }
+
+    update()
+    window.addEventListener("resize", update)
+    window.addEventListener("scroll", update, true)
+    return () => {
+      window.removeEventListener("resize", update)
+      window.removeEventListener("scroll", update, true)
+    }
+  }, [open, horizontal, direction])
 
   const openList = () => {
     if (disabled) return
@@ -85,6 +140,63 @@ export default function SearchableSelect({
     "flex items-center rounded-lg border border-gray-200 dark:border-slate-600 " +
     "bg-white dark:bg-slate-700 focus-within:ring-2 focus-within:ring-sky-400 transition-colors " +
     (disabled ? "opacity-60 cursor-not-allowed" : "")
+
+  const listClass =
+    "max-h-56 overflow-y-auto rounded-lg border border-gray-200 dark:border-slate-600 " +
+    "bg-white dark:bg-slate-800 shadow-lg py-1"
+
+  // Rotación del chevron al abrir (parte de ChevronDown = ∨, apuntando abajo).
+  // Cerrado siempre apunta hacia abajo; al abrir gira hacia la dirección en que
+  // se despliega la lista.
+  const arrowRotation: Record<typeof direction, string> = {
+    down: "rotate-0",
+    up: "rotate-180",
+    left: "rotate-90",
+    right: "-rotate-90",
+  }
+
+  // Contenido de la lista, compartido entre el modo absoluto y el portal lateral.
+  const listItems = loading ? (
+    <li className="px-3 py-2 text-sm text-gray-400 dark:text-slate-500">Cargando…</li>
+  ) : filtered.length === 0 ? (
+    <li className="px-3 py-2 text-sm text-gray-400 dark:text-slate-500">{emptyText}</li>
+  ) : (
+    filtered.map(opt => {
+      const active = opt.value === value
+      return (
+        <li key={opt.value}>
+          <button
+            type="button"
+            onClick={() => pick(opt)}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors
+              ${active
+                ? "bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 font-medium"
+                : "text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"}`}
+          >
+            <Check className={`w-3.5 h-3.5 shrink-0 ${active ? "opacity-100 text-sky-500" : "opacity-0"}`} />
+            <span className="truncate">{opt.label}</span>
+            {opt.badge && (
+              <span className="ml-auto shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                {opt.badge}
+              </span>
+            )}
+          </button>
+        </li>
+      )
+    })
+  )
+
+  // Encabezado opcional fijo (sticky) + opciones. Se comparte entre ambos modos.
+  const listContent = (
+    <>
+      {listHeader && (
+        <li className="sticky top-0 z-10 border-b border-gray-100 bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-800">
+          {listHeader}
+        </li>
+      )}
+      {listItems}
+    </>
+  )
 
   return (
     <div ref={rootRef} className="relative">
@@ -116,41 +228,33 @@ export default function SearchableSelect({
           title="Desplegar"
           tabIndex={-1}
         >
-          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${open ? arrowRotation[direction] : "rotate-0"}`} />
         </button>
       </div>
 
-      {/* Lista de coincidencias */}
-      {open && (
-        <ul className={`absolute z-50 w-full max-h-56 overflow-y-auto rounded-lg border border-gray-200 dark:border-slate-600
-                       bg-white dark:bg-slate-800 shadow-lg py-1
-                       ${direction === "up" ? "bottom-full mb-1" : "top-full mt-1"}`}>
-          {loading ? (
-            <li className="px-3 py-2 text-sm text-gray-400 dark:text-slate-500">Cargando…</li>
-          ) : filtered.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-gray-400 dark:text-slate-500">{emptyText}</li>
-          ) : (
-            filtered.map(opt => {
-              const active = opt.value === value
-              return (
-                <li key={opt.value}>
-                  <button
-                    type="button"
-                    onClick={() => pick(opt)}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors
-                      ${active
-                        ? "bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 font-medium"
-                        : "text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"}`}
-                  >
-                    <Check className={`w-3.5 h-3.5 shrink-0 ${active ? "opacity-100 text-sky-500" : "opacity-0"}`} />
-                    <span className="truncate">{opt.label}</span>
-                  </button>
-                </li>
-              )
-            })
-          )}
+      {/* Lista hacia arriba/abajo: posicionada dentro del propio componente. */}
+      {open && !horizontal && (
+        <ul
+          ref={listRef}
+          className={`absolute z-50 w-full ${listClass} ${direction === "up" ? "bottom-full mb-1" : "top-full mt-1"}`}
+        >
+          {listContent}
         </ul>
       )}
+
+      {/* Lista hacia los lados: en un portal con posición fija para no quedar
+          recortada por contenedores con overflow (p. ej. la ventana emergente). */}
+      {open && horizontal && coords && typeof document !== "undefined" &&
+        createPortal(
+          <ul
+            ref={listRef}
+            style={{ position: "fixed", left: coords.left, top: coords.top, width: coords.width, zIndex: 9999 }}
+            className={listClass}
+          >
+            {listContent}
+          </ul>,
+          document.body,
+        )}
     </div>
   )
 }

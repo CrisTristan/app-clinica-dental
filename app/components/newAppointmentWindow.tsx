@@ -5,8 +5,10 @@ import type { ProcessedEvent, SchedulerHelpers } from "@aldabil/react-scheduler/
 import { nanoid } from "nanoid";
 import { es } from "date-fns/locale";
 import { format } from "date-fns";
+import { ChevronDown, X } from "lucide-react";
 import { onUpdateSomeField } from "../helpers/onUpdateSomeField";
 import { toDbTimestamp } from "../helpers/dateTime";
+import SearchableSelect from "./SearchableSelect";
 import {
   DEFAULT_STATUS,
   STATUS_CONFIG,
@@ -33,6 +35,9 @@ type ActivePlan = { id: number; nombre: string };
 
 /** Un procedimiento del plan (treatment_plan_procedures) listo para el checklist. */
 type PlanProcedure = { key: string; nombre: string; cantidad: number | null; planNombre: string };
+
+/** Un procedimiento del selector "Otros procedimientos" (clínica o catálogo normativo). */
+type OtherProcedure = { value: string; nombre: string; source: "clinic" | "catalog" };
 
 /* ─────────────────────────────────────────────────────────────────────────
    Ventana emergente que aparece al intentar agendar (o editar) una cita.
@@ -73,6 +78,14 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
   const [planProcedures, setPlanProcedures] = useState<PlanProcedure[]>([]);
   const [selectedProcedureKeys, setSelectedProcedureKeys] = useState<string[]>([]);
   const [isLoadingProcedures, setIsLoadingProcedures] = useState(false);
+  // "Otros procedimientos": catálogo combinado (clínica + normativo) y los elegidos.
+  const [showOtherProcedures, setShowOtherProcedures] = useState(false);
+  const [otherProcedureOptions, setOtherProcedureOptions] = useState<OtherProcedure[]>([]);
+  const [otherProceduresLoaded, setOtherProceduresLoaded] = useState(false);
+  const [isLoadingOtherProcedures, setIsLoadingOtherProcedures] = useState(false);
+  const [loadOtherProceduresError, setLoadOtherProceduresError] = useState("");
+  const [otherProcedures, setOtherProcedures] = useState<OtherProcedure[]>([]);
+  const [otherProcedureFilter, setOtherProcedureFilter] = useState<"all" | "clinic" | "catalog">("all");
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [isLoadingDentists, setIsLoadingDentists] = useState(true);
   const [loadPatientsError, setLoadPatientsError] = useState("");
@@ -88,6 +101,41 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
   const toggleProcedure = (key: string) =>
     setSelectedProcedureKeys(previous =>
       previous.includes(key) ? previous.filter(k => k !== key) : [...previous, key]);
+
+  // Carga (una sola vez) el catálogo combinado de procedimientos clínica + normativo.
+  const loadOtherProcedures = () => {
+    if (otherProceduresLoaded || isLoadingOtherProcedures) return;
+    setIsLoadingOtherProcedures(true);
+    setLoadOtherProceduresError("");
+    fetch("/api/procedures")
+      .then(response => {
+        if (!response.ok) throw new Error("No se pudieron cargar los procedimientos");
+        return response.json();
+      })
+      .then((data: { procedures?: OtherProcedure[] }) => {
+        setOtherProcedureOptions(data.procedures ?? []);
+        setOtherProceduresLoaded(true);
+      })
+      .catch(() => setLoadOtherProceduresError("No se pudieron cargar los procedimientos."))
+      .finally(() => setIsLoadingOtherProcedures(false));
+  };
+
+  const toggleOtherProcedures = () => {
+    setShowOtherProcedures(previous => {
+      const next = !previous;
+      if (next) loadOtherProcedures();
+      return next;
+    });
+  };
+
+  const addOtherProcedure = (value: string) => {
+    const option = otherProcedureOptions.find(procedure => procedure.value === value);
+    if (!option || otherProcedures.some(procedure => procedure.value === value)) return;
+    setOtherProcedures(previous => [...previous, option]);
+  };
+
+  const removeOtherProcedure = (value: string) =>
+    setOtherProcedures(previous => previous.filter(procedure => procedure.value !== value));
 
   const set = (field: keyof typeof state) => (value: string) =>
     setState(previous => ({ ...previous, [field]: value }));
@@ -140,76 +188,76 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
   }, [patientType, isEdit, patients.length]);
 
   useEffect(() => {
-    // Solo aplica a pacientes registrados: si hay patient_id, consulta sus
-    // planes de tratamiento y quédate con los vigentes (en proceso o autorizados).
+    // Solo aplica a pacientes registrados: si hay patient_id, consulta sus planes
+    // de tratamiento vigentes (en proceso o autorizados) y, en el mismo flujo, los
+    // procedimientos de cada uno. Se publica todo junto para evitar la cascada
+    // "primero el tratamiento y luego los procedimientos".
     if (!state.patientId) {
       setActivePlans([]);
-      return;
-    }
-
-    const controller = new AbortController();
-    setIsLoadingTreatments(true);
-
-    fetch(`/api/treatment-plans?patientId=${state.patientId}`, { signal: controller.signal })
-      .then(response => {
-        if (!response.ok) throw new Error("No se pudieron cargar los tratamientos");
-        return response.json();
-      })
-      .then((data: { plans?: { id: number; nombre: string; status: string | null }[] }) => {
-        const activos = (data.plans ?? [])
-          .filter(plan => plan.status === "in_progress" || plan.status === "authorized")
-          .map(plan => ({ id: plan.id, nombre: plan.nombre }));
-        setActivePlans(activos);
-      })
-      .catch(error => {
-        if ((error as Error).name !== "AbortError") setActivePlans([]);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setIsLoadingTreatments(false);
-      });
-
-    return () => controller.abort();
-  }, [state.patientId]);
-
-  useEffect(() => {
-    // Con los planes activos ya resueltos, consulta los procedimientos de cada uno
-    // (treatment_plan_procedures) y arma el checklist "Procedimientos a realizar".
-    if (!activePlans.length) {
       setPlanProcedures([]);
       setSelectedProcedureKeys([]);
       return;
     }
 
     const controller = new AbortController();
+    setIsLoadingTreatments(true);
     setIsLoadingProcedures(true);
 
-    Promise.all(
-      activePlans.map(plan =>
-        fetch(`/api/treatment-plans/${plan.id}`, { signal: controller.signal })
-          .then(response => {
-            if (!response.ok) throw new Error("No se pudieron cargar los procedimientos");
-            return response.json();
-          })
-          .then((data: { plan?: { procedures?: { nombre: string; cantidad: number | null }[] } }) =>
-            (data.plan?.procedures ?? []).map((proc, index): PlanProcedure => ({
-              key: `${plan.id}-${index}`,
-              nombre: proc.nombre,
-              cantidad: proc.cantidad,
-              planNombre: plan.nombre,
-            }))
+    (async () => {
+      try {
+        const plansResponse = await fetch(`/api/treatment-plans?patientId=${state.patientId}`, { signal: controller.signal });
+        if (!plansResponse.ok) throw new Error("No se pudieron cargar los tratamientos");
+        const plansData: { plans?: { id: number; nombre: string; status: string | null }[] } = await plansResponse.json();
+
+        const activos = (plansData.plans ?? [])
+          .filter(plan => plan.status === "in_progress" || plan.status === "authorized")
+          .map(plan => ({ id: plan.id, nombre: plan.nombre }));
+
+        // Detalle de todos los planes activos en paralelo: procedimientos + su dentista.
+        const planDetails = await Promise.all(
+          activos.map(plan =>
+            fetch(`/api/treatment-plans/${plan.id}`, { signal: controller.signal })
+              .then(response => {
+                if (!response.ok) throw new Error("No se pudieron cargar los procedimientos");
+                return response.json();
+              })
+              .then((data: { plan?: { dentist_id?: string | null; procedures?: { nombre: string; cantidad: number | null }[] } }) => ({
+                dentistId: data.plan?.dentist_id ?? null,
+                procedures: (data.plan?.procedures ?? []).map((proc, index): PlanProcedure => ({
+                  key: `${plan.id}-${index}`,
+                  nombre: proc.nombre,
+                  cantidad: proc.cantidad,
+                  planNombre: plan.nombre,
+                })),
+              }))
           )
-      )
-    )
-      .then(results => setPlanProcedures(results.flat()))
-      .catch(error => {
-        if ((error as Error).name !== "AbortError") setPlanProcedures([]);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setIsLoadingProcedures(false);
-      });
+        );
+
+        if (controller.signal.aborted) return;
+        // Tratamientos y procedimientos se publican a la vez.
+        setActivePlans(activos);
+        setPlanProcedures(planDetails.flatMap(detail => detail.procedures));
+        setSelectedProcedureKeys([]);
+
+        // Dentista por defecto: el dentist_id del primer plan activo que lo tenga.
+        const defaultDentistId = planDetails.find(detail => detail.dentistId)?.dentistId;
+        if (defaultDentistId) setSelectedDentistId(defaultDentistId);
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          setActivePlans([]);
+          setPlanProcedures([]);
+          setSelectedProcedureKeys([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingTreatments(false);
+          setIsLoadingProcedures(false);
+        }
+      }
+    })();
 
     return () => controller.abort();
-  }, [activePlans]);
+  }, [state.patientId]);
 
   const filteredPatients = patients.filter(patient =>
     `${patientFullName(patient)} ${patient.telefono}`
@@ -230,7 +278,9 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
     setErrorApellidoPat("");
     setErrorApellidoMat("");
     setErrorPhone("");
-    setEditorStep(2);
+    // El paciente registrado ya tiene sus datos, así que se salta el formulario
+    // y va directo al detalle de la cita (motivo de consulta).
+    setEditorStep(3);
   };
 
   const validatePatientFields = () => {
@@ -273,6 +323,24 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
     }
   };
 
+  // "Atrás" desde el detalle de la cita: el paciente nuevo vuelve a su formulario;
+  // el registrado vuelve a la lista para poder elegir otro paciente.
+  const goBackFromDetails = () => {
+    if (patientType === "registered") {
+      setState(previous => ({
+        ...previous,
+        patientId: null,
+        name: "",
+        apellido_pat: "",
+        apellido_mat: "",
+        phone: "",
+      }));
+      setEditorStep(1);
+    } else {
+      setEditorStep(2);
+    }
+  };
+
   const resetPatientSelection = () => {
     setPatientType(null);
     setEditorStep(1);
@@ -280,6 +348,9 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
     setSubmitError("");
     setReason("");
     setSelectedProcedureKeys([]);
+    setShowOtherProcedures(false);
+    setOtherProcedures([]);
+    setOtherProcedureFilter("all");
     setSelectedDentistId("");
     setState(previous => ({
       ...previous,
@@ -402,6 +473,17 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
     && (isEdit || patientType === "new" || (patientType === "registered" && Boolean(state.patientId)));
   const showAppointmentDetails = editorStep === 3
     && (isEdit || patientType === "new" || (patientType === "registered" && Boolean(state.patientId)));
+
+  useEffect(() => {
+    // Si el paciente no tiene tratamientos activos (paciente nuevo o registrado
+    // sin planes vigentes), abre "Otros procedimientos" por defecto. Solo expande;
+    // nunca cierra, para no pelear si la recepcionista la colapsa a mano.
+    if (showAppointmentDetails && !isLoadingTreatments && activePlans.length === 0) {
+      setShowOtherProcedures(true);
+      loadOtherProcedures();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAppointmentDetails, isLoadingTreatments, activePlans.length]);
 
   return (
     <div className="overflow-hidden bg-white" style={{ minWidth: 340, maxWidth: 400 }}>
@@ -602,6 +684,7 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
               <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
                 Procedimientos a realizar
               </label>
+              <p className="text-xs text-gray-500">Procedimientos a realizar en esta cita.</p>
               {isLoadingProcedures ? (
                 <p className="px-1 py-2 text-xs text-gray-500">Cargando procedimientos…</p>
               ) : planProcedures.length ? (
@@ -631,28 +714,100 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
               )}
             </div>
 
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={toggleOtherProcedures}
+                className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-left transition hover:bg-gray-50"
+              >
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                  Otros procedimientos
+                </span>
+                <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showOtherProcedures ? "rotate-180" : ""}`} />
+              </button>
+
+              {showOtherProcedures && (
+                <div className="space-y-2">
+                  <SearchableSelect
+                    options={otherProcedureOptions
+                      .filter(procedure => !otherProcedures.some(selected => selected.value === procedure.value))
+                      .filter(procedure => otherProcedureFilter === "all" || procedure.source === otherProcedureFilter)
+                      .map(procedure => ({
+                        value: procedure.value,
+                        label: procedure.nombre,
+                      }))}
+                    value=""
+                    onChange={addOtherProcedure}
+                    placeholder="Buscar procedimiento…"
+                    loading={isLoadingOtherProcedures}
+                    emptyText="Sin procedimientos"
+                    direction="right"
+                    listHeader={
+                      <div className="flex gap-1">
+                        {([
+                          ["all", "Todos"],
+                          ["clinic", "Clínico"],
+                          ["catalog", "Normativo"],
+                        ] as const).map(([key, label]) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setOtherProcedureFilter(key)}
+                            className={`flex-1 rounded-md px-2 py-1 text-[11px] font-medium transition ${
+                              otherProcedureFilter === key
+                                ? "bg-sky-500 text-white"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    }
+                  />
+                  {loadOtherProceduresError && <p className="text-xs text-red-500">{loadOtherProceduresError}</p>}
+
+                  {otherProcedures.length > 0 && (
+                    <div className="space-y-1 rounded-lg border border-gray-200 bg-white p-2">
+                      {otherProcedures.map(procedure => (
+                        <div
+                          key={procedure.value}
+                          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-700"
+                        >
+                          <span className="flex-1 truncate">{procedure.nombre}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeOtherProcedure(procedure.value)}
+                            className="shrink-0 text-gray-400 hover:text-red-500"
+                            title="Quitar"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="space-y-1">
               <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
                 Dentista que atiende
               </label>
-              <select
+              <SearchableSelect
+                options={dentists.map(dentist => ({ value: dentist.id, label: dentistDisplayName(dentist) }))}
                 value={selectedDentistId}
-                onChange={selectEvent => {
-                  setSelectedDentistId(selectEvent.target.value);
+                onChange={value => {
+                  setSelectedDentistId(value);
                   setErrorDentist("");
                 }}
+                placeholder={isLoadingDentists ? "Cargando dentistas..." : "Escribe o selecciona un dentista"}
                 disabled={isLoadingDentists}
-                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400 disabled:bg-gray-100"
-              >
-                <option value="">
-                  {isLoadingDentists ? "Cargando dentistas..." : "Selecciona un dentista"}
-                </option>
-                {dentists.map(dentist => (
-                  <option key={dentist.id} value={dentist.id}>
-                    {dentistDisplayName(dentist)}
-                  </option>
-                ))}
-              </select>
+                loading={isLoadingDentists}
+                direction="up"
+                emptyText="Sin dentistas"
+              />
               {errorDentist && <p className="text-xs text-red-500">{errorDentist}</p>}
               {loadDentistsError && <p className="text-xs text-red-500">{loadDentistsError}</p>}
               {!isLoadingDentists && !dentists.length && !loadDentistsError && (
@@ -676,7 +831,7 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
         {!isEdit && showAppointmentDetails && (
           <button
             type="button"
-            onClick={() => setEditorStep(2)}
+            onClick={goBackFromDetails}
             className="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
           >
             Atrás
