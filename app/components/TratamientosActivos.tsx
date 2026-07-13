@@ -1,11 +1,20 @@
 "use client"
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { toast } from "@/hooks/use-toast"
 import {
+  HojaConsentimientoPreview,
+  HojaConsentimientoForm,
+  crearHojaConsentimientoData,
+  TEXTO_CONSENTIMIENTO_DEFAULT,
+  type HojaConsentimientoData,
+} from "./HojaConsentimiento"
+import {
   Activity, Stethoscope, User, Calendar, ListChecks, ArrowLeft, ChevronRight,
   ClipboardList, CalendarCheck, DollarSign, FileText, Save, Check, FileCheck,
+  Square, Minus, Pencil, Printer,
 } from "lucide-react"
 
 // Un plan de tratamiento tal como lo devuelve GET /api/treatment-plans.
@@ -164,11 +173,50 @@ export default function TratamientosActivos({ id }: { id: string | null }) {
   const [generarConsentimiento, setGenerarConsentimiento] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Vista 3: hoja de consentimiento (exclusiva del tratamiento seleccionado).
-  const [consentView, setConsentView] = useState(false)
+  // Flujo de hoja de consentimiento:
+  //   "choice" (vista 3) → elegir alcance: tratamiento general o un procedimiento.
+  //   "sheet"  (vista 4) → se muestra la hoja de consentimiento.
+  //   "none"           → fuera del flujo (vista de detalle).
+  const [consentStep, setConsentStep] = useState<"none" | "choice" | "sheet">("none")
+  // En la vista 3: el odontólogo eligió "Procedimiento dental" (muestra la lista).
+  const [choosingProcedure, setChoosingProcedure] = useState(false)
+  // Alcance elegido para la hoja de consentimiento (vista 4).
+  const [consentTarget, setConsentTarget] =
+    useState<{ type: "general" } | { type: "procedure"; index: number; nombre: string } | null>(null)
 
-  const view: "list" | "detail" | "consent" =
-    selectedId == null ? "list" : consentView ? "consent" : "detail"
+  // Ventana estilo Windows: maximizada (pantalla completa) o tamaño normal.
+  const [maximized, setMaximized] = useState(false)
+
+  // Documento de consentimiento (vista 4): datos, texto, firma y modo edición.
+  const [consentData, setConsentData] = useState<HojaConsentimientoData | null>(null)
+  const [consentTexto, setConsentTexto] = useState(TEXTO_CONSENTIMIENTO_DEFAULT)
+  const [consentFirma, setConsentFirma] = useState("")
+  const [editingConsent, setEditingConsent] = useState(false)
+
+  const view: "list" | "detail" | "consentChoice" | "consentSheet" =
+    selectedId == null ? "list"
+      : consentStep === "choice" ? "consentChoice"
+      : consentStep === "sheet" ? "consentSheet"
+      : "detail"
+
+  const openConsentSheet = (target: { type: "general" } | { type: "procedure"; index: number; nombre: string }) => {
+    if (!detail) return
+    // Procedimiento específico → solo el seleccionado; tratamiento general → todos.
+    const procs = target.type === "procedure"
+      ? detail.procedures.filter((_, i) => i === target.index)
+      : detail.procedures
+    // Rellena el documento con los datos del tratamiento.
+    setConsentData(crearHojaConsentimientoData({
+      odontologo: detail.dentista ?? "",
+      paciente: detail.paciente ?? "",
+      procedimientos: procs.map(p => ({ id: crypto.randomUUID(), nombre: p.nombre, detalle: "" })),
+    }))
+    setConsentTexto(TEXTO_CONSENTIMIENTO_DEFAULT)
+    setConsentFirma("")
+    setEditingConsent(false)
+    setConsentTarget(target)
+    setConsentStep("sheet")
+  }
 
   // Carga los planes al abrir el modal.
   const loadPlans = () => {
@@ -191,6 +239,9 @@ export default function TratamientosActivos({ id }: { id: string | null }) {
     setSelectedId(planId)
     setDetail(null)
     setDetailError(null)
+    setConsentStep("none")
+    setConsentTarget(null)
+    setChoosingProcedure(false)
     setDetailLoading(true)
     fetch(`/api/treatment-plans/${planId}`)
       .then(async r => {
@@ -215,7 +266,9 @@ export default function TratamientosActivos({ id }: { id: string | null }) {
     setSelectedId(null)
     setDetail(null)
     setDetailError(null)
-    setConsentView(false)
+    setConsentStep("none")
+    setConsentTarget(null)
+    setChoosingProcedure(false)
   }
 
   // Solo hay cambios que guardar si algún campo editable difiere del original
@@ -271,7 +324,7 @@ export default function TratamientosActivos({ id }: { id: string | null }) {
       onOpenChange={o => {
         setOpen(o)
         if (o) loadPlans()
-        else backToList()
+        else { backToList(); setMaximized(false) }
       }}
     >
       <DialogTrigger asChild>
@@ -284,15 +337,48 @@ export default function TratamientosActivos({ id }: { id: string | null }) {
           Tratamientos activos
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700">
+      <DialogContent
+        className={
+          (maximized
+            ? "w-screen max-w-none h-screen max-h-screen rounded-none sm:rounded-none overflow-y-auto"
+            : // En la vista 4, al editar, se ensancha en escritorio para ver el formulario
+              // y la vista previa lado a lado con comodidad.
+            view === "consentSheet" && editingConsent
+            ? "sm:max-w-2xl lg:max-w-5xl max-h-[85vh] overflow-y-auto"
+            : "sm:max-w-2xl max-h-[85vh] overflow-y-auto") +
+          " bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 transition-[max-width] duration-200"
+        }
+      >
+        {/* Controles de ventana estilo Windows (pantalla completa / tamaño normal),
+            a la izquierda de la "X" de cerrar. Presentes en todas las vistas. */}
+        <div className="absolute right-11 top-4 z-10 flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setMaximized(true)}
+            disabled={maximized}
+            title="Pantalla completa"
+            className="rounded-sm p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-sky-600 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-sky-400 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <Square className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setMaximized(false)}
+            disabled={!maximized}
+            title="Tamaño normal"
+            className="rounded-sm p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-sky-600 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-sky-400 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <Minus className="h-4 w-4" />
+          </button>
+        </div>
         {/* Acceso a la hoja de consentimiento — a la izquierda de la "X", solo si el
             tratamiento ya tiene una hoja activa y estamos en la vista de detalle. */}
         {view === "detail" && detail?.has_consent && (
           <button
             type="button"
-            onClick={() => setConsentView(true)}
+            onClick={() => { setConsentTarget(null); setChoosingProcedure(false); setConsentStep("choice") }}
             title="Hoja de consentimiento"
-            className="absolute right-11 top-4 z-10 inline-flex items-center gap-1.5 rounded-lg border border-sky-200 dark:border-sky-800
+            className="absolute right-28 top-4 z-10 inline-flex items-center gap-1.5 rounded-lg border border-sky-200 dark:border-sky-800
                        bg-sky-50 dark:bg-sky-900/20 px-2.5 py-1 text-xs font-medium text-sky-700 dark:text-sky-300
                        hover:bg-sky-100 dark:hover:bg-sky-900/40 transition-colors"
           >
@@ -300,33 +386,47 @@ export default function TratamientosActivos({ id }: { id: string | null }) {
             <span className="hidden sm:inline">Hoja de consentimiento</span>
           </button>
         )}
-        <DialogHeader className={view === "detail" && detail?.has_consent ? "pr-56" : ""}>
-          <DialogTitle className="flex items-center gap-2 text-gray-800 dark:text-slate-100">
-            {view !== "list" && (
-              <button
-                type="button"
-                onClick={view === "consent" ? () => setConsentView(false) : backToList}
-                title={view === "consent" ? "Volver al detalle" : "Volver a la lista"}
-                className="shrink-0 -ml-1 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-sky-600 dark:hover:bg-slate-700 dark:hover:text-sky-400 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            )}
-            {view === "consent" ? <FileCheck className="w-4 h-4 text-sky-500" /> : <Activity className="w-4 h-4 text-sky-500" />}
-            {view === "consent"
-              ? "Hoja de consentimiento"
-              : view === "detail"
-              ? "Detalle del tratamiento"
-              : "Tratamientos del paciente"}
-          </DialogTitle>
-          <DialogDescription className="text-gray-400 dark:text-slate-500">
-            {view === "consent"
-              ? "Hoja de consentimiento del tratamiento"
-              : view === "detail"
-              ? "Consulta y completa la información del plan de tratamiento"
-              : "Planes de tratamiento en proceso de este paciente"}
-          </DialogDescription>
-        </DialogHeader>
+        {(() => {
+          const isConsent = view === "consentChoice" || view === "consentSheet"
+          // El botón "atrás" retrocede un paso según la vista activa.
+          const onBack =
+            view === "consentSheet" ? () => setConsentStep("choice")
+              : view === "consentChoice" ? () => setConsentStep("none")
+              : backToList
+          return (
+            <DialogHeader className={view === "detail" && detail?.has_consent ? "pr-72" : "pr-24"}>
+              <DialogTitle className="flex items-center gap-2 text-gray-800 dark:text-slate-100">
+                {view !== "list" && (
+                  <button
+                    type="button"
+                    onClick={onBack}
+                    title="Volver"
+                    className="shrink-0 -ml-1 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-sky-600 dark:hover:bg-slate-700 dark:hover:text-sky-400 transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+                )}
+                {isConsent ? <FileCheck className="w-4 h-4 text-sky-500" /> : <Activity className="w-4 h-4 text-sky-500" />}
+                {isConsent
+                  ? "Hoja de consentimiento"
+                  : view === "detail"
+                  ? "Detalle del tratamiento"
+                  : "Tratamientos del paciente"}
+              </DialogTitle>
+              <DialogDescription className="text-gray-400 dark:text-slate-500">
+                {view === "consentChoice"
+                  ? "¿Para qué deseas generar la hoja de consentimiento?"
+                  : view === "consentSheet"
+                  ? consentTarget?.type === "procedure"
+                    ? `Procedimiento: ${consentTarget.nombre}`
+                    : "Tratamiento general"
+                  : view === "detail"
+                  ? "Consulta y completa la información del plan de tratamiento"
+                  : "Planes de tratamiento en proceso de este paciente"}
+              </DialogDescription>
+            </DialogHeader>
+          )
+        })()}
 
         {/* ── Vista lista ── */}
         {view === "list" && (
@@ -597,14 +697,189 @@ export default function TratamientosActivos({ id }: { id: string | null }) {
           </div>
         )}
 
-        {/* ── Vista hoja de consentimiento (exclusiva) ── */}
-        {view === "consent" && (
-          <div className="pt-2">
-            <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-700/30 min-h-[320px] p-6 text-center">
-              <p className="text-sm text-gray-400 dark:text-slate-500">
-                Aquí se mostrará la hoja de consentimiento.
-              </p>
+        {/* ── Vista 3: elegir el alcance de la hoja de consentimiento ── */}
+        {view === "consentChoice" && detail && (
+          <div className="space-y-5 pt-2">
+            {/* Opciones de alcance */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => openConsentSheet({ type: "general" })}
+                className="group flex flex-col items-start gap-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-left
+                           hover:border-sky-300 dark:hover:border-sky-700 hover:bg-sky-50/40 dark:hover:bg-sky-900/10 hover:shadow-sm transition-all"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-900/30">
+                  <Stethoscope className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                </span>
+                <span className="text-sm font-semibold text-gray-800 dark:text-slate-100">Tratamiento general</span>
+                <span className="text-xs text-gray-400 dark:text-slate-500">
+                  Una hoja de consentimiento para todo el tratamiento.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setChoosingProcedure(true)}
+                className={`group flex flex-col items-start gap-2 rounded-xl border bg-white dark:bg-slate-800 p-4 text-left transition-all
+                  ${choosingProcedure
+                    ? "border-sky-300 dark:border-sky-700 bg-sky-50/40 dark:bg-sky-900/10"
+                    : "border-gray-200 dark:border-slate-700 hover:border-sky-300 dark:hover:border-sky-700 hover:bg-sky-50/40 dark:hover:bg-sky-900/10 hover:shadow-sm"}`}
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-900/30">
+                  <ListChecks className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                </span>
+                <span className="text-sm font-semibold text-gray-800 dark:text-slate-100">Procedimiento dental</span>
+                <span className="text-xs text-gray-400 dark:text-slate-500">
+                  Una hoja para un procedimiento específico del tratamiento.
+                </span>
+              </button>
             </div>
+
+            {/* Lista de procedimientos (al elegir "Procedimiento dental") */}
+            {choosingProcedure && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <ListChecks className="w-4 h-4 text-sky-500" />
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-200">
+                    Elige un procedimiento ({detail.procedures.length})
+                  </h3>
+                </div>
+
+                {detail.procedures.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 py-8 text-center">
+                    <ListChecks className="w-6 h-6 text-gray-200 dark:text-slate-700" />
+                    <p className="text-xs text-gray-400 dark:text-slate-500">
+                      Este tratamiento no tiene procedimientos registrados
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {detail.procedures.map((proc, i) => (
+                      <li key={i}>
+                        <button
+                          type="button"
+                          onClick={() => openConsentSheet({ type: "procedure", index: i, nombre: proc.nombre })}
+                          className="group flex w-full items-center gap-3 rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-700/40 px-4 py-2.5 text-left
+                                     hover:border-sky-200 dark:hover:border-sky-800 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
+                        >
+                          <span className="grid place-items-center w-6 h-6 shrink-0 rounded-lg bg-sky-100 dark:bg-sky-900/40
+                                           text-[11px] font-bold text-sky-600 dark:text-sky-300">
+                            {i + 1}
+                          </span>
+                          <span className="flex-1 min-w-0 truncate text-sm text-gray-700 dark:text-slate-200">
+                            {proc.nombre}
+                          </span>
+                          <span className="shrink-0 text-xs text-gray-400 dark:text-slate-500 tabular-nums">
+                            {proc.cantidad ?? 1} × {formatMoney(proc.precio) ?? "$0.00"}
+                          </span>
+                          <ChevronRight className="w-4 h-4 shrink-0 text-gray-300 dark:text-slate-500 group-hover:text-sky-500 transition-colors" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Vista 4: vista previa (y edición) de la hoja de consentimiento ── */}
+        {view === "consentSheet" && consentData && (
+          <div className="space-y-4 pt-2">
+            {/* Barra de acciones: editar / imprimir */}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingConsent(e => !e)}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors
+                  ${editingConsent
+                    ? "border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300"
+                    : "border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700"}`}
+              >
+                <Pencil className="w-4 h-4" />
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-slate-600 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                <Printer className="w-4 h-4" />
+                Imprimir
+              </button>
+              {/* TODO: implementar el guardado de la hoja de consentimiento. */}
+              <button
+                type="button"
+                onClick={() => toast({ title: "Guardar hoja de consentimiento", description: "Función en desarrollo." })}
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white
+                           bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 shadow-sm transition-all"
+              >
+                <Save className="w-4 h-4" />
+                Guardar
+              </button>
+            </div>
+
+            {/* Al editar: formulario a la izquierda + vista previa a la derecha.
+                Sin editar: solo la vista previa. */}
+            <div className={editingConsent ? "grid items-start gap-5 lg:grid-cols-2" : ""}>
+              {editingConsent && (
+                <div>
+                  <HojaConsentimientoForm
+                    data={consentData}
+                    onDataChange={setConsentData}
+                    textoConsentimiento={consentTexto}
+                    onTextoConsentimientoChange={setConsentTexto}
+                    firmaDataUrl={consentFirma}
+                    onFirmaDataUrlChange={setConsentFirma}
+                    hideOdontologoPaciente
+                    procedimientosFijos
+                  />
+                </div>
+              )}
+              <div>
+                <HojaConsentimientoPreview
+                  logoUrl={consentData.logoUrl}
+                  nombreClinica={consentData.nombreClinica}
+                  odontologo={consentData.odontologo}
+                  paciente={consentData.paciente}
+                  procedimientos={consentData.procedimientos}
+                  textoConsentimiento={consentTexto}
+                  firmaDataUrl={consentFirma}
+                  firmadoPor={consentData.firmadoPor}
+                  tutorResponsable={consentData.tutorResponsable}
+                />
+              </div>
+            </div>
+
+            {/* Copia SOLO para impresión, montada en <body> vía portal para no
+                heredar el DOM de los diálogos anidados (perfil + tratamientos).
+                Al imprimir se oculta todo lo demás con display:none, evitando
+                páginas en blanco y copias duplicadas. */}
+            {typeof document !== "undefined" &&
+              createPortal(
+                <div className="consent-print-portal hidden">
+                  <HojaConsentimientoPreview
+                    logoUrl={consentData.logoUrl}
+                    nombreClinica={consentData.nombreClinica}
+                    odontologo={consentData.odontologo}
+                    paciente={consentData.paciente}
+                    procedimientos={consentData.procedimientos}
+                    textoConsentimiento={consentTexto}
+                    firmaDataUrl={consentFirma}
+                    firmadoPor={consentData.firmadoPor}
+                    tutorResponsable={consentData.tutorResponsable}
+                  />
+                </div>,
+                document.body
+              )}
+            <style
+              dangerouslySetInnerHTML={{
+                __html:
+                  "@media print { body > *:not(.consent-print-portal) { display: none !important; } " +
+                  ".consent-print-portal { display: block !important; } " +
+                  ".consent-print-portal .consent-sheet { border: 0 !important; box-shadow: none !important; } }",
+              }}
+            />
           </div>
         )}
       </DialogContent>
