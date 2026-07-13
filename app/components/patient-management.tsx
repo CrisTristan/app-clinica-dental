@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import {
   Users, Calendar, FileText, Plus, Search,
-  ChevronRight, X, ClipboardList, UserCog,
+  ChevronRight, X, ClipboardList, UserCog, Stethoscope,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Patient } from '../types/types'
@@ -22,6 +22,7 @@ import AdministradorAnuncios from './AdministradorAnuncios'
 import ProximasCitas from './proximasCitas'
 import CatalogoServicios from './CatalogoServicios'
 import GestionColaboradores from './GestionColaboradores'
+import DentalProcedures from './dentalProcedures'
 import { can, type Capability } from "@/lib/permissions"
 import { ROLE_LABELS, type Role } from "@/lib/roles"
 
@@ -41,6 +42,7 @@ const NAV: { id: string; label: string; icon: React.ElementType; capability?: Ca
   { id: "Proximas Citas",  label: "Próximas Citas",   icon: Calendar    },
   { id: "Anuncios",        label: "Anuncios",         icon: FileText,      capability: "anuncios" },
   { id: "Catalogo",        label: "Catálogo",         icon: ClipboardList, capability: "catalogo" },
+  { id: "Procedimientos",  label: "Procedimientos",   icon: Stethoscope,   capability: "catalogo" },
   { id: "Colaboradores",   label: "Colaboradores",    icon: UserCog,       capability: "colaboradores" },
 ]
 
@@ -522,6 +524,7 @@ export default function PatientManagement({ role }: { role: Role }) {
 
           {currentPage === "Anuncios"       && <AdministradorAnuncios />}
           {currentPage === "Catalogo"       && <CatalogoServicios />}
+          {currentPage === "Procedimientos" && <DentalProcedures />}
           {currentPage === "Proximas Citas" && <ProximasCitas />}
           {currentPage === "Colaboradores" && can(role, "colaboradores") && <GestionColaboradores />}
 
