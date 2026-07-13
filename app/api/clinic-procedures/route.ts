@@ -14,7 +14,7 @@ export async function GET() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('clinic_procedures')
-    .select('id, nombre, precio, descripcion, duracion_estimada')
+    .select('id, nombre, precio, descripcion, duracion_estimada, procedure_category_id')
     .order('nombre', { ascending: true })
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       descripcion: descripcion || null,
       duracion_estimada: duracion_estimada || null,
     })
-    .select('id, nombre, precio, descripcion, duracion_estimada')
+    .select('id, nombre, precio, descripcion, duracion_estimada, procedure_category_id')
     .single()
 
   if (error) return Response.json({ error: error.message }, { status: 500 })

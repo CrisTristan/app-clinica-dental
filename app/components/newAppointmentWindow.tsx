@@ -9,6 +9,7 @@ import { ChevronDown, X } from "lucide-react";
 import { onUpdateSomeField } from "../helpers/onUpdateSomeField";
 import { toDbTimestamp } from "../helpers/dateTime";
 import SearchableSelect from "./SearchableSelect";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
   DEFAULT_STATUS,
   STATUS_CONFIG,
@@ -85,7 +86,6 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
   const [isLoadingOtherProcedures, setIsLoadingOtherProcedures] = useState(false);
   const [loadOtherProceduresError, setLoadOtherProceduresError] = useState("");
   const [otherProcedures, setOtherProcedures] = useState<OtherProcedure[]>([]);
-  const [otherProcedureFilter, setOtherProcedureFilter] = useState<"all" | "clinic" | "catalog">("all");
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [isLoadingDentists, setIsLoadingDentists] = useState(true);
   const [loadPatientsError, setLoadPatientsError] = useState("");
@@ -102,18 +102,24 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
     setSelectedProcedureKeys(previous =>
       previous.includes(key) ? previous.filter(k => k !== key) : [...previous, key]);
 
-  // Carga (una sola vez) el catálogo combinado de procedimientos clínica + normativo.
+  // Carga (una sola vez) el catálogo clínico completo (clinic_procedures).
   const loadOtherProcedures = () => {
     if (otherProceduresLoaded || isLoadingOtherProcedures) return;
     setIsLoadingOtherProcedures(true);
     setLoadOtherProceduresError("");
-    fetch("/api/procedures")
+    fetch("/api/clinic-procedures")
       .then(response => {
         if (!response.ok) throw new Error("No se pudieron cargar los procedimientos");
         return response.json();
       })
-      .then((data: { procedures?: OtherProcedure[] }) => {
-        setOtherProcedureOptions(data.procedures ?? []);
+      .then((data: { procedures?: { id: number; nombre: string }[] }) => {
+        setOtherProcedureOptions(
+          (data.procedures ?? []).map(procedure => ({
+            value: `clinic:${procedure.id}`,
+            nombre: procedure.nombre,
+            source: "clinic" as const,
+          }))
+        );
         setOtherProceduresLoaded(true);
       })
       .catch(() => setLoadOtherProceduresError("No se pudieron cargar los procedimientos."))
@@ -350,7 +356,6 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
     setSelectedProcedureKeys([]);
     setShowOtherProcedures(false);
     setOtherProcedures([]);
-    setOtherProcedureFilter("all");
     setSelectedDentistId("");
     setState(previous => ({
       ...previous,
@@ -731,7 +736,6 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
                   <SearchableSelect
                     options={otherProcedureOptions
                       .filter(procedure => !otherProcedures.some(selected => selected.value === procedure.value))
-                      .filter(procedure => otherProcedureFilter === "all" || procedure.source === otherProcedureFilter)
                       .map(procedure => ({
                         value: procedure.value,
                         label: procedure.nombre,
@@ -743,26 +747,9 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
                     emptyText="Sin procedimientos"
                     direction="right"
                     listHeader={
-                      <div className="flex gap-1">
-                        {([
-                          ["all", "Todos"],
-                          ["clinic", "Clínico"],
-                          ["catalog", "Normativo"],
-                        ] as const).map(([key, label]) => (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => setOtherProcedureFilter(key)}
-                            className={`flex-1 rounded-md px-2 py-1 text-[11px] font-medium transition ${
-                              otherProcedureFilter === key
-                                ? "bg-sky-500 text-white"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
+                      <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                        Catálogo Clínico
+                      </p>
                     }
                   />
                   {loadOtherProceduresError && <p className="text-xs text-red-500">{loadOtherProceduresError}</p>}
@@ -774,7 +761,18 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
                           key={procedure.value}
                           className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-700"
                         >
-                          <span className="flex-1 truncate">{procedure.nombre}</span>
+                          {procedure.source === "catalog" ? (
+                            <HoverCard openDelay={150} closeDelay={100}>
+                              <HoverCardTrigger asChild>
+                                <span className="flex-1 truncate cursor-help">{procedure.nombre}</span>
+                              </HoverCardTrigger>
+                              <HoverCardContent className="w-64 text-xs text-gray-600 dark:text-slate-300">
+                                Este procedimiento se almacenará automáticamente en el catálogo de procedimientos clínicos.
+                              </HoverCardContent>
+                            </HoverCard>
+                          ) : (
+                            <span className="flex-1 truncate">{procedure.nombre}</span>
+                          )}
                           <button
                             type="button"
                             onClick={() => removeOtherProcedure(procedure.value)}

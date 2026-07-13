@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Search, Stethoscope, Pencil, Trash2, Check, Loader2, Plus } from 'lucide-react'
+import { Search, Stethoscope, Pencil, Trash2, Check, Loader2, Plus, Filter as FilterIcon, ChevronDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -9,9 +9,9 @@ import { useToast } from '@/hooks/use-toast'
 import VentanaPopup from './VentanaPopup'
 import SearchableSelect, { type Option } from './SearchableSelect'
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle,
-} from '@/components/ui/dialog'
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
@@ -28,6 +28,7 @@ type Procedure = {
   precio?: number | null
   descripcion?: string | null
   duracion_estimada?: string | null
+  procedure_category_id?: number | null
   // Sólo procedimientos normativos (dental_procedures):
   catalog_key?: string
 }
@@ -40,6 +41,12 @@ const FILTERS: { id: Filter; label: string }[] = [
 // Normaliza para buscar sin acentos ni mayúsculas.
 const norm = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase()
+
+// Precio actual formateado como moneda (MXN); vacío/nulo → "Sin precio".
+const fmtPrice = (precio?: number | null) =>
+  precio == null || precio === 0
+    ? 'Sin precio'
+    : Number(precio).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
 
 /* ── Card de un procedimiento ── */
 function ProcedureCard({
@@ -107,15 +114,24 @@ function ProcedureCard({
 
   return (
     <div className="p-4 rounded-2xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-sky-100 dark:bg-sky-900/30 grid place-items-center shrink-0">
-          <Stethoscope className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+      <div className="flex items-start gap-3">
+        {filter !== 'clinicos' && (
+          <div className="w-9 h-9 rounded-full bg-sky-100 dark:bg-sky-900/30 grid place-items-center shrink-0">
+            <Stethoscope className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-800 dark:text-slate-100">{proc.nombre}</p>
+          {filter === 'clinicos' && (
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+              Precio actual: <span className="font-medium text-emerald-600 dark:text-emerald-400">{fmtPrice(proc.precio)}</span>
+            </p>
+          )}
         </div>
-        <span className="flex-1 text-sm font-medium text-gray-800 dark:text-slate-100 min-w-0">{proc.nombre}</span>
 
         {/* Editar y borrar sólo en procedimientos clínicos */}
         {filter === 'clinicos' && (
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex flex-col items-center gap-1 shrink-0">
             <button
               onClick={openEdit}
               title="Editar"
@@ -159,46 +175,15 @@ function ProcedureCard({
       </div>
 
       {/* Ventana emergente de edición */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar procedimiento</DialogTitle>
-            <DialogDescription>
-              Editando <span className="font-semibold text-gray-700 dark:text-slate-200">&quot;{proc.nombre}&quot;</span>
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <Label className="text-xs text-gray-500 dark:text-slate-400">Precio (opcional)</Label>
-              <Input
-                type="number"
-                placeholder="0.00"
-                value={form.precio}
-                onChange={e => setForm(prev => ({ ...prev, precio: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-gray-500 dark:text-slate-400">Descripción (opcional)</Label>
-              <Input
-                type="text"
-                placeholder="Descripción del procedimiento"
-                value={form.descripcion}
-                onChange={e => setForm(prev => ({ ...prev, descripcion: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-gray-500 dark:text-slate-400">Duración estimada</Label>
-              <Input
-                type="text"
-                placeholder="ej. 30 minutes o 00:30:00"
-                value={form.duracion_estimada}
-                onChange={e => setForm(prev => ({ ...prev, duracion_estimada: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
+      <VentanaPopup
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        title="Editar procedimiento"
+        subtitle={<>Editando «{proc.nombre}»</>}
+        icon={Pencil}
+        contentClassName="sm:max-w-lg"
+        footer={
+          <>
             <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>
               Cancelar
             </Button>
@@ -206,9 +191,39 @@ function ProcedureCard({
               {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}
               Guardar
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs text-gray-500 dark:text-slate-400">Precio (opcional)</Label>
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={form.precio}
+              onChange={e => setForm(prev => ({ ...prev, precio: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-gray-500 dark:text-slate-400">Descripción (opcional)</Label>
+            <Input
+              type="text"
+              placeholder="Descripción del procedimiento"
+              value={form.descripcion}
+              onChange={e => setForm(prev => ({ ...prev, descripcion: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-gray-500 dark:text-slate-400">Duración estimada</Label>
+            <Input
+              type="text"
+              placeholder="ej. 30 minutes o 00:30:00"
+              value={form.duracion_estimada}
+              onChange={e => setForm(prev => ({ ...prev, duracion_estimada: e.target.value }))}
+            />
+          </div>
+        </div>
+      </VentanaPopup>
     </div>
   )
 }
@@ -230,44 +245,96 @@ export default function DentalProcedures() {
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
 
-  // ── Ventana emergente "Agregar procedimiento clínico" ──
-  const [addOpen, setAddOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [addForm, setAddForm] = useState(EMPTY_ADD_FORM)
-  const [catalogOptions, setCatalogOptions] = useState<Option[]>([])
+  // ── Categorías (filtro por categoría + selector "tipo") ──
+  const [categoryFilter, setCategoryFilter] = useState('')   // '' = todas
   const [categoryOptions, setCategoryOptions] = useState<Option[]>([])
-  const [optionsLoaded, setOptionsLoaded] = useState(false)
-  const [optionsLoading, setOptionsLoading] = useState(false)
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false)
+  const [categoriesLoading, setCategoriesLoading] = useState(false)
 
-  // Carga perezosa del catálogo normativo y las categorías al abrir la ventana.
-  const loadAddOptions = () => {
-    if (optionsLoaded || optionsLoading) return
-    setOptionsLoading(true)
-    Promise.all([
-      fetch('/api/dental-procedures').then(r => r.json()),
-      fetch('/api/procedure-categories').then(r => r.json()),
-    ])
-      .then(([proc, cat]) => {
-        setCatalogOptions(
-          (proc.procedures ?? []).map((p: { catalog_key: string; nombre: string }) => ({
-            value: String(p.catalog_key), label: p.nombre,
-          })),
-        )
+  const loadCategories = () => {
+    if (categoriesLoaded || categoriesLoading) return
+    setCategoriesLoading(true)
+    fetch('/api/procedure-categories')
+      .then(r => r.json())
+      .then(cat => {
         setCategoryOptions(
           (cat.categories ?? []).map((c: { id: number; nombre: string }) => ({
             value: String(c.id), label: c.nombre,
           })),
         )
-        setOptionsLoaded(true)
+        setCategoriesLoaded(true)
       })
-      .catch(() => toast({ title: 'Error', description: 'No se pudo cargar el catálogo o las categorías.' }))
-      .finally(() => setOptionsLoading(false))
+      .catch(() => toast({ title: 'Error', description: 'No se pudieron cargar las categorías.' }))
+      .finally(() => setCategoriesLoading(false))
+  }
+
+  // ── Ventana emergente "Agregar procedimiento clínico" ──
+  const [addOpen, setAddOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [addForm, setAddForm] = useState(EMPTY_ADD_FORM)
+  const [catalogOptions, setCatalogOptions] = useState<Option[]>([])
+  const [catalogLoaded, setCatalogLoaded] = useState(false)
+  const [catalogLoading, setCatalogLoading] = useState(false)
+
+  // Carga perezosa del catálogo normativo al abrir la ventana de alta.
+  const loadCatalog = () => {
+    if (catalogLoaded || catalogLoading) return
+    setCatalogLoading(true)
+    fetch('/api/dental-procedures')
+      .then(r => r.json())
+      .then(proc => {
+        setCatalogOptions(
+          (proc.procedures ?? []).map((p: { catalog_key: string; nombre: string }) => ({
+            value: String(p.catalog_key), label: p.nombre,
+          })),
+        )
+        setCatalogLoaded(true)
+      })
+      .catch(() => toast({ title: 'Error', description: 'No se pudo cargar el catálogo normativo.' }))
+      .finally(() => setCatalogLoading(false))
   }
 
   const openAdd = () => {
     setAddForm(EMPTY_ADD_FORM)
     setAddOpen(true)
-    loadAddOptions()
+    loadCatalog()
+    loadCategories()
+  }
+
+  // ── Ventana emergente "Nueva categoría" ──
+  const [catOpen, setCatOpen] = useState(false)
+  const [catName, setCatName] = useState('')
+  const [catSaving, setCatSaving] = useState(false)
+
+  const openNewCategory = () => {
+    setCatName('')
+    setCatOpen(true)
+  }
+
+  const handleCreateCategory = async () => {
+    const nombre = catName.trim()
+    if (!nombre) return
+    setCatSaving(true)
+    try {
+      const res = await fetch('/api/procedure-categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`)
+
+      const opt: Option = { value: String(data.id), label: data.nombre }
+      setCategoryOptions(prev => [...prev, opt].sort((a, b) => a.label.localeCompare(b.label)))
+      setCategoriesLoaded(true)
+      setCatOpen(false)
+      setCatName('')
+      toast({ title: 'Categoría creada', description: `Se creó "${data.nombre}".` })
+    } catch (err: any) {
+      toast({ title: 'Error al guardar', description: err.message ?? 'Intenta de nuevo.' })
+    } finally {
+      setCatSaving(false)
+    }
   }
 
   const canSubmit = !!addForm.nombre.trim() && !!addForm.procedure_category_id
@@ -301,6 +368,7 @@ export default function DentalProcedures() {
         precio: data.precio,
         descripcion: data.descripcion,
         duracion_estimada: data.duracion_estimada,
+        procedure_category_id: data.procedure_category_id ?? (Number(addForm.procedure_category_id) || null),
       }
       // Refleja el alta en la lista de clínicos (cambiando de filtro si hace falta).
       if (filter === 'clinicos') {
@@ -320,6 +388,8 @@ export default function DentalProcedures() {
   useEffect(() => {
     setLoading(true)
     setError('')
+    setCategoryFilter('')
+    if (filter === 'clinicos') loadCategories()
 
     const endpoint = filter === 'clinicos' ? '/api/clinic-procedures' : '/api/dental-procedures'
 
@@ -340,6 +410,7 @@ export default function DentalProcedures() {
                   precio: p.precio,
                   descripcion: p.descripcion,
                   duracion_estimada: p.duracion_estimada,
+                  procedure_category_id: p.procedure_category_id,
                 }
               : {
                   key: String(p.catalog_key ?? i),
@@ -355,9 +426,16 @@ export default function DentalProcedures() {
 
   const filtered = useMemo(() => {
     const q = norm(searchTerm)
-    if (!q) return procedures
-    return procedures.filter(p => norm(p.nombre).includes(q))
-  }, [procedures, searchTerm])
+    return procedures.filter(p => {
+      if (categoryFilter && String(p.procedure_category_id ?? '') !== categoryFilter) return false
+      if (q && !norm(p.nombre).includes(q)) return false
+      return true
+    })
+  }, [procedures, searchTerm, categoryFilter])
+
+  const categoryFilterLabel = categoryFilter
+    ? categoryOptions.find(o => o.value === categoryFilter)?.label ?? 'Categoría'
+    : 'Todas las categorías'
 
   const handleUpdated = (updated: Procedure) =>
     setProcedures(prev => prev.map(p => p.key === updated.key ? updated : p))
@@ -418,6 +496,47 @@ export default function DentalProcedures() {
                        focus:outline-none focus:ring-2 focus:ring-sky-400 transition-colors"
           />
         </div>
+
+        {/* Filtro por categoría (sólo procedimientos clínicos) */}
+        {filter === 'clinicos' && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                title="Filtrar por categoría"
+                aria-label="Filtrar por categoría"
+                className="shrink-0 inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-xl text-sm font-medium
+                           border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700
+                           text-gray-700 dark:text-slate-200 hover:border-sky-300 dark:hover:border-sky-700 transition-colors"
+              >
+                <FilterIcon className="w-4 h-4 text-gray-400 dark:text-slate-500" />
+                <span className="hidden sm:inline max-w-[9rem] truncate">{categoryFilterLabel}</span>
+                <ChevronDown className="hidden sm:inline w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto w-56">
+              <DropdownMenuItem onClick={() => setCategoryFilter('')}>
+                Todas las categorías
+              </DropdownMenuItem>
+              {categoriesLoading && (
+                <DropdownMenuItem disabled>Cargando…</DropdownMenuItem>
+              )}
+              {categoryOptions.map(c => (
+                <DropdownMenuItem key={c.value} onClick={() => setCategoryFilter(c.value)}>
+                  {c.label}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={openNewCategory}
+                className="text-sky-600 dark:text-sky-400 font-medium focus:text-sky-700 dark:focus:text-sky-300"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Nueva
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
         <button
           onClick={openAdd}
           className="shrink-0 inline-flex items-center gap-1.5 h-9 px-4 rounded-xl text-sm font-semibold text-white shadow-sm
@@ -438,7 +557,11 @@ export default function DentalProcedures() {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Stethoscope className="w-8 h-8 text-gray-200 dark:text-slate-700 mb-2" />
           <p className="text-sm text-gray-400 dark:text-slate-500">
-            {searchTerm ? `Sin resultados para "${searchTerm}"` : 'No hay procedimientos en el catálogo.'}
+            {searchTerm
+              ? `Sin resultados para "${searchTerm}"`
+              : categoryFilter
+                ? `Sin procedimientos en "${categoryFilterLabel}"`
+                : 'No hay procedimientos en el catálogo.'}
           </p>
         </div>
       ) : (
@@ -490,7 +613,7 @@ export default function DentalProcedures() {
               options={catalogOptions}
               value={addForm.catalog_key || addForm.nombre}
               displayLabel={addForm.nombre}
-              loading={optionsLoading}
+              loading={catalogLoading}
               creatable
               placeholder="Escribe un nombre o selecciona del catálogo…"
               emptyText="Escribe para usar un nombre personalizado"
@@ -512,7 +635,7 @@ export default function DentalProcedures() {
             <SearchableSelect
               options={categoryOptions}
               value={addForm.procedure_category_id}
-              loading={optionsLoading}
+              loading={categoriesLoading}
               placeholder="Selecciona una categoría…"
               emptyText="Sin categorías"
               onChange={value => setAddForm(prev => ({ ...prev, procedure_category_id: value }))}
@@ -551,6 +674,39 @@ export default function DentalProcedures() {
               onChange={e => setAddForm(prev => ({ ...prev, duracion_estimada: e.target.value }))}
             />
           </div>
+        </div>
+      </VentanaPopup>
+
+      {/* Ventana emergente: nueva categoría */}
+      <VentanaPopup
+        open={catOpen}
+        onOpenChange={setCatOpen}
+        title="Nueva categoría"
+        subtitle="Crea una categoría para clasificar los procedimientos clínicos."
+        icon={FilterIcon}
+        contentClassName="sm:max-w-sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setCatOpen(false)} disabled={catSaving}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateCategory} disabled={catSaving || !catName.trim()}>
+              {catSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}
+              Guardar
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-1">
+          <Label className="text-xs text-gray-500 dark:text-slate-400">Nombre de la categoría</Label>
+          <Input
+            type="text"
+            placeholder="ej. Endodoncia"
+            value={catName}
+            onChange={e => setCatName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && catName.trim() && !catSaving) handleCreateCategory() }}
+            autoFocus
+          />
         </div>
       </VentanaPopup>
     </div>

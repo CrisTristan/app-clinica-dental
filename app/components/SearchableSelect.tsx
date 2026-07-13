@@ -252,6 +252,19 @@ export default function SearchableSelect({
           placeholder={placeholder}
           onChange={e => { setQuery(e.target.value); setOpen(true) }}
           onFocus={openList}
+          onBlur={e => {
+            // Con texto libre habilitado, al salir del campo se confirma lo
+            // escrito para no perderlo si el usuario no eligió una opción ni
+            // presionó Enter. Si el foco pasa a la lista (elegir/crear), se deja
+            // que ese clic maneje el valor.
+            if (!creatable) return
+            const next = e.relatedTarget as Node | null
+            if (next && (rootRef.current?.contains(next) || listRef.current?.contains(next))) return
+            const q = query.trim()
+            if (!q || norm(q) === norm(currentLabel)) return
+            const exact = options.find(o => norm(o.label) === norm(q))
+            onChange(exact ? exact.value : q)
+          }}
           onKeyDown={e => {
             if (e.key === "Escape") { setOpen(false); setQuery(""); inputRef.current?.blur() }
             if (e.key === "Enter") {
