@@ -157,6 +157,11 @@ export function HojaConsentimientoPreview({
         </p>
       </div>
 
+      {/* Declaración de consentimiento */}
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 dark:text-slate-200">
+        {textoConsentimiento}
+      </p>
+
       {/* Procedimientos a realizar */}
       <div className="space-y-2">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-slate-200">
@@ -192,11 +197,6 @@ export function HojaConsentimientoPreview({
           </ul>
         )}
       </div>
-
-      {/* Declaración de consentimiento */}
-      <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 dark:text-slate-200">
-        {textoConsentimiento}
-      </p>
 
       {/* Firma del paciente / tutor */}
       <div className="flex flex-col items-center pt-6">
