@@ -4,18 +4,18 @@ import { useState } from "react";
 import { Scheduler } from "@aldabil/react-scheduler";
 import type { ProcessedEvent, RemoteQuery } from "@aldabil/react-scheduler/types";
 import { es } from "date-fns/locale";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { toast } from "@/hooks/use-toast";
 import { onUpdateSomeField } from "../helpers/onUpdateSomeField";
 import { toDbTimestamp } from "../helpers/dateTime";
 import NewAppointmentWindow from "./newAppointmentWindow";
+import AppointmentViewer from "./appointmentViewer";
 import {
   STATUS_CONFIG,
-  STATUS_OPTIONS,
   normalizeStatus,
-  dentistDisplayName,
   type SchedulerEvent,
   type AppointmentStatus,
+  type DentistOption,
+  type AppointmentProcedure,
 } from "./schedulerShared";
 
 function App() {
@@ -80,6 +80,87 @@ function App() {
     });
   };
 
+  // Edición desde el visor de detalles (motivo, dentista y orden de
+  // procedimientos). Actualiza el calendario de inmediato, persiste en el
+  // backend y avisa con un toast; si falla, revierte.
+  const handleAppointmentSave = (
+    eventId: number | string,
+    patch: {
+      reason: string;
+      dentistId: string;
+      dentist: DentistOption | null;
+      procedures: AppointmentProcedure[];
+    },
+  ) => {
+    let previousEvents: ProcessedEvent[] = [];
+    setEvents(previous => {
+      previousEvents = previous;
+      return previous.map(event =>
+        event.event_id === eventId
+          ? {
+              ...event,
+              reason: patch.reason,
+              subtitle: patch.reason,
+              dentistId: patch.dentistId,
+              dentist: patch.dentist,
+              procedures: patch.procedures,
+            }
+          : event
+      );
+    });
+
+    fetch("/appointments/api", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: eventId,
+        reason: patch.reason,
+        dentistId: patch.dentistId,
+        procedures: patch.procedures,
+      }),
+    })
+      .then(async response => {
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          throw new Error(body?.error || "No se pudo actualizar la cita");
+        }
+        toast({ title: "Cita actualizada con éxito" });
+      })
+      .catch(error => {
+        setEvents(previousEvents);
+        toast({ title: "Error al actualizar la cita", description: (error as Error).message });
+      });
+  };
+
+  // La nota se guarda de forma independiente (disponible también fuera de la
+  // edición) en Appointment.notas.
+  const handleNoteSave = (eventId: number | string, note: string) => {
+    let previousEvents: ProcessedEvent[] = [];
+    setEvents(previous => {
+      previousEvents = previous;
+      return previous.map(event =>
+        event.event_id === eventId ? { ...event, note } : event
+      );
+    });
+
+    fetch("/appointments/api", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: eventId, notas: note }),
+    })
+      .then(async response => {
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          throw new Error(body?.error || "No se pudo guardar la nota");
+        }
+        toast({ title: "Nota agregada a la cita" });
+      })
+      .catch(error => {
+        setEvents(previousEvents);
+        toast({ title: "Error al guardar la nota", description: (error as Error).message });
+      });
+  };
+
   const onEventDrop = async (
     _event: React.DragEvent<HTMLButtonElement>,
     droppedOn: Date,
@@ -121,7 +202,47 @@ function App() {
   };
 
   return (
-    <Scheduler
+    <div className="scheduler-wrapper">
+      {/*
+        El encabezado de @aldabil/react-scheduler agrupa todos los botones
+        (Hoy, Agenda, Mes, Semana, Día) dentro de .rs__view_navigator, a la
+        derecha de las flechas de fecha. Aplanamos ese contenedor con
+        display:contents para que sus botones participen del flex del
+        encabezado y así redistribuirlos: Hoy junto a las flechas, Agenda
+        centrado y las vistas a la derecha.
+      */}
+      <style>{`
+        .scheduler-wrapper .MuiPaper-root:has(> .rs__view_navigator) {
+          position: relative;
+          justify-content: flex-start;
+        }
+        .scheduler-wrapper .rs__view_navigator {
+          display: contents;
+        }
+        /* Flechas + fecha primero */
+        .scheduler-wrapper [data-testid="date-navigator"] {
+          order: 1;
+        }
+        /* "Hoy" justo a la derecha de las flechas */
+        .scheduler-wrapper .rs__view_navigator > button[aria-label="Hoy"] {
+          order: 2;
+        }
+        /* "Agenda" centrado horizontalmente en el encabezado */
+        .scheduler-wrapper .rs__view_navigator > button[aria-label="Agenda"] {
+          order: 3;
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+        }
+        /* "Mes", "Semana", "Día" agrupados a la derecha */
+        .scheduler-wrapper .rs__view_navigator > button:not([aria-label]) {
+          order: 4;
+        }
+        .scheduler-wrapper .rs__view_navigator > button[aria-label="Agenda"] + button {
+          margin-left: auto;
+        }
+      `}</style>
+      <Scheduler
       events={events}
       locale={es}
       hourFormat="24"
@@ -152,78 +273,18 @@ function App() {
         step: 30,
       }}
       customEditor={scheduler => <NewAppointmentWindow scheduler={scheduler} setEvents={setEvents} />}
-      viewerTitleComponent={event => {
-        const status = normalizeStatus(event.status as string);
-        const config = STATUS_CONFIG[status];
-
-        return (
-          <div className="flex flex-col gap-1.5 py-1">
-            <span className="text-sm font-semibold leading-tight">{event.title}</span>
-            <span className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${config.badge}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${config.dot}`} />
-              {config.label}
-            </span>
-          </div>
-        );
-      }}
-      viewerExtraComponent={(_fields, event) => {
-        const schedulerEvent = event as SchedulerEvent;
-        const status = normalizeStatus(event.status as string);
-
-        return (
-          <div className="mt-2 space-y-3">
-            {schedulerEvent.dentist && (
-              <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Dentista asignado</p>
-                <p className="mt-1 text-sm font-medium text-gray-800">{dentistDisplayName(schedulerEvent.dentist)}</p>
-                {schedulerEvent.dentist.email && (
-                  <p className="text-xs text-gray-500">{schedulerEvent.dentist.email}</p>
-                )}
-                {schedulerEvent.dentist.phone && (
-                  <p className="text-xs text-gray-500">{schedulerEvent.dentist.phone}</p>
-                )}
-              </div>
-            )}
-            <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Procedimientos programados</p>
-              {schedulerEvent.procedures && schedulerEvent.procedures.length > 0 ? (
-                <ul className="mt-1 space-y-1">
-                  {schedulerEvent.procedures.map(procedure => (
-                    <li key={procedure.id} className="flex items-start gap-1.5 text-sm font-medium text-gray-800">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
-                      {procedure.nombre}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-1 text-sm font-medium text-gray-800">Sin procedimientos</p>
-              )}
-            </div>
-            <div className="border-t border-gray-100 pt-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Cambiar estado</p>
-              <RadioGroup
-                defaultValue={status}
-                onValueChange={value =>
-                  handleStatusChange(event.event_id, normalizeStatus(value), String(event.description ?? ""))
-                }
-              >
-                {STATUS_OPTIONS.map(option => (
-                  <div key={option} className="flex items-center gap-2">
-                    <RadioGroupItem value={option} id={`${option}-${event.event_id}`} />
-                    <Label
-                      htmlFor={`${option}-${event.event_id}`}
-                      className={`cursor-pointer rounded-full border px-2 py-0.5 text-xs ${STATUS_CONFIG[option].badge}`}
-                    >
-                      {STATUS_CONFIG[option].label}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-          </div>
-        );
-      }}
-    />
+      customViewer={(event, close) => (
+        <AppointmentViewer
+          event={event as SchedulerEvent}
+          close={close}
+          onStatusChange={handleStatusChange}
+          onDelete={onDelete}
+          onSave={handleAppointmentSave}
+          onNoteSave={handleNoteSave}
+        />
+      )}
+      />
+    </div>
   );
 }
 

@@ -55,6 +55,8 @@ export type VentanaPopupProps = {
 
   /** Clases extra para la ventana (ancho, etc.). Ej: "sm:max-w-3xl". */
   contentClassName?: string
+  /** Clases extra para el overlay (p. ej. subir el z-index sobre otro modal). */
+  overlayClassName?: string
   /** Clases extra para el área del cuerpo. */
   bodyClassName?: string
 
@@ -79,6 +81,7 @@ export default function VentanaPopup({
   continueLoading = false,
   footer,
   contentClassName = "sm:max-w-2xl",
+  overlayClassName,
   bodyClassName,
   hideWindowControls = false,
 }: VentanaPopupProps) {
@@ -97,7 +100,7 @@ export default function VentanaPopup({
     <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
       {trigger && <DialogPrimitive.Trigger asChild>{trigger}</DialogPrimitive.Trigger>}
       <DialogPortal>
-        <DialogOverlay />
+        <DialogOverlay className={overlayClassName} />
         <DialogPrimitive.Content
           className={cn(
             // Posición y animaciones idénticas al Dialog de shadcn: entrada

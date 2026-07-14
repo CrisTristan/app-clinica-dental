@@ -48,6 +48,7 @@ export type SchedulerEvent = ProcessedEvent & {
   unitPrice?: number;
   reason?: string | null;
   procedures?: AppointmentProcedure[];
+  note?: string | null;
 };
 
 export const DEFAULT_STATUS: AppointmentStatus = "toBeConfirmed";

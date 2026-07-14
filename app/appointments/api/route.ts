@@ -116,8 +116,12 @@ const addAppointmentProcedures = async (
 
   const { data: rows } = await supabase
     .from('appointment_procedures')
-    .select('id, appointment_id, clinic_procedure_id, treatment_plan_procedure_id')
+    .select('id, appointment_id, clinic_procedure_id, treatment_plan_procedure_id, orden')
+    // Se ordena por `orden` (y por id como desempate) para respetar la secuencia
+    // en que se realizarán los procedimientos definida al editar la cita.
     .in('appointment_id', appointmentIds)
+    .order('orden', { ascending: true, nullsFirst: false })
+    .order('id', { ascending: true })
 
   const clinicProcedureIds = Array.from(new Set((rows ?? [])
     .map(row => row.clinic_procedure_id)
@@ -350,6 +354,11 @@ export async function PUT(req: Request) {
 
   if (patient?.id) updatePayload.nameId = patient.id
   if (appointment.status !== undefined) updatePayload.status = appointment.status
+  if (appointment.notas !== undefined) {
+    // La nota se guarda en Appointment.notas; vacía se almacena como NULL.
+    const nota = typeof appointment.notas === 'string' ? appointment.notas.trim() : ''
+    updatePayload.notas = nota.length ? nota : null
+  }
   if (appointment.reason !== undefined) {
     if (typeof appointment.reason !== 'string' || appointment.reason.trim().length < 3) {
       return Response.json({ error: 'El motivo de consulta es requerido' }, { status: 400 })
@@ -381,6 +390,40 @@ export async function PUT(req: Request) {
       .eq('id', appointment.id)
 
     if (error) return new Response('Server error', { status: 500 })
+  }
+
+  // Orden de los procedimientos: el arreglo llega en la secuencia deseada. Se
+  // persiste en appointment_procedures.orden y se eliminan los que se quitaron
+  // durante la edición.
+  if (Array.isArray(appointment.procedures)) {
+    const incoming = appointment.procedures
+      .map((procedure: { id?: unknown }, index: number) => ({ id: Number(procedure.id), orden: index }))
+      .filter((procedure: { id: number }) => Number.isInteger(procedure.id))
+
+    const keepIds = incoming.map((procedure: { id: number }) => procedure.id)
+
+    let deleteQuery = supabase
+      .from('appointment_procedures')
+      .delete()
+      .eq('appointment_id', appointment.id)
+    if (keepIds.length) {
+      deleteQuery = deleteQuery.not('id', 'in', `(${keepIds.join(',')})`)
+    }
+    const { error: deleteError } = await deleteQuery
+    if (deleteError) {
+      return Response.json({ error: deleteError.message }, { status: 500 })
+    }
+
+    for (const procedure of incoming) {
+      const { error: ordenError } = await supabase
+        .from('appointment_procedures')
+        .update({ orden: procedure.orden })
+        .eq('id', procedure.id)
+        .eq('appointment_id', appointment.id)
+      if (ordenError) {
+        return Response.json({ error: ordenError.message }, { status: 500 })
+      }
+    }
   }
 
   if (appointment.serviceId !== undefined) {
