@@ -212,6 +212,15 @@ function App() {
         centrado y las vistas a la derecha.
       */}
       <style>{`
+        /* Los encabezados sticky del scheduler (fecha y horarios) usan un
+           z-index alto (99, y la barra de navegación interna 999). Sin un
+           contexto de apilamiento propio, en vista "día" al hacer scroll se
+           pintaban por encima del navbar (sticky, z-50). Creamos un contexto
+           en z-index 0 para confinar todo su contenido por debajo del navbar. */
+        .scheduler-wrapper {
+          position: relative;
+          z-index: 0;
+        }
         .scheduler-wrapper .MuiPaper-root:has(> .rs__view_navigator) {
           position: relative;
           justify-content: flex-start;
@@ -240,6 +249,13 @@ function App() {
         }
         .scheduler-wrapper .rs__view_navigator > button[aria-label="Agenda"] + button {
           margin-left: auto;
+        }
+        /* En móvil la librería colapsa Agenda y las vistas a iconos: repartimos
+           los 4 elementos (fecha, Hoy, Agenda, menú) de forma uniforme. */
+        @media (max-width: 600px) {
+          .scheduler-wrapper .MuiPaper-root:has(> .rs__view_navigator) {
+            justify-content: space-between;
+          }
         }
       `}</style>
       <Scheduler
