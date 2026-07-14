@@ -32,6 +32,14 @@ export interface DentistOption {
 
 export type PatientType = "new" | "registered";
 export type AppointmentStatus = "Confirmed" | "toBeConfirmed" | "Cancelled" | "Completed";
+
+export interface AppointmentProcedure {
+  id: number;
+  nombre: string;
+  clinicProcedureId: number | null;
+  treatmentPlanProcedureId: number | null;
+}
+
 export type SchedulerEvent = ProcessedEvent & {
   dentistId?: string | null;
   dentist?: DentistOption | null;
@@ -39,6 +47,7 @@ export type SchedulerEvent = ProcessedEvent & {
   serviceName?: string | null;
   unitPrice?: number;
   reason?: string | null;
+  procedures?: AppointmentProcedure[];
 };
 
 export const DEFAULT_STATUS: AppointmentStatus = "toBeConfirmed";

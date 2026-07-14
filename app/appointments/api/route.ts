@@ -105,6 +105,48 @@ const addAppointmentServiceDetails = async (
   })
 }
 
+// Adjunta a cada cita sus procedimientos programados (appointment_procedures),
+// resolviendo el nombre desde clinic_procedures a partir de clinic_procedure_id.
+const addAppointmentProcedures = async (
+  supabase: ReturnType<typeof createAdminClient>,
+  appointments: any[],
+) => {
+  const appointmentIds = appointments.map(appointment => appointment.id)
+  if (!appointmentIds.length) return appointments
+
+  const { data: rows } = await supabase
+    .from('appointment_procedures')
+    .select('id, appointment_id, clinic_procedure_id, treatment_plan_procedure_id')
+    .in('appointment_id', appointmentIds)
+
+  const clinicProcedureIds = Array.from(new Set((rows ?? [])
+    .map(row => row.clinic_procedure_id)
+    .filter((id): id is number => id !== null && id !== undefined)))
+
+  const { data: clinicProcedures } = clinicProcedureIds.length
+    ? await supabase.from('clinic_procedures').select('id, nombre').in('id', clinicProcedureIds)
+    : { data: [] }
+
+  const nombreById = new Map((clinicProcedures ?? []).map(procedure => [procedure.id, procedure.nombre]))
+
+  const proceduresByAppointment = new Map<any, any[]>()
+  for (const row of rows ?? []) {
+    const list = proceduresByAppointment.get(row.appointment_id) ?? []
+    list.push({
+      id: row.id,
+      clinicProcedureId: row.clinic_procedure_id,
+      treatmentPlanProcedureId: row.treatment_plan_procedure_id,
+      nombre: nombreById.get(row.clinic_procedure_id) ?? 'Procedimiento sin nombre',
+    })
+    proceduresByAppointment.set(row.appointment_id, list)
+  }
+
+  return appointments.map(appointment => ({
+    ...appointment,
+    procedures: proceduresByAppointment.get(appointment.id) ?? [],
+  }))
+}
+
 export async function GET(req: Request) {
   const auth = await requireStaff()
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
@@ -128,7 +170,12 @@ export async function GET(req: Request) {
     const { data, error } = await query
 
     if (error) return new Response('Server error', { status: 500 })
-    return Response.json(await addAppointmentServiceDetails(supabase, await addDentistContact(supabase, data)))
+    return Response.json(
+      await addAppointmentProcedures(
+        supabase,
+        await addAppointmentServiceDetails(supabase, await addDentistContact(supabase, data)),
+      ),
+    )
   }
 
   const { data, error } = await supabase
@@ -136,7 +183,12 @@ export async function GET(req: Request) {
     .select('*, name:Patient(*), dentist:profiles!Appointment_dentistId_fkey(id, nombre, role)')
 
   if (error) return new Response('Server error', { status: 500 })
-  return Response.json(await addAppointmentServiceDetails(supabase, await addDentistContact(supabase, data)))
+  return Response.json(
+    await addAppointmentProcedures(
+      supabase,
+      await addAppointmentServiceDetails(supabase, await addDentistContact(supabase, data)),
+    ),
+  )
 }
 
 export async function POST(req: Request) {
@@ -245,6 +297,36 @@ export async function POST(req: Request) {
     // Si falla el detalle del servicio, se revierte la cita para no dejar registros incompletos.
     await supabase.from('Appointment').delete().eq('id', appointment.id)
     return Response.json({ error: appointmentServiceError.message }, { status: 500 })
+  }
+
+  // Procedimientos de la cita (appointment_procedures): solo se guardan las claves
+  // foráneas. clinic_procedure_id es obligatorio; treatment_plan_procedure_id enlaza
+  // con el plan activo cuando el procedimiento proviene del checklist "Procedimientos
+  // a realizar" (NULL = ad-hoc). El resto de columnas queda en su default/NULL.
+  const procedureRows = (Array.isArray(appointment.procedures) ? appointment.procedures : [])
+    .map((procedure: { clinicProcedureId?: unknown; treatmentPlanProcedureId?: unknown }) => ({
+      clinic_procedure_id: Number(procedure.clinicProcedureId),
+      treatment_plan_procedure_id:
+        procedure.treatmentPlanProcedureId == null ? null : Number(procedure.treatmentPlanProcedureId),
+    }))
+    .filter((procedure: { clinic_procedure_id: number }) => Number.isInteger(procedure.clinic_procedure_id))
+    .map((procedure: { clinic_procedure_id: number; treatment_plan_procedure_id: number | null }) => ({
+      appointment_id: appointment.id,
+      clinic_procedure_id: procedure.clinic_procedure_id,
+      treatment_plan_procedure_id: procedure.treatment_plan_procedure_id,
+    }))
+
+  if (procedureRows.length) {
+    const { error: proceduresError } = await supabase
+      .from('appointment_procedures')
+      .insert(procedureRows)
+
+    if (proceduresError) {
+      // Si falla el detalle de procedimientos, se revierte la cita completa.
+      await supabase.from('appointment_services').delete().eq('appointment_id', appointment.id)
+      await supabase.from('Appointment').delete().eq('id', appointment.id)
+      return Response.json({ error: proceduresError.message }, { status: 500 })
+    }
   }
 
   return Response.json(appointment, { status: 201 })

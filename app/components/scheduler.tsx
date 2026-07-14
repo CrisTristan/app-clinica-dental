@@ -49,6 +49,7 @@ function App() {
         serviceName,
         unitPrice: appointmentService?.unitPrice ?? 0,
         reason,
+        procedures: appointment.procedures ?? [],
       };
     });
 
@@ -61,14 +62,21 @@ function App() {
     newStatus: AppointmentStatus,
     phone: number | string,
   ) => {
-    onUpdateSomeField(undefined, undefined, eventId, newStatus, phone).then(() => {
-      setEvents(previous =>
-        previous.map(event =>
-          event.event_id === eventId
-            ? { ...event, status: newStatus, color: STATUS_CONFIG[newStatus].color }
-            : event
-        )
+    // Actualización optimista: reflejamos el nuevo estado/color en el calendario de
+    // inmediato y luego persistimos en el backend. Si la petición falla, revertimos.
+    let previousEvents: ProcessedEvent[] = [];
+    setEvents(previous => {
+      previousEvents = previous;
+      return previous.map(event =>
+        event.event_id === eventId
+          ? { ...event, status: newStatus, color: STATUS_CONFIG[newStatus].color }
+          : event
       );
+    });
+
+    onUpdateSomeField(undefined, undefined, eventId, newStatus, phone).catch(error => {
+      console.error("No se pudo actualizar el estado de la cita:", error);
+      setEvents(previousEvents);
     });
   };
 
@@ -144,20 +152,26 @@ function App() {
         step: 30,
       }}
       customEditor={scheduler => <NewAppointmentWindow scheduler={scheduler} setEvents={setEvents} />}
-      viewerExtraComponent={(_fields, event) => {
-        const schedulerEvent = event as SchedulerEvent;
+      viewerTitleComponent={event => {
         const status = normalizeStatus(event.status as string);
         const config = STATUS_CONFIG[status];
 
         return (
-          <div className="mt-2 space-y-3">
-            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${config.badge}`}>
+          <div className="flex flex-col gap-1.5 py-1">
+            <span className="text-sm font-semibold leading-tight">{event.title}</span>
+            <span className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${config.badge}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${config.dot}`} />
               {config.label}
             </span>
-            {event.description && (
-              <p className="text-sm leading-relaxed text-gray-600">{event.description}</p>
-            )}
+          </div>
+        );
+      }}
+      viewerExtraComponent={(_fields, event) => {
+        const schedulerEvent = event as SchedulerEvent;
+        const status = normalizeStatus(event.status as string);
+
+        return (
+          <div className="mt-2 space-y-3">
             {schedulerEvent.dentist && (
               <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Dentista asignado</p>
@@ -171,10 +185,19 @@ function App() {
               </div>
             )}
             <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Servicio programado</p>
-              <p className="mt-1 text-sm font-medium text-gray-800">
-                {schedulerEvent.serviceName || "Sin servicio"}
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Procedimientos programados</p>
+              {schedulerEvent.procedures && schedulerEvent.procedures.length > 0 ? (
+                <ul className="mt-1 space-y-1">
+                  {schedulerEvent.procedures.map(procedure => (
+                    <li key={procedure.id} className="flex items-start gap-1.5 text-sm font-medium text-gray-800">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
+                      {procedure.nombre}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-sm font-medium text-gray-800">Sin procedimientos</p>
+              )}
             </div>
             <div className="border-t border-gray-100 pt-3">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Cambiar estado</p>
@@ -183,7 +206,6 @@ function App() {
                 onValueChange={value =>
                   handleStatusChange(event.event_id, normalizeStatus(value), String(event.description ?? ""))
                 }
-                className="space-y-1.5"
               >
                 {STATUS_OPTIONS.map(option => (
                   <div key={option} className="flex items-center gap-2">

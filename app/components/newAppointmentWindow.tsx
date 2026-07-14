@@ -35,7 +35,15 @@ interface NewAppointmentWindowProps {
 type ActivePlan = { id: number; nombre: string };
 
 /** Un procedimiento del plan (treatment_plan_procedures) listo para el checklist. */
-type PlanProcedure = { key: string; nombre: string; cantidad: number | null; planNombre: string };
+type PlanProcedure = {
+  key: string;
+  nombre: string;
+  cantidad: number | null;
+  planNombre: string;
+  // Claves foráneas para appointment_procedures al guardar la cita.
+  treatmentPlanProcedureId: number;
+  clinicProcedureId: number;
+};
 
 /** Un procedimiento del selector "Otros procedimientos" (clínica o catálogo normativo). */
 type OtherProcedure = { value: string; nombre: string; source: "clinic" | "catalog" };
@@ -227,13 +235,15 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
                 if (!response.ok) throw new Error("No se pudieron cargar los procedimientos");
                 return response.json();
               })
-              .then((data: { plan?: { dentist_id?: string | null; procedures?: { nombre: string; cantidad: number | null }[] } }) => ({
+              .then((data: { plan?: { dentist_id?: string | null; procedures?: { id: number; clinic_procedure_id: number; nombre: string; cantidad: number | null }[] } }) => ({
                 dentistId: data.plan?.dentist_id ?? null,
                 procedures: (data.plan?.procedures ?? []).map((proc, index): PlanProcedure => ({
                   key: `${plan.id}-${index}`,
                   nombre: proc.nombre,
                   cantidad: proc.cantidad,
                   planNombre: plan.nombre,
+                  treatmentPlanProcedureId: proc.id,
+                  clinicProcedureId: proc.clinic_procedure_id,
                 })),
               }))
           )
@@ -386,6 +396,22 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
     const appointmentReason = reason.trim();
     const selectedDentist = dentists.find(dentist => dentist.id === selectedDentistId) || event?.dentist || null;
 
+    // Procedimientos a guardar en appointment_procedures (solo claves foráneas):
+    // los marcados del plan activo conservan su treatment_plan_procedure_id; los
+    // del catálogo clínico ("Otros procedimientos") son ad-hoc (sin plan).
+    const appointmentProcedures = [
+      ...planProcedures
+        .filter(procedure => selectedProcedureKeys.includes(procedure.key))
+        .map(procedure => ({
+          clinicProcedureId: procedure.clinicProcedureId,
+          treatmentPlanProcedureId: procedure.treatmentPlanProcedureId,
+        })),
+      ...otherProcedures.map(procedure => ({
+        clinicProcedureId: Number(procedure.value.replace("clinic:", "")),
+        treatmentPlanProcedureId: null,
+      })),
+    ].filter(procedure => Number.isInteger(procedure.clinicProcedureId));
+
     try {
       scheduler.loading(true);
       let result: SchedulerEvent;
@@ -433,6 +459,7 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
             serviceId: null,
             startDate: toDbTimestamp(scheduler.state.start.value),
             endDate: toDbTimestamp(scheduler.state.end.value),
+            procedures: appointmentProcedures,
           }),
         });
 

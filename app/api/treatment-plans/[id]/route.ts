@@ -50,7 +50,7 @@ export async function GET(
   // el nombre en clinic_procedures. Se resuelve con una búsqueda aparte.
   const { data: tpp } = await supabase
     .from("treatment_plan_procedures")
-    .select("clinic_procedure_id, cantidad, precio_unitario, status")
+    .select("id, clinic_procedure_id, cantidad, precio_unitario, status")
     .eq("treatment_plan_id", planId)
     .order("clinic_procedure_id", { ascending: true })
 
@@ -62,6 +62,8 @@ export async function GET(
   const nameMap = new Map((clinicProcs ?? []).map(c => [c.id, c.nombre]))
 
   const procedures = (tpp ?? []).map(r => ({
+    id: r.id,
+    clinic_procedure_id: r.clinic_procedure_id,
     nombre: nameMap.get(r.clinic_procedure_id) ?? "Procedimiento",
     cantidad: r.cantidad,
     precio: r.precio_unitario,
