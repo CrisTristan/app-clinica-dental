@@ -52,6 +52,17 @@ body {
   background-color: #f8fafc;
 }
 
+/* En modo oscuro, el calendario de @aldabil/react-scheduler conserva el tema
+   claro de MUI (celdas con fondo blanco), pero su texto hereda el color claro
+   del body y queda ilegible. Forzamos un color oscuro solo para los encabezados
+   de día (Lun-Sáb) y las etiquetas de hora, para que el texto se vea. */
+.dark .rs__cell.rs__header,
+.dark .rs__cell.rs__header *,
+.dark .rs__cell.rs__time,
+.dark .rs__cell.rs__time * {
+  color: #1e293b;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
