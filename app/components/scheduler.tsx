@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Scheduler } from "@aldabil/react-scheduler";
-import type { ProcessedEvent, RemoteQuery } from "@aldabil/react-scheduler/types";
+import type { DayHours, ProcessedEvent, RemoteQuery } from "@aldabil/react-scheduler/types";
 import { es } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { onUpdateSomeField } from "../helpers/onUpdateSomeField";
@@ -17,9 +17,36 @@ import {
   type DentistOption,
   type AppointmentProcedure,
 } from "./schedulerShared";
+import { AGENDA_DEFAULTS, type AgendaConfig } from "@/lib/agenda-config";
 
-function App() {
+type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/*
+  OJO: `weekDays` NO son índices absolutos de día para la librería, son
+  desplazamientos desde el inicio de la semana. Internamente hace:
+
+    weekDays.map(d => addDays(startOfWeek(fecha, { weekStartsOn }), d))
+
+  Es decir, con weekStartOn = 1 (lunes), el 0 significa lunes y el 6 domingo.
+  La configuración guarda días absolutos (0 = domingo), que es independiente de
+  dónde inicie la semana, así que hay que convertirlos aquí. Sin esta
+  conversión, deseleccionar el domingo borraba el lunes.
+
+  El orden ascendente importa: la librería toma el primero y el último del
+  arreglo para calcular el rango de fechas que muestra.
+*/
+const toWeekOffsets = (days: number[], weekStartOn: number): WeekDay[] =>
+  days
+    .map((day) => (((day - weekStartOn + 7) % 7) as WeekDay))
+    .sort((a, b) => a - b);
+
+function App({ config = AGENDA_DEFAULTS }: { config?: AgendaConfig }) {
   const [events, setEvents] = useState<ProcessedEvent[]>([]);
+
+  const weekStartOn = config.startDayWeek as WeekDay;
+  const weekDays = toWeekOffsets(config.daysWeek, config.startDayWeek);
+  const startHour = config.startHour as DayHours;
+  const endHour = config.endHour as DayHours;
 
   const fetchRemoteData = async (_query: RemoteQuery): Promise<ProcessedEvent[]> => {
     const response = await fetch("/appointments/api");
@@ -221,6 +248,25 @@ function App() {
           position: relative;
           z-index: 0;
         }
+        /* Los eventos quedaban descuadrados hacia abajo, y el desfase crecía
+           conforme avanzaba el día. La librería posiciona cada evento con:
+
+             top = minutos * minuteHeight + minutos / step
+
+           Ese segundo término suma 1px por cada celda cruzada, porque asume que
+           una celda ocupa su height MÁS 1px de borde, es decir el box-sizing
+           content-box que trae el navegador por defecto. El preflight de
+           Tailwind pone box-sizing: border-box en todos los elementos, así
+           que el borde pasa a contar DENTRO del alto y cada fila mide 60px en
+           vez de 61: la compensación sobra y el evento cae 1px por celda
+           (20px a las 18:00 con inicio 8:00 y paso de 30 min).
+
+           Devolvemos content-box a las celdas para que la fila vuelva a medir
+           lo que la librería calcula. Sólo afecta el alto: el ancho lo definen
+           las columnas del grid (1fr), no la caja de la celda. */
+        .scheduler-wrapper .rs__cell {
+          box-sizing: content-box;
+        }
         .scheduler-wrapper .MuiPaper-root:has(> .rs__view_navigator) {
           position: relative;
           justify-content: flex-start;
@@ -261,9 +307,9 @@ function App() {
       <Scheduler
       events={events}
       locale={es}
-      hourFormat="24"
+      hourFormat={String(config.hourFormat) as "12" | "24"}
       height={500}
-      view="week"
+      view={config.defaultView}
       getRemoteEvents={fetchRemoteData}
       onEventDrop={onEventDrop}
       onDelete={onDelete}
@@ -277,16 +323,24 @@ function App() {
         loading: "Cargando...",
       }}
       week={{
-        weekDays: [0, 1, 2, 3, 4, 5, 6],
-        weekStartOn: 1,
-        startHour: 8,
-        endHour: 20,
-        step: 60,
+        weekDays,
+        weekStartOn,
+        startHour,
+        endHour,
+        step: config.timeInterval,
       }}
       day={{
-        startHour: 8,
-        endHour: 20,
-        step: 30,
+        startHour,
+        endHour,
+        step: config.timeInterval,
+      }}
+      // Sin esto la vista de mes usa los defaults de la librería
+      // (weekStartOn: 6 = sábado, los 7 días) e ignora la configuración.
+      month={{
+        weekDays,
+        weekStartOn,
+        startHour,
+        endHour,
       }}
       customEditor={scheduler => <NewAppointmentWindow scheduler={scheduler} setEvents={setEvents} />}
       customViewer={(event, close) => (

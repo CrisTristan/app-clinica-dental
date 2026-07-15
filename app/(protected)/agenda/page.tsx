@@ -1,8 +1,11 @@
 "use client"
 import Scheduler from "../../components/scheduler"
+import AgendaConfigDrawer from "../../components/AgendaConfigDrawer"
 import { useEffect, useState } from "react"
+import { Settings } from "lucide-react"
 import { authentication } from "@/app/actions/authentication"
-import { hasAccess, ROLE_LABELS, type Role } from "@/lib/roles"
+import { hasAccess, isAdmin, ROLE_LABELS, type Role } from "@/lib/roles"
+import { AGENDA_DEFAULTS, type AgendaConfig } from "@/lib/agenda-config"
 
 const DAYS = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"]
 const MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"]
@@ -15,6 +18,8 @@ function todayLabel() {
 export default function Agenda() {
   const [canAccess, setCanAccess] = useState<boolean | null>(null)
   const [role, setRole]           = useState<Role | null>(null)
+  const [configOpen, setConfigOpen] = useState(false)
+  const [config, setConfig] = useState<AgendaConfig | null>(null)
 
   useEffect(() => {
     authentication().then(session => {
@@ -27,6 +32,17 @@ export default function Agenda() {
       }
     })
   }, [])
+
+  // La configuración aplica a todos los roles, no sólo a quien puede editarla.
+  // Si falla, la agenda abre con los valores por defecto en vez de quedarse
+  // colgada en el spinner.
+  useEffect(() => {
+    if (!canAccess) return
+    fetch("/api/agenda-config")
+      .then(r => r.json())
+      .then(data => setConfig(data.config ?? AGENDA_DEFAULTS))
+      .catch(() => setConfig(AGENDA_DEFAULTS))
+  }, [canAccess])
 
   if (canAccess === null)
     return (
@@ -56,6 +72,21 @@ export default function Agenda() {
                 <h1 className="text-xl font-bold text-gray-800 dark:text-slate-100 leading-tight">Agenda</h1>
                 <p className="text-xs text-gray-400 dark:text-slate-500 capitalize">{todayLabel()}</p>
               </div>
+
+              {/* Sólo admin puede guardar la configuración (PUT /api/agenda-config). */}
+              {isAdmin(role ?? undefined) && (
+                <button
+                  onClick={() => setConfigOpen(true)}
+                  title="Configuración de la agenda"
+                  aria-label="Configuración de la agenda"
+                  className="w-9 h-9 grid place-items-center rounded-xl shrink-0 text-gray-400 dark:text-slate-500
+                             border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700
+                             hover:text-sky-600 dark:hover:text-sky-400 hover:border-sky-300 dark:hover:border-sky-700
+                             transition-colors"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -76,9 +107,28 @@ export default function Agenda() {
       {/* Scheduler */}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-6">
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
-          <Scheduler />
+          {config ? (
+            /*
+              @aldabil/react-scheduler copia los props a su store interno sólo
+              al montar (su StoreProvider únicamente re-sincroniza events,
+              customEditor y onEventDrop). Cambiar view/week/day/hourFormat en
+              caliente no tiene efecto, así que la `key` fuerza un remontaje
+              cuando la configuración cambia realmente.
+            */
+            <Scheduler key={JSON.stringify(config)} config={config} />
+          ) : (
+            <div className="flex items-center justify-center py-24">
+              <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
         </div>
       </div>
+
+      <AgendaConfigDrawer
+        open={configOpen}
+        onOpenChange={setConfigOpen}
+        onSaved={setConfig}
+      />
 
     </div>
   )
