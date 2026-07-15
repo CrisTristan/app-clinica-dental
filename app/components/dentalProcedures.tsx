@@ -20,6 +20,9 @@ import {
 
 type Filter = 'clinicos' | 'normativos'
 
+// dental_procedures.procedimiento_type; los que no encajan en ninguno vienen NULL.
+type ProcedureType = 'D' | 'Q' | 'T' | null
+
 type Procedure = {
   key: string
   nombre: string
@@ -31,11 +34,20 @@ type Procedure = {
   procedure_category_id?: number | null
   // Sólo procedimientos normativos (dental_procedures):
   catalog_key?: string
+  procedimiento_type?: ProcedureType
 }
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'clinicos',   label: 'Clínicos'   },
   { id: 'normativos', label: 'Normativos' },
+]
+
+// Filtro por tipo de los procedimientos normativos. 'otros' agrupa los NULL.
+const TYPE_FILTERS: { id: string; label: string }[] = [
+  { id: 'D',     label: 'Diagnóstico' },
+  { id: 'Q',     label: 'Quirúrgico'  },
+  { id: 'T',     label: 'Terapéutico' },
+  { id: 'otros', label: 'Otros'       },
 ]
 
 // Normaliza para buscar sin acentos ni mayúsculas.
@@ -245,6 +257,9 @@ export default function DentalProcedures() {
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
 
+  // Filtro por tipo normativo: '' = todos, 'D' | 'Q' | 'T' | 'otros'.
+  const [typeFilter, setTypeFilter] = useState('')
+
   // ── Categorías (filtro por categoría + selector "tipo") ──
   const [categoryFilter, setCategoryFilter] = useState('')   // '' = todas
   const [categoryOptions, setCategoryOptions] = useState<Option[]>([])
@@ -389,6 +404,7 @@ export default function DentalProcedures() {
     setLoading(true)
     setError('')
     setCategoryFilter('')
+    setTypeFilter('')
     if (filter === 'clinicos') loadCategories()
 
     const endpoint = filter === 'clinicos' ? '/api/clinic-procedures' : '/api/dental-procedures'
@@ -416,6 +432,7 @@ export default function DentalProcedures() {
                   key: String(p.catalog_key ?? i),
                   nombre: p.nombre,
                   catalog_key: p.catalog_key,
+                  procedimiento_type: p.procedimiento_type ?? null,
                 }
           )),
         )
@@ -428,14 +445,20 @@ export default function DentalProcedures() {
     const q = norm(searchTerm)
     return procedures.filter(p => {
       if (categoryFilter && String(p.procedure_category_id ?? '') !== categoryFilter) return false
+      // 'otros' agrupa los procedimientos sin tipo (procedimiento_type NULL).
+      if (typeFilter && (p.procedimiento_type ?? 'otros') !== typeFilter) return false
       if (q && !norm(p.nombre).includes(q)) return false
       return true
     })
-  }, [procedures, searchTerm, categoryFilter])
+  }, [procedures, searchTerm, categoryFilter, typeFilter])
 
   const categoryFilterLabel = categoryFilter
     ? categoryOptions.find(o => o.value === categoryFilter)?.label ?? 'Categoría'
     : 'Todas las categorías'
+
+  const typeFilterLabel = typeFilter
+    ? TYPE_FILTERS.find(t => t.id === typeFilter)?.label ?? 'Tipo'
+    : 'Todos los tipos'
 
   const handleUpdated = (updated: Procedure) =>
     setProcedures(prev => prev.map(p => p.key === updated.key ? updated : p))
@@ -537,14 +560,46 @@ export default function DentalProcedures() {
           </DropdownMenu>
         )}
 
-        <button
-          onClick={openAdd}
-          className="shrink-0 inline-flex items-center gap-1.5 h-9 px-4 rounded-xl text-sm font-semibold text-white shadow-sm
-                     bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          Agregar
-        </button>
+        {/* Filtro por tipo (sólo procedimientos normativos) */}
+        {filter === 'normativos' && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                title="Filtrar por tipo"
+                aria-label="Filtrar por tipo"
+                className="shrink-0 inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-xl text-sm font-medium
+                           border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700
+                           text-gray-700 dark:text-slate-200 hover:border-sky-300 dark:hover:border-sky-700 transition-colors"
+              >
+                <FilterIcon className="w-4 h-4 text-gray-400 dark:text-slate-500" />
+                <span className="hidden sm:inline max-w-[9rem] truncate">{typeFilterLabel}</span>
+                <ChevronDown className="hidden sm:inline w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={() => setTypeFilter('')}>
+                Todos los tipos
+              </DropdownMenuItem>
+              {TYPE_FILTERS.map(t => (
+                <DropdownMenuItem key={t.id} onClick={() => setTypeFilter(t.id)}>
+                  {t.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* "Agregar" sólo aplica al catálogo de la clínica */}
+        {filter === 'clinicos' && (
+          <button
+            onClick={openAdd}
+            className="shrink-0 inline-flex items-center gap-1.5 h-9 px-4 rounded-xl text-sm font-semibold text-white shadow-sm
+                       bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            Agregar
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -561,7 +616,9 @@ export default function DentalProcedures() {
               ? `Sin resultados para "${searchTerm}"`
               : categoryFilter
                 ? `Sin procedimientos en "${categoryFilterLabel}"`
-                : 'No hay procedimientos en el catálogo.'}
+                : typeFilter
+                  ? `Sin procedimientos de tipo "${typeFilterLabel}"`
+                  : 'No hay procedimientos en el catálogo.'}
           </p>
         </div>
       ) : (

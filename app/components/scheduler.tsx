@@ -277,7 +277,7 @@ function App() {
         loading: "Cargando...",
       }}
       week={{
-        weekDays: [0, 1, 2, 3, 4, 5],
+        weekDays: [0, 1, 2, 3, 4, 5, 6],
         weekStartOn: 1,
         startHour: 8,
         endHour: 20,
