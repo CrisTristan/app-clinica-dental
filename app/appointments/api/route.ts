@@ -1,9 +1,17 @@
 import { requireStaff } from "@/lib/auth-guard"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { dateOnlyToDbEndOfDay, dateOnlyToDbStartOfDay } from "@/app/helpers/dateTime"
+import { dateOnlyToDbEndOfDay, dateOnlyToDbStartOfDay, parseDbTimestamp } from "@/app/helpers/dateTime"
 
 const isValidPersonText = (value: unknown) =>
   typeof value === 'string' && /^[\p{L}\s'.-]{3,}$/u.test(value.trim())
+
+// startDate/endDate son columnas obligatorias y el horario se teclea a mano en el
+// editor de citas, así que el rango se revalida aquí: el navegador ya lo valida,
+// pero es la API la que protege los datos de un horario invertido o corrupto.
+const INVALID_RANGE_ERROR = 'El horario de la cita no es válido'
+const INVERTED_RANGE_ERROR = 'La hora de fin debe ser posterior a la hora de inicio'
+
+const isOrderedRange = (start: Date, end: Date) => end.getTime() > start.getTime()
 
 // Complementa la relacion profiles con datos de contacto que viven en Auth.
 const addDentistContact = async (
@@ -218,6 +226,16 @@ export async function POST(req: Request) {
     return Response.json({ error: 'El motivo de consulta es requerido' }, { status: 400 })
   }
 
+  const start = parseDbTimestamp(appointment.startDate)
+  const end = parseDbTimestamp(appointment.endDate)
+
+  if (!start || !end) {
+    return Response.json({ error: INVALID_RANGE_ERROR }, { status: 400 })
+  }
+  if (!isOrderedRange(start, end)) {
+    return Response.json({ error: INVERTED_RANGE_ERROR }, { status: 400 })
+  }
+
   // El responsable de la cita debe existir en profiles y tener rol dentista.
   const { data: dentist, error: dentistError } = await supabase
     .from('profiles')
@@ -365,8 +383,52 @@ export async function PUT(req: Request) {
     }
     updatePayload.reason = appointment.reason.trim()
   }
-  if (appointment.startDate !== undefined) updatePayload.startDate = appointment.startDate
-  if (appointment.endDate !== undefined) updatePayload.endDate = appointment.endDate
+  // El horario solo se toca si llega en la petición: cambiar el estado o la nota
+  // de una cita no debe exigir reenviar sus fechas.
+  const hasStart = appointment.startDate !== undefined
+  const hasEnd = appointment.endDate !== undefined
+
+  if (hasStart || hasEnd) {
+    const nextStart = hasStart ? parseDbTimestamp(appointment.startDate) : null
+    const nextEnd = hasEnd ? parseDbTimestamp(appointment.endDate) : null
+
+    if ((hasStart && !nextStart) || (hasEnd && !nextEnd)) {
+      return Response.json({ error: INVALID_RANGE_ERROR }, { status: 400 })
+    }
+
+    // Si solo se mueve un extremo, el otro se compara contra el que ya está
+    // guardado; de lo contrario un endDate suelto podría quedar antes del inicio.
+    let start = nextStart
+    let end = nextEnd
+
+    if (!start || !end) {
+      const { data: stored, error: storedError } = await supabase
+        .from('Appointment')
+        .select('startDate, endDate')
+        .eq('id', appointment.id)
+        .maybeSingle()
+
+      if (storedError) {
+        return Response.json({ error: storedError.message }, { status: 500 })
+      }
+      if (!stored) {
+        return Response.json({ error: 'La cita no existe' }, { status: 404 })
+      }
+
+      start = start ?? parseDbTimestamp(stored.startDate)
+      end = end ?? parseDbTimestamp(stored.endDate)
+    }
+
+    if (!start || !end) {
+      return Response.json({ error: INVALID_RANGE_ERROR }, { status: 400 })
+    }
+    if (!isOrderedRange(start, end)) {
+      return Response.json({ error: INVERTED_RANGE_ERROR }, { status: 400 })
+    }
+
+    if (hasStart) updatePayload.startDate = appointment.startDate
+    if (hasEnd) updatePayload.endDate = appointment.endDate
+  }
   if (appointment.dentistId !== undefined) {
     // En ediciones, solo se acepta cambiar a usuarios que sigan siendo dentistas.
     const { data: dentist, error: dentistError } = await supabase

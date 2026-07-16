@@ -24,6 +24,18 @@ export const toDbTimestamp = (value: Date | string | number) => {
   ].join("");
 };
 
+/**
+ * Lee un timestamp que llega a la API (o que viene de la base) y lo convierte a
+ * Date. Devuelve null si no es una fecha usable, para que quien lo llame decida
+ * el error en lugar de propagar un "Invalid Date".
+ */
+export const parseDbTimestamp = (value: unknown): Date | null => {
+  if (typeof value !== "string" || !value.trim()) return null;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
 export const dateOnlyToDbStartOfDay = (value: string) => `${value}T00:00:00.000`;
 
 export const dateOnlyToDbEndOfDay = (value: string) => `${value}T23:59:59.999`;

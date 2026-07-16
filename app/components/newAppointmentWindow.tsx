@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { ChevronDown, X } from "lucide-react";
 import { onUpdateSomeField } from "../helpers/onUpdateSomeField";
 import { toDbTimestamp } from "../helpers/dateTime";
+import CampoHorario from "./campoHorario";
 import SearchableSelect from "./SearchableSelect";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
@@ -63,8 +64,15 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
     : [];
   const startVal = scheduler.state?.start?.value;
   const endVal = scheduler.state?.end?.value;
-  const startLabel = startVal ? format(new Date(startVal), "d MMM · HH:mm", { locale: es }) : "";
-  const endLabel = endVal ? format(new Date(endVal), "HH:mm", { locale: es }) : "";
+
+  // El scheduler no permite escribir de vuelta en su estado, así que el horario
+  // editable vive aquí y es el que se manda a la API al guardar.
+  const [startDate, setStartDate] = useState<Date | null>(startVal ? new Date(startVal) : null);
+  const [endDate, setEndDate] = useState<Date | null>(endVal ? new Date(endVal) : null);
+  const dayLabel = startDate ? format(startDate, "d MMM", { locale: es }) : "";
+  const isTimeRangeValid = Boolean(
+    startDate && endDate && endDate.getTime() > startDate.getTime()
+  );
 
   const [state, setState] = useState({
     id: nanoid(),
@@ -392,6 +400,8 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
       setErrorDentist("Selecciona el dentista que atenderá la cita");
       return;
     }
+    // El aviso ya se muestra bajo el horario en el header.
+    if (!startDate || !endDate || !isTimeRangeValid) return;
 
     const appointmentReason = reason.trim();
     const selectedDentist = dentists.find(dentist => dentist.id === selectedDentistId) || event?.dentist || null;
@@ -417,7 +427,7 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
       let result: SchedulerEvent;
 
       if (event?.event_id) {
-        await onUpdateSomeField(event, {
+        await onUpdateSomeField({ ...event, start: startDate, end: endDate }, {
           ...state,
           reason: appointmentReason,
           dentistId: selectedDentistId,
@@ -429,8 +439,8 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
           event_id: event.event_id,
           title: [state.name, state.apellido_pat, state.apellido_mat].filter(Boolean).join(" "),
           subtitle: appointmentReason,
-          start: event.start,
-          end: event.end,
+          start: startDate,
+          end: endDate,
           description: state.phone,
           status,
           color: STATUS_CONFIG[status].color,
@@ -457,8 +467,8 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
             dentistId: selectedDentistId,
             // Ya no se agenda un servicio del catálogo con la cita.
             serviceId: null,
-            startDate: toDbTimestamp(scheduler.state.start.value),
-            endDate: toDbTimestamp(scheduler.state.end.value),
+            startDate: toDbTimestamp(startDate),
+            endDate: toDbTimestamp(endDate),
             procedures: appointmentProcedures,
           }),
         });
@@ -472,8 +482,8 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
           event_id: state.id,
           title: [state.name, state.apellido_pat, state.apellido_mat].filter(Boolean).join(" "),
           subtitle: appointmentReason,
-          start: scheduler.state.start.value,
-          end: scheduler.state.end.value,
+          start: startDate,
+          end: endDate,
           description: state.phone,
           status: DEFAULT_STATUS,
           color: STATUS_CONFIG[DEFAULT_STATUS].color,
@@ -526,14 +536,24 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
               d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           <h3 className="text-sm font-semibold text-white">{isEdit ? "Editar cita" : "Nueva cita"}</h3>
+          {dayLabel && <p className="text-xs text-sky-100">{dayLabel}</p>}
         </div>
-        {startLabel && (
-          <p className="mt-1 text-xs text-sky-100">
-            {startLabel}{endLabel ? ` – ${endLabel}` : ""}
-          </p>
+        {startDate && endDate && (
+          <div className="mt-2">
+            <div className="flex items-center justify-center gap-2">
+              <CampoHorario value={startDate} onChange={setStartDate} label="Hora de inicio de la cita" />
+              <span className="text-xs text-sky-100">-</span>
+              <CampoHorario value={endDate} onChange={setEndDate} label="Hora final de la cita" />
+            </div>
+            {!isTimeRangeValid && (
+              <p className="mt-1.5 text-center text-[11px] font-medium text-rose-100">
+                La hora final debe ser posterior a la de inicio.
+              </p>
+            )}
+          </div>
         )}
         {state.patientId && (
-          <div className="mt-2">
+          <div className="mt-3 border-t border-white/25 pt-3">
             {isLoadingTreatments ? (
               <p className="text-center text-xs text-sky-100">Consultando tratamientos activos…</p>
             ) : activePlans.length ? (
@@ -875,7 +895,7 @@ export default function NewAppointmentWindow({ scheduler, setEvents }: NewAppoin
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isLoadingDentists}
+            disabled={isLoadingDentists || !isTimeRangeValid}
             className="rounded-lg bg-gradient-to-r from-sky-500 to-cyan-500 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:from-sky-600 hover:to-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isEdit ? "Guardar cambios" : "Crear cita"}

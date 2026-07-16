@@ -37,10 +37,13 @@ export const onUpdateSomeField = async(event?: ProcessedEvent, state? : Appointm
         },
         body: JSON.stringify(payload)
       })
-        .then(response => {
+        .then(async response => {
           if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        return response.json();
+            // La API explica por qué rechazó el cambio (horario invertido, dentista
+            // inválido…); ese texto es el que la ventana de la cita muestra.
+            const body = await response.json().catch(() => null);
+            throw new Error(body?.error || 'No se pudo actualizar la cita');
+          }
+          return response.json();
       })
 }
