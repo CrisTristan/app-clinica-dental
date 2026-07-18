@@ -55,6 +55,7 @@ export default function NavBar() {
     { href: "/agenda",            label: "Agenda",        show: can(role, 'agenda') },
     { href: "/servicios-activos", label: "Servicios",     show: can(role, 'cobros') },
     { href: "/recetas",           label: "Recetas",       show: can(role, 'recetas') },
+    { href: "/inventory",         label: "Inventario",    show: can(role, 'inventario') },
     { href: "/pacientes",         label: isRecepcionista ? "Gestion" : "Panel Admin", show: can(role, 'pacientes') },
     { href: "/dashboard",         label: "Dashboard",     show: can(role, 'dashboard') },
     { href: "/reportes",          label: "Reportes",      show: can(role, 'reportes') },

@@ -28,6 +28,7 @@ const roleRoutes: { prefix: string; roles: readonly string[] }[] = [
   { prefix: '/reportes',          roles: rolesFor('reportes') },
   { prefix: '/auditoria',         roles: rolesFor('auditoria') },
   { prefix: '/odontograma',       roles: rolesFor('clinica.editar') },
+  { prefix: '/inventory',         roles: rolesFor('inventario') },
 ]
 
 export async function middleware(request: NextRequest) {

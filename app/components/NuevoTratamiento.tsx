@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useMemo } from 'react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Stethoscope, Square, Minus, Plus, TrendingUp, Check, ListChecks, X, GripVertical, ArrowRight, ArrowLeft, FileText } from "lucide-react"
+import VentanaPopup from "./VentanaPopup"
+import { Stethoscope, Minus, Plus, TrendingUp, Check, ListChecks, X, GripVertical, ArrowRight, ArrowLeft, FileText } from "lucide-react"
 import { Reorder } from "framer-motion"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
@@ -21,7 +21,6 @@ const labelClass =
 export default function NuevoTratamiento({ id }: { id: string | null }) {
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [maximized, setMaximized] = useState(false)
   // Paso 1: tratamiento. Paso 2: procedimientos y precios. Paso 3: resumen.
   const [step, setStep] = useState<1 | 2 | 3>(1)
   // ¿Generar una nueva hoja de consentimiento al finalizar?
@@ -182,8 +181,10 @@ export default function NuevoTratamiento({ id }: { id: string | null }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={o => { setOpen(o); if (!o) reset() }}>
-      <DialogTrigger asChild>
+    <VentanaPopup
+      open={open}
+      onOpenChange={o => { setOpen(o); if (!o) reset() }}
+      trigger={
         <button
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-sky-600 dark:text-sky-400
                      bg-white/90 dark:bg-slate-800/80 border border-sky-200 dark:border-sky-800
@@ -192,49 +193,60 @@ export default function NuevoTratamiento({ id }: { id: string | null }) {
           <Plus className="w-4 h-4" />
           Nuevo tratamiento
         </button>
-      </DialogTrigger>
-      <DialogContent
-        className={
-          (maximized
-            ? "w-screen max-w-none h-screen max-h-screen rounded-none sm:rounded-none overflow-y-auto"
-            : "sm:max-w-2xl") +
-          " bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700"
-        }
-      >
-        {/* Controles de ventana estilo Windows (agrandar / reducir), a la izquierda de la "X" (salir) */}
-        <div className="absolute right-11 top-4 z-10 flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setMaximized(true)}
-            disabled={maximized}
-            title="Agrandar"
-            className="rounded-sm p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-sky-600 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-sky-400 disabled:pointer-events-none disabled:opacity-30"
-          >
-            <Square className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMaximized(false)}
-            disabled={!maximized}
-            title="Reducir"
-            className="rounded-sm p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-sky-600 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-sky-400 disabled:pointer-events-none disabled:opacity-30"
-          >
-            <Minus className="h-4 w-4" />
-          </button>
+      }
+      icon={Stethoscope}
+      title="Inicia un plan de tratamiento"
+      subtitle={
+        step === 1
+          ? "Elige el tratamiento a realizar"
+          : step === 2
+          ? "Agrega los procedimientos dentales y asigna su precio"
+          : "Revisa el resumen del plan de tratamiento"
+      }
+      footer={
+        <div className="flex w-full items-center justify-between gap-3">
+          {step > 1 ? (
+            <button
+              type="button"
+              onClick={() => setStep(s => (s - 1) as 1 | 2 | 3)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 dark:text-slate-300
+                         bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-xl transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Volver
+            </button>
+          ) : <span />}
+
+          {step < 3 && (
+            <button
+              type="button"
+              onClick={() => setStep(s => (s + 1) as 1 | 2 | 3)}
+              disabled={(step === 1 && !selected) || (step === 2 && chosenProcs.length === 0)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white
+                         bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600
+                         rounded-xl shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Continuar
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
+
+          {step === 3 && (
+            <button
+              type="button"
+              onClick={handleFinalizar}
+              disabled={submitting}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white
+                         bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600
+                         rounded-xl shadow-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Check className="w-4 h-4" />
+              {submitting ? "Guardando…" : "Finalizar"}
+            </button>
+          )}
         </div>
-        <DialogHeader className="pr-28">
-          <DialogTitle className="flex items-center gap-2 text-gray-800 dark:text-slate-100">
-            <Stethoscope className="w-4 h-4 text-sky-500" />
-            Inicia un plan de tratamiento
-          </DialogTitle>
-          <DialogDescription className="text-gray-400 dark:text-slate-500">
-            {step === 1
-              ? "Elige el tratamiento a realizar"
-              : step === 2
-              ? "Agrega los procedimientos dentales y asigna su precio"
-              : "Revisa el resumen del plan de tratamiento"}
-          </DialogDescription>
-        </DialogHeader>
+      }
+    >
 
         {/* ── Paso 1: selección ── */}
         {step === 1 && (
@@ -548,49 +560,6 @@ export default function NuevoTratamiento({ id }: { id: string | null }) {
         </div>
         )}
 
-        {/* ── Navegación entre pasos ── */}
-        <div className="flex items-center justify-between gap-3 pt-4 mt-2 border-t border-gray-100 dark:border-slate-700">
-          {step > 1 ? (
-            <button
-              type="button"
-              onClick={() => setStep(s => (s - 1) as 1 | 2 | 3)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 dark:text-slate-300
-                         bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-xl transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Volver
-            </button>
-          ) : <span />}
-
-          {step < 3 && (
-            <button
-              type="button"
-              onClick={() => setStep(s => (s + 1) as 1 | 2 | 3)}
-              disabled={(step === 1 && !selected) || (step === 2 && chosenProcs.length === 0)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white
-                         bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600
-                         rounded-xl shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Continuar
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          )}
-
-          {step === 3 && (
-            <button
-              type="button"
-              onClick={handleFinalizar}
-              disabled={submitting}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white
-                         bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600
-                         rounded-xl shadow-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <Check className="w-4 h-4" />
-              {submitting ? "Guardando…" : "Finalizar"}
-            </button>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+    </VentanaPopup>
   )
 }

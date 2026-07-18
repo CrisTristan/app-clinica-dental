@@ -34,6 +34,7 @@ export default function SearchableSelect({
   listHeader,
   creatable = false,
   createLabel,
+  defaultOpen = false,
 }: {
   options: Option[]
   value: string
@@ -55,8 +56,12 @@ export default function SearchableSelect({
   // ofrece "usarlo" como valor personalizado (value === label === texto).
   creatable?: boolean
   createLabel?: (query: string) => ReactNode
+  // Arranca con la lista desplegada. Útil cuando el select es lo único que hay
+  // que atender al abrir una ventana; el contenedor debe reservar el alto de la
+  // lista para que no quede recortada.
+  defaultOpen?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   const [query, setQuery] = useState("")
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)

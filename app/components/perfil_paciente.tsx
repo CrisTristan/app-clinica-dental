@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { X, Save, Camera, Upload, ArrowLeft, User, Phone, MapPin, Calendar, Mail, Stethoscope, ClipboardList, Activity, Heart, Droplets, Apple, FileImage, Pencil, Check, Square, Minus } from "lucide-react"
+import { X, Save, Camera, Upload, ArrowLeft, User, Phone, MapPin, Calendar, Mail, Stethoscope, ClipboardList, Activity, Heart, Droplets, Apple, FileImage, Pencil, Check } from "lucide-react"
 import { Patient } from '../types/types'
 import { getProfilePhoto } from '../actions/getProfilePhoto'
 import { CldUploadWidget } from "next-cloudinary"
@@ -21,6 +21,7 @@ import Alergias from './DentalData/Alergias'
 import Alimentacion from './DentalData/Alimentacion'
 import { useRouter } from 'next/navigation'
 import DetallesPaciente from './DetallesPaciente'
+import VentanaPopup from './VentanaPopup'
 import NuevoTratamiento from './NuevoTratamiento'
 import TratamientosActivos from './TratamientosActivos'
 import OdontogramaCanvas from '../odontograma/OdontogramaCanvas'
@@ -108,10 +109,10 @@ function ArchivoDialog({
   const fallbackName = `Archivo ${index + 1}`
   const displayName = file.Name?.trim() || fallbackName
 
+  const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(displayName)
   const [saving, setSaving] = useState(false)
-  const [maximized, setMaximized] = useState(false)
 
   const startEditing = () => {
     setValue(file.Name?.trim() || "")
@@ -139,9 +140,59 @@ function ArchivoDialog({
     }
   }
 
+  // El encabezado alterna entre el nombre del archivo (con botón para editar) y
+  // el formulario de renombrado en línea; se pasa como `title` a la ventana.
+  const tituloArchivo = editing ? (
+    <span className="flex items-center gap-2">
+      <Input
+        value={value}
+        autoFocus
+        disabled={saving}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); submit() }
+          if (e.key === "Escape") { e.preventDefault(); cancelEditing() }
+        }}
+        className="h-8"
+      />
+      <button
+        type="button"
+        onClick={submit}
+        disabled={saving}
+        className="shrink-0 rounded-lg p-1.5 text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-900/30 disabled:opacity-50"
+        title="Guardar nombre"
+      >
+        <Check className="w-4 h-4" />
+      </button>
+      <button
+        type="button"
+        onClick={cancelEditing}
+        disabled={saving}
+        className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
+        title="Cancelar"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </span>
+  ) : (
+    <span className="flex items-center gap-2">
+      <span className="truncate">{displayName}</span>
+      <button
+        type="button"
+        onClick={startEditing}
+        className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-sky-600 dark:hover:bg-slate-700 dark:hover:text-sky-400"
+        title="Editar nombre"
+      >
+        <Pencil className="w-4 h-4" />
+      </button>
+    </span>
+  )
+
   return (
-    <Dialog>
-      <DialogTrigger asChild>
+    <VentanaPopup
+      open={open}
+      onOpenChange={o => { setOpen(o); if (!o) setEditing(false) }}
+      trigger={
         <div className="relative cursor-pointer rounded-xl overflow-hidden border border-gray-100 dark:border-slate-700 hover:ring-2 hover:ring-sky-400 transition-all group">
           {isPdfFile(file) ? (
             <div className="relative h-32 bg-white dark:bg-slate-900">
@@ -169,111 +220,35 @@ function ArchivoDialog({
             {displayName}
           </span>
         </div>
-      </DialogTrigger>
-      <DialogContent
-        className={
-          (maximized
-            ? "w-screen max-w-none h-screen max-h-screen rounded-none sm:rounded-none overflow-y-auto"
-            : "sm:max-w-3xl") +
-          " bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700"
-        }
-      >
-        {/* Controles de ventana estilo Windows (maximizar / restaurar), a la izquierda de la "X" */}
-        <div className="absolute right-11 top-4 z-10 flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setMaximized(true)}
-            disabled={maximized}
-            title="Pantalla completa"
-            className="rounded-sm p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-sky-600 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-sky-400 disabled:pointer-events-none disabled:opacity-30"
-          >
-            <Square className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMaximized(false)}
-            disabled={!maximized}
-            title="Tamaño normal"
-            className="rounded-sm p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-sky-600 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-sky-400 disabled:pointer-events-none disabled:opacity-30"
-          >
-            <Minus className="h-4 w-4" />
-          </button>
-        </div>
-        <DialogHeader className="pr-28">
-          <DialogTitle className="text-gray-800 dark:text-slate-100">
-            {editing ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  value={value}
-                  autoFocus
-                  disabled={saving}
-                  onChange={(e) => setValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { e.preventDefault(); submit() }
-                    if (e.key === "Escape") { e.preventDefault(); cancelEditing() }
-                  }}
-                  className="h-8"
-                />
-                <button
-                  type="button"
-                  onClick={submit}
-                  disabled={saving}
-                  className="shrink-0 rounded-lg p-1.5 text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-900/30 disabled:opacity-50"
-                  title="Guardar nombre"
-                >
-                  <Check className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelEditing}
-                  disabled={saving}
-                  className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
-                  title="Cancelar"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="truncate">{displayName}</span>
-                <button
-                  type="button"
-                  onClick={startEditing}
-                  className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-sky-600 dark:hover:bg-slate-700 dark:hover:text-sky-400"
-                  title="Editar nombre"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="relative">
-          {isPdfFile(file) ? (
-            <iframe
-              // La ruta local valida permisos y redirige a una URL firmada para assets bloqueados.
-              src={getPrivateAssetUrl(file)}
-              title={displayName}
-              className={`w-full rounded-xl border border-gray-100 dark:border-slate-700 ${maximized ? "h-[82vh]" : "h-[70vh]"}`}
-            />
-          ) : (
-            <Image
-              src={getPrivateAssetUrl(file)}
-              alt={displayName}
-              width={1200} height={900}
-              unoptimized
-              className={`w-full rounded-xl object-contain ${maximized ? "max-h-[82vh]" : "max-h-[65vh]"}`}
-            />
-          )}
-        </div>
-        <div className="flex justify-end pt-2">
-          <DeleteButtonNotify
-            onDelete={onDelete}
-            nextAction={() => { }}
+      }
+      title={tituloArchivo}
+      contentClassName="sm:max-w-3xl"
+      footer={
+        <DeleteButtonNotify
+          onDelete={onDelete}
+          nextAction={() => { }}
+        />
+      }
+    >
+      <div className="relative">
+        {isPdfFile(file) ? (
+          <iframe
+            // La ruta local valida permisos y redirige a una URL firmada para assets bloqueados.
+            src={getPrivateAssetUrl(file)}
+            title={displayName}
+            className="w-full rounded-xl border border-gray-100 dark:border-slate-700 h-[72vh]"
           />
-        </div>
-      </DialogContent>
-    </Dialog>
+        ) : (
+          <Image
+            src={getPrivateAssetUrl(file)}
+            alt={displayName}
+            width={1200} height={900}
+            unoptimized
+            className="w-full rounded-xl object-contain max-h-[72vh]"
+          />
+        )}
+      </div>
+    </VentanaPopup>
   )
 }
 

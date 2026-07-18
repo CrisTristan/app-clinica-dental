@@ -23,6 +23,7 @@ export type Capability =
   | 'reportes'          // Reportes de facturación
   | 'auditoria'         // Bitácora de auditoría
   | 'catalogo'          // Catálogo de servicios
+  | 'inventario'        // Inventario de materiales de la clínica
   | 'anuncios'          // Anuncios
   | 'colaboradores'     // Gestión de usuarios/personal
 
@@ -41,6 +42,7 @@ export const CAPABILITIES: Record<Capability, Role[]> = {
   'reportes':       ['admin', 'dentista'],
   'auditoria':      ['admin'],
   'catalogo':       ['admin', 'dentista'],
+  'inventario':     ALL,
   'anuncios':       ALL,
   'colaboradores':  ['admin'],
 }

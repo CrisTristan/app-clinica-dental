@@ -20,6 +20,15 @@ import { ArrowLeft, Minus, Square, X, ChevronRight } from "lucide-react"
    "sm:max-w-3xl") y puede cambiar entre vistas sin problemas.
    ───────────────────────────────────────────────────────────────────────── */
 
+// Entrada/salida por defecto: la ventana aparece centrada con un deslizamiento
+// mínimo (el -50% / -48% empareja con `translate-x/y-[-50%]` de la posición).
+// Se separa del resto de clases porque tailwind-merge no conoce las utilidades
+// de tailwindcss-animate y no sabría descartar las que sobran: para cambiar la
+// dirección hay que reemplazar la cadena completa vía `animationClassName`.
+const DEFAULT_ANIMATION =
+  "data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] " +
+  "data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
+
 export type VentanaPopupProps = {
   /** Estado abierto/cerrado (controlado). */
   open: boolean
@@ -55,6 +64,13 @@ export type VentanaPopupProps = {
 
   /** Clases extra para la ventana (ancho, etc.). Ej: "sm:max-w-3xl". */
   contentClassName?: string
+  /**
+   * Reemplaza las animaciones de entrada/salida (`slide-in-from-*` /
+   * `slide-out-to-*`) cuando la ventana no aparece centrada. Ojo: deben
+   * incluirse ambos ejes, porque el fotograma inicial sustituye por completo al
+   * `transform` del elemento.
+   */
+  animationClassName?: string
   /** Clases extra para el overlay (p. ej. subir el z-index sobre otro modal). */
   overlayClassName?: string
   /** Clases extra para el área del cuerpo. */
@@ -81,6 +97,7 @@ export default function VentanaPopup({
   continueLoading = false,
   footer,
   contentClassName = "sm:max-w-2xl",
+  animationClassName = DEFAULT_ANIMATION,
   overlayClassName,
   bodyClassName,
   hideWindowControls = false,
@@ -107,7 +124,8 @@ export default function VentanaPopup({
             // centrada con fade + zoom + slide sutil hacia el centro.
             "fixed left-[50%] top-[50%] z-50 flex translate-x-[-50%] translate-y-[-50%] flex-col overflow-hidden",
             "border border-gray-100 bg-white shadow-lg outline-none dark:border-slate-700 dark:bg-slate-800",
-            "duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
+            "duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+            animationClassName,
             "w-full",
             maximized
               ? "h-screen max-h-screen w-screen max-w-none rounded-none"

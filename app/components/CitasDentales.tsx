@@ -1,30 +1,19 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { addDays, format, isSameDay, parseISO, startOfWeek } from "date-fns"
 import { es } from "date-fns/locale"
 import {
   Calendar,
+  CalendarClock,
   CheckCircle2,
-  ChevronDown,
   Clock,
-  Loader2,
-  MessageCircleMore,
-  Phone,
+  FileText,
+  Package,
   Plus,
-  Search,
-  Send,
-  Trash2,
 } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/hooks/use-toast"
+import VentanaPopup from "./VentanaPopup"
+import SearchableSelect from "./SearchableSelect"
 
 type AppointmentStatus = "Confirmed" | "toBeConfirmed" | "Cancelled" | "Completed"
 
@@ -48,18 +37,17 @@ type Cita = {
   }
 }
 
-type CatalogService = {
+type ActiveTreatment = {
   id: number
-  name: string
-  price: number
+  nombre: string
 }
 
-type AppointmentServiceDraft = {
-  id?: string | number
-  serviceId: number
-  serviceName: string
-  quantity: number
-  unitPrice: number
+// Procedimiento del plan activo (treatment_plan_procedures + clinic_procedures).
+type PlanProcedure = {
+  id: number
+  clinic_procedure_id: number
+  nombre: string
+  cantidad: number | null
 }
 
 const STATUS_CFG: Record<AppointmentStatus, { label: string; dot: string; badge: string }> = {
@@ -85,7 +73,8 @@ const STATUS_CFG: Record<AppointmentStatus, { label: string; dot: string; badge:
   },
 }
 
-const STATUS_OPTIONS: AppointmentStatus[] = ["Confirmed", "toBeConfirmed", "Cancelled"]
+// Un plan de tratamiento se considera activo mientras no se haya cerrado.
+const ACTIVE_PLAN_STATUS = ["in_progress", "authorized"]
 
 function getStatus(s?: string) {
   return STATUS_CFG[(s ?? "") as AppointmentStatus] ?? STATUS_CFG.toBeConfirmed
@@ -99,29 +88,21 @@ function fullPatientName(cita: Cita) {
   return [cita.name.nombre, cita.name.apellido_pat, cita.name.apellido_mat].filter(Boolean).join(" ")
 }
 
-function appointmentReminder(cita: Cita) {
-  return `Hola ${cita.name.nombre}, le recordamos su cita el ${format(parseISO(cita.startDate), "d 'de' MMMM 'a las' HH:mm", { locale: es })}...`
-}
-
-function whatsappNumber(phone: string) {
-  const digits = phone.replace(/\D/g, "")
-  return digits.length === 10 ? `52${digits}` : digits
-}
-
 export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
-  const { toast } = useToast()
   const [localCitas, setLocalCitas] = useState<Cita[]>(citas)
-  const [message, setMessage] = useState("")
-  const [sending, setSending] = useState(false)
-  const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [selectedDay, setSelectedDay] = useState(() => new Date())
-  const [completionOpen, setCompletionOpen] = useState(false)
-  const [completionCita, setCompletionCita] = useState<Cita | null>(null)
-  const [completionServices, setCompletionServices] = useState<AppointmentServiceDraft[]>([])
-  const [catalogServices, setCatalogServices] = useState<CatalogService[]>([])
-  const [serviceSearch, setServiceSearch] = useState("")
-  const [loadingCompletion, setLoadingCompletion] = useState(false)
-  const [savingCompletion, setSavingCompletion] = useState(false)
+  const [detailsCita, setDetailsCita] = useState<Cita | null>(null)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  // Tratamientos activos por paciente; undefined = todavía cargando.
+  const [treatmentsByPatient, setTreatmentsByPatient] = useState<Record<number, ActiveTreatment[]>>({})
+  const requestedPatients = useRef<Set<number>>(new Set())
+  // Procedimientos por plan de tratamiento; undefined = todavía cargando.
+  const [proceduresByPlan, setProceduresByPlan] = useState<Record<number, PlanProcedure[]>>({})
+  const requestedPlans = useRef<Set<number>>(new Set())
+  const [selectedProcedureId, setSelectedProcedureId] = useState<number | null>(null)
+  // Ventana lateral para asignar materiales de apoyo al procedimiento elegido.
+  const [materialsOpen, setMaterialsOpen] = useState(false)
+  const [materialValue, setMaterialValue] = useState("")
 
   useEffect(() => {
     setLocalCitas(citas)
@@ -141,170 +122,111 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
   const citasDelDia = citasSemana.filter(cita => isSameDay(parseISO(cita.startDate), selectedDay))
   const selectedDayIsToday = isSameDay(selectedDay, today)
 
-  const updateAppointmentStatus = async (cita: Cita, status: AppointmentStatus) => {
-    setUpdatingId(cita.id)
-    try {
-      const response = await fetch("/appointments/api", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: cita.id,
-          phone: cita.name.telefono,
-          status,
+  // Clave estable con los pacientes visibles para no relanzar el efecto en cada render.
+  const patientIdsKey = [...new Set(citasDelDia.map(cita => cita.nameId))].sort((a, b) => a - b).join(",")
+
+  useEffect(() => {
+    const ids = patientIdsKey ? patientIdsKey.split(",").map(Number) : []
+    const pending = ids.filter(id => !requestedPatients.current.has(id))
+    if (pending.length === 0) return
+
+    pending.forEach(id => requestedPatients.current.add(id))
+    let cancelled = false
+
+    const loadTreatments = async () => {
+      const results = await Promise.all(
+        pending.map(async id => {
+          try {
+            const response = await fetch(`/api/treatment-plans?patientId=${id}`)
+            if (!response.ok) throw new Error("No se pudieron cargar los tratamientos")
+            const body: { plans?: { id: number; nombre: string; status: string | null }[] } =
+              await response.json()
+            const activos = (body.plans ?? [])
+              .filter(plan => ACTIVE_PLAN_STATUS.includes(plan.status ?? ""))
+              .map(plan => ({ id: plan.id, nombre: plan.nombre }))
+            return [id, activos] as const
+          } catch {
+            // Permite reintentar en el siguiente render que muestre a este paciente.
+            requestedPatients.current.delete(id)
+            return [id, [] as ActiveTreatment[]] as const
+          }
         }),
-      })
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => null)
-        throw new Error(body?.error || "No se pudo actualizar la cita")
-      }
-
-      setLocalCitas(previous =>
-        previous.map(item => (item.id === cita.id ? { ...item, status } : item)),
       )
-      toast({
-        title: "Cita actualizada",
-        description: `La cita de ${fullPatientName(cita)} ahora esta ${STATUS_CFG[status].label.toLowerCase()}.`,
+
+      if (cancelled) return
+      setTreatmentsByPatient(previous => {
+        const next = { ...previous }
+        for (const [id, activos] of results) next[id] = activos
+        return next
       })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: (error as Error).message,
-      })
-    } finally {
-      setUpdatingId(null)
     }
-  }
 
-  const openCompletionDialog = async (cita: Cita) => {
-    setCompletionCita(cita)
-    setCompletionOpen(true)
-    setCompletionServices([])
-    setCatalogServices([])
-    setServiceSearch("")
-    setLoadingCompletion(true)
+    loadTreatments()
 
-    try {
-      const response = await fetch(`/appointments/api/${cita.id}/services`)
-      const body = await response.json().catch(() => null)
+    return () => {
+      cancelled = true
+    }
+  }, [patientIdsKey])
 
-      if (!response.ok) {
-        throw new Error(body?.error || "No se pudieron cargar los servicios de la cita")
+  // Plan activo del paciente de la ventana de detalles (el más reciente).
+  const detailsTreatments = detailsCita ? treatmentsByPatient[detailsCita.nameId] : undefined
+  const activePlan = detailsTreatments?.[0]
+  const activePlanId = activePlan?.id ?? null
+  const planProcedures = activePlanId ? proceduresByPlan[activePlanId] : undefined
+  const detailsStatus = detailsCita ? getStatus(detailsCita.status) : null
+
+  // Procedimientos del plan activo: se cargan al abrir la ventana de detalles.
+  useEffect(() => {
+    if (!detailsOpen || !activePlanId || requestedPlans.current.has(activePlanId)) return
+
+    requestedPlans.current.add(activePlanId)
+    let cancelled = false
+
+    const loadProcedures = async () => {
+      try {
+        const response = await fetch(`/api/treatment-plans/${activePlanId}`)
+        if (!response.ok) throw new Error("No se pudieron cargar los procedimientos")
+        const body: { plan?: { procedures?: PlanProcedure[] } } = await response.json()
+        if (cancelled) return
+        setProceduresByPlan(previous => ({ ...previous, [activePlanId]: body.plan?.procedures ?? [] }))
+      } catch {
+        requestedPlans.current.delete(activePlanId)
       }
-
-      setCompletionServices(body.appointmentServices ?? [])
-      setCatalogServices(body.catalogServices ?? [])
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: (error as Error).message,
-      })
-    } finally {
-      setLoadingCompletion(false)
     }
-  }
 
-  const addCompletionService = (service: CatalogService) => {
-    if (!service || completionServices.some(item => item.serviceId === service.id)) return
+    loadProcedures()
 
-    setCompletionServices(previous => [
-      ...previous,
-      {
-        serviceId: service.id,
-        serviceName: service.name,
-        quantity: 1,
-        unitPrice: service.price,
-      },
-    ])
-    setServiceSearch("")
-  }
+    return () => {
+      cancelled = true
+    }
+  }, [detailsOpen, activePlanId])
 
-  const removeCompletionService = (service: AppointmentServiceDraft) => {
-    setCompletionServices(previous =>
-      previous.filter(item =>
-        service.id
-          ? item.id !== service.id
-          : item.serviceId !== service.serviceId,
-      ),
+  // El primer procedimiento queda seleccionado siempre que no haya otro válido.
+  useEffect(() => {
+    if (!planProcedures || planProcedures.length === 0) {
+      setSelectedProcedureId(null)
+      return
+    }
+    setSelectedProcedureId(previous =>
+      previous && planProcedures.some(procedure => procedure.id === previous)
+        ? previous
+        : planProcedures[0].id,
     )
+  }, [planProcedures])
+
+  const selectedProcedure = planProcedures?.find(procedure => procedure.id === selectedProcedureId)
+
+  const openDetails = (cita: Cita) => {
+    setDetailsCita(cita)
+    setDetailsOpen(true)
   }
 
-  const saveCompletedAppointment = async () => {
-    if (!completionCita) return
-
-    setSavingCompletion(true)
-    try {
-      // Este endpoint guarda los servicios realizados de la cita y sincroniza
-      // automaticamente los cargos visibles en /servicios-activos.
-      const response = await fetch(`/appointments/api/${completionCita.id}/services`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          services: completionServices.map(service => ({
-            id: service.id,
-            serviceId: service.serviceId,
-            quantity: service.quantity,
-          })),
-        }),
-      })
-      const body = await response.json().catch(() => null)
-
-      if (!response.ok) {
-        throw new Error(body?.error || "No se pudo completar la cita")
-      }
-
-      setLocalCitas(previous =>
-        previous.map(item =>
-          item.id === completionCita.id ? { ...item, status: "Completed" } : item,
-        ),
-      )
-      setCompletionServices(body?.services ?? completionServices)
-      setCompletionOpen(false)
-      toast({
-        title: completionCita.status === "Completed" ? "Servicios actualizados" : "Cita completada",
-        description: completionCita.status === "Completed"
-          ? "Los servicios de la cita completada quedaron guardados."
-          : "Los servicios realizados quedaron guardados.",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: (error as Error).message,
-      })
-    } finally {
-      setSavingCompletion(false)
-    }
+  const closeDetails = () => {
+    setDetailsOpen(false)
+    setDetailsCita(null)
+    setMaterialsOpen(false)
+    setMaterialValue("")
   }
-
-  const sendMessage = async (telefono: string, nombre: string) => {
-    if (!message.trim()) return
-    setSending(true)
-    try {
-      const url = `https://wa.me/${whatsappNumber(telefono)}?text=${encodeURIComponent(message.trim())}`
-      window.open(url, "_blank", "noopener,noreferrer")
-      toast({ title: "WhatsApp abierto", description: `Chat iniciado con ${nombre}` })
-      setMessage("")
-    } catch {
-      toast({ title: "Error", description: "No se pudo abrir WhatsApp" })
-    } finally {
-      setSending(false)
-    }
-  }
-
-  const availableCatalogServices = catalogServices.filter(service =>
-    !completionServices.some(item => item.serviceId === service.id),
-  )
-  const normalizedServiceSearch = serviceSearch.trim().toLocaleLowerCase("es")
-  const filteredCatalogServices = availableCatalogServices
-    .filter(service =>
-      service.name.toLocaleLowerCase("es").includes(normalizedServiceSearch),
-    )
-    .slice(0, 8)
-  const completionTotal = completionServices.reduce(
-    (sum, service) => sum + service.unitPrice * service.quantity,
-    0,
-  )
-  const editingCompletedAppointment = completionCita?.status === "Completed"
 
   return (
     <div className="space-y-5">
@@ -386,13 +308,13 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
               const st = getStatus(cita.status)
               const ini = initials(cita.name.nombre, cita.name.apellido_pat)
               const appointmentText = cita.reason || cita.desc
-              const isUpdating = updatingId === cita.id
               const isCompleted = cita.status === "Completed"
+              const tratamientos = treatmentsByPatient[cita.nameId]
 
               return (
                 <div
                   key={cita.id}
-                  className="flex flex-col gap-4 rounded-xl border border-gray-100 px-4 py-4 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:hover:bg-slate-700/50 sm:flex-row sm:items-start"
+                  className="flex flex-col gap-4 rounded-xl border border-gray-100 px-4 py-4 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:hover:bg-slate-700/50 sm:flex-row sm:items-center"
                 >
                   <div className="flex min-w-0 flex-1 gap-4">
                     <div className="shrink-0 flex flex-col items-center gap-0.5 pt-0.5 min-w-[48px]">
@@ -427,11 +349,6 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Phone className="w-3 h-3 text-gray-400 dark:text-slate-500 shrink-0" />
-                        <span className="text-xs text-gray-400 dark:text-slate-500">{cita.name.telefono}</span>
-                      </div>
-
                       {appointmentText && (
                         <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-2">
                           {appointmentText}
@@ -440,85 +357,38 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
-                    <button
-                      disabled={isUpdating}
-                      onClick={() => openCompletionDialog(cita)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-900/40"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      {isCompleted ? "Editar servicios" : "Completar"}
-                    </button>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          disabled={isUpdating}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                        >
-                          Estado
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        {STATUS_OPTIONS.map(option => {
-                          const optionCfg = STATUS_CFG[option]
-                          return (
-                            <DropdownMenuItem
-                              key={option}
-                              onClick={() => updateAppointmentStatus(cita, option)}
-                              className="cursor-pointer"
-                            >
-                              <span className={`h-2 w-2 rounded-full ${optionCfg.dot}`} />
-                              {optionCfg.label}
-                            </DropdownMenuItem>
-                          )
-                        })}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    <Dialog onOpenChange={open => setMessage(open ? appointmentReminder(cita) : "")}>
-                      <DialogTrigger asChild>
-                        <button className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 transition-colors hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40">
-                          <MessageCircleMore className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">WhatsApp</span>
-                        </button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-sm bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700">
-                        <DialogHeader>
-                          <DialogTitle className="text-gray-800 dark:text-slate-100 flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center">
-                              <MessageCircleMore className="w-4 h-4 text-white" />
-                            </div>
-                            Mensaje a {cita.name.nombre}
-                          </DialogTitle>
-                          <p className="text-sm text-gray-500 dark:text-slate-400">
-                            Envia un recordatorio de cita a {fullPatientName(cita)}
-                          </p>
-                        </DialogHeader>
-
-                        <div className="space-y-3 pt-1">
-                          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-slate-700 rounded-lg px-3 py-2">
-                            <Phone className="w-3.5 h-3.5 shrink-0" />
-                            {cita.name.telefono}
-                          </div>
-                          <Textarea
-                            value={message}
-                            onChange={e => setMessage(e.target.value)}
-                            placeholder={`Escribe un mensaje a ${fullPatientName(cita)}`}
-                            className="min-h-[100px] text-sm resize-none"
-                          />
-                          <button
-                            disabled={!message.trim() || sending}
-                            onClick={() => sendMessage(cita.name.telefono, cita.name.nombre)}
-                            className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors shadow-sm"
+                  <div className="min-w-0 sm:w-52 sm:shrink-0 sm:text-center">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
+                      Tratamientos activos
+                    </p>
+                    {tratamientos === undefined ? (
+                      <p className="mt-1 text-xs text-gray-300 dark:text-slate-600">Cargando...</p>
+                    ) : tratamientos.length === 0 ? (
+                      <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">Sin tratamientos activos</p>
+                    ) : (
+                      <div className="mt-1 space-y-0.5">
+                        {tratamientos.map(tratamiento => (
+                          <p
+                            key={tratamiento.id}
+                            className="truncate text-xs font-medium text-gray-700 dark:text-slate-200"
+                            title={tratamiento.nombre}
                           >
-                            <Send className="w-4 h-4" />
-                            {sending ? "Enviando..." : "Enviar WhatsApp"}
-                          </button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                            {tratamiento.nombre}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex shrink-0 items-center sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => openDetails(cita)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300 dark:hover:bg-sky-900/40"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Detalles
+                    </button>
                   </div>
                 </div>
               )
@@ -535,171 +405,214 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
         )}
       </div>
 
-      <Dialog
-        open={completionOpen}
-        onOpenChange={open => {
-          setCompletionOpen(open)
-          if (!open) {
-            setCompletionCita(null)
-            setServiceSearch("")
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-lg bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700">
-          <DialogHeader>
-            <DialogTitle className="text-gray-800 dark:text-slate-100 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center">
-                <CheckCircle2 className="w-4 h-4 text-white" />
-              </div>
-              {editingCompletedAppointment ? "Editar servicios" : "Completar cita"}
-            </DialogTitle>
-          </DialogHeader>
+      {/* ════════ Ventana de detalles de la cita ════════
+          Desde `lg` las dos ventanas se colocan lado a lado y centradas como un
+          bloque: 470 (detalles) + 16 (separación) + 320 (materiales) = 806 de
+          ancho. Detalles arranca en -403 (mitad del bloque) y materiales en
+          -403 + 470 + 16 = +83.
 
-          <div className="space-y-4">
-            <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-700/40">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-slate-500">
-                {editingCompletedAppointment
-                  ? "Edita los servicios registrados para esta cita completada."
-                  : "¿Se realizo algun servicio durante la cita?"}
+          Por debajo de `lg` se apilan: materiales entra deslizándose desde abajo
+          y queda anclada al borde inferior (400 de alto), y detalles se sube
+          apoyando su base 8 por encima (400 + 8 = 408), limitando su alto al
+          espacio que queda libre arriba. */}
+      <VentanaPopup
+        open={detailsOpen}
+        onOpenChange={open => (open ? setDetailsOpen(true) : closeDetails())}
+        title={
+          detailsCita && detailsStatus ? (
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="truncate">{fullPatientName(detailsCita)}</span>
+              <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${detailsStatus.badge}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${detailsStatus.dot}`} />
+                {detailsStatus.label}
+              </span>
+            </span>
+          ) : (
+            "Detalles de la cita"
+          )
+        }
+        subtitle={
+          detailsCita
+            ? `${format(parseISO(detailsCita.startDate), "EEEE d 'de' MMMM yyyy", { locale: es })} · ${format(parseISO(detailsCita.startDate), "HH:mm")} - ${format(parseISO(detailsCita.endDate), "HH:mm")}`
+            : undefined
+        }
+        icon={CalendarClock}
+        contentClassName={`sm:max-w-[470px] lg:transition-transform ${
+          materialsOpen
+            ? "max-lg:top-auto max-lg:bottom-[408px] max-lg:translate-y-0 max-lg:max-h-[calc(100dvh_-_416px)] lg:translate-x-[-403px]"
+            : ""
+        }`}
+      >
+        {detailsCita && (
+          <div className="space-y-6">
+            {/* ─── Tratamiento activo ─── */}
+            <section>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
+                Tratamiento activo
               </p>
-              {completionCita && (
+              {detailsTreatments === undefined ? (
+                <p className="mt-1 text-sm text-gray-400 dark:text-slate-500">Cargando tratamiento...</p>
+              ) : activePlan ? (
                 <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-slate-100">
-                  Paciente: {fullPatientName(completionCita)}
+                  {activePlan.nombre}
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-gray-400 dark:text-slate-500">
+                  Este paciente no tiene tratamientos activos.
                 </p>
               )}
-            </div>
+            </section>
 
-            {loadingCompletion ? (
-              <div className="flex items-center justify-center py-10 text-sm text-gray-500 dark:text-slate-400">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Cargando servicios...
-              </div>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
-                      Servicios realizados
-                    </p>
-                    <span className="text-xs font-semibold text-gray-500 dark:text-slate-300">
-                      ${completionTotal.toLocaleString("es-MX")}
-                    </span>
-                  </div>
+            {/* ─── Detalles: procedimientos (izq.) + materiales (der.) ─── */}
+            <section>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
+                Detalles
+              </p>
 
-                  {completionServices.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-gray-200 px-4 py-5 text-center text-xs text-gray-400 dark:border-slate-700 dark:text-slate-500">
-                      No hay servicios registrados para esta cita.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {completionServices.map(service => (
-                        <div
-                          key={service.id ? `appointment-service-${service.id}` : `catalog-service-${service.serviceId}`}
-                          className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2 dark:border-slate-700"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-gray-800 dark:text-slate-100">
-                              {service.serviceName}
-                            </p>
-                            <p className="text-xs text-gray-400 dark:text-slate-500">
-                              ${service.unitPrice.toLocaleString("es-MX")}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeCompletionService(service)}
-                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
-                            aria-label={`Eliminar ${service.serviceName}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
-                    Agregar otro servicio
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2">
+                {/* Columna izquierda: procedimientos del plan activo. */}
+                <div className="sm:pr-5">
+                  <p className="text-xs font-semibold text-gray-700 dark:text-slate-200">
+                    Procedimientos a realizar
                   </p>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
-                    <input
-                      value={serviceSearch}
-                      onChange={event => setServiceSearch(event.target.value)}
-                      placeholder="Buscar servicio por nombre"
-                      className="h-10 w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                    />
-                  </div>
 
-                  <div className="max-h-56 overflow-y-auto rounded-lg border border-gray-100 dark:border-slate-700">
-                    {availableCatalogServices.length === 0 ? (
-                      <div className="px-3 py-4 text-center text-xs text-gray-400 dark:text-slate-500">
-                        Todos los servicios del catalogo ya estan agregados.
-                      </div>
-                    ) : filteredCatalogServices.length === 0 ? (
-                      <div className="px-3 py-4 text-center text-xs text-gray-400 dark:text-slate-500">
-                        No se encontraron servicios con esa busqueda.
-                      </div>
-                    ) : (
-                      filteredCatalogServices.map(service => (
-                        <button
-                          key={service.id}
-                          type="button"
-                          onClick={() => addCompletionService(service)}
-                          className="flex w-full items-center justify-between gap-3 border-b border-gray-100 px-3 py-2.5 text-left transition-colors last:border-0 hover:bg-sky-50 dark:border-slate-700 dark:hover:bg-slate-700/60"
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium text-gray-800 dark:text-slate-100">
-                              {service.name}
-                            </span>
-                            <span className="block text-xs text-gray-400 dark:text-slate-500">
-                              ${service.price.toLocaleString("es-MX")}
-                            </span>
-                          </span>
-                          <span
-                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500 text-white"
-                            aria-hidden="true"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-
-                  {availableCatalogServices.length > filteredCatalogServices.length && (
-                    <p className="text-xs text-gray-400 dark:text-slate-500">
-                      Mostrando {filteredCatalogServices.length} de {availableCatalogServices.length}. Escribe para filtrar la lista.
+                  {!activePlanId ? (
+                    <p className="mt-2 text-xs text-gray-400 dark:text-slate-500">
+                      Sin plan de tratamiento activo.
                     </p>
+                  ) : planProcedures === undefined ? (
+                    <p className="mt-2 text-xs text-gray-400 dark:text-slate-500">
+                      Cargando procedimientos...
+                    </p>
+                  ) : planProcedures.length === 0 ? (
+                    <p className="mt-2 text-xs text-gray-400 dark:text-slate-500">
+                      Este tratamiento no tiene procedimientos registrados.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 space-y-1">
+                      {planProcedures.map(procedure => {
+                        const selected = procedure.id === selectedProcedureId
+                        return (
+                          <li key={procedure.id} className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedProcedureId(procedure.id)}
+                              className={`flex w-full items-center gap-1.5 border-b-2 py-1.5 text-left text-xs transition-colors
+                                ${selected
+                                  ? "border-sky-400 font-semibold text-sky-700 dark:border-sky-500 dark:text-sky-300"
+                                  : "border-transparent text-gray-600 hover:text-sky-600 dark:text-slate-300 dark:hover:text-sky-400"}`}
+                            >
+                              <Plus className={`h-3 w-3 shrink-0 ${selected ? "text-sky-500" : "text-gray-300 dark:text-slate-600"}`} />
+                              <span className="truncate">{procedure.nombre}</span>
+                              {procedure.cantidad !== null && procedure.cantidad > 1 && (
+                                <span className="ml-auto shrink-0 text-[10px] text-gray-400 dark:text-slate-500">
+                                  x{procedure.cantidad}
+                                </span>
+                              )}
+                            </button>
+                            {/* Línea que enlaza el procedimiento elegido con la
+                                zona de "Material de Apoyo". */}
+                            {selected && (
+                              <span
+                                aria-hidden="true"
+                                className="pointer-events-none absolute left-full top-1/2 hidden h-0.5 w-5 bg-sky-400 dark:bg-sky-500 sm:block"
+                              />
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
                   )}
                 </div>
-              </>
-            )}
 
-            <div className="flex justify-end gap-2 border-t border-gray-100 pt-4 dark:border-slate-700">
-              <button
-                type="button"
-                disabled={savingCompletion}
-                onClick={() => setCompletionOpen(false)}
-                className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={loadingCompletion || savingCompletion}
-                onClick={saveCompletedAppointment}
-                className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {savingCompletion && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {editingCompletedAppointment ? "Guardar cambios" : "Guardar y completar"}
-              </button>
+                {/* Columna derecha: materiales de apoyo del procedimiento elegido. */}
+                <div className="mt-5 border-gray-100 dark:border-slate-700 sm:mt-0 sm:border-l sm:pl-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-xs font-semibold text-gray-700 dark:text-slate-200">
+                      Material de Apoyo
+                    </p>
+                    <button
+                      type="button"
+                      disabled={!selectedProcedure}
+                      onClick={() => setMaterialsOpen(true)}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-[10px] font-medium text-sky-700 transition-colors hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300 dark:hover:bg-sky-900/40"
+                    >
+                      <Plus className="h-3 w-3" />
+                      agregar
+                    </button>
+                  </div>
+
+                  <p className="mt-2 text-xs leading-relaxed text-gray-400 dark:text-slate-500">
+                    Aun no se ha asignado ningun material de apoyo para este procedimiento.
+                  </p>
+
+                  <div className="mt-4 border-t border-dashed border-gray-200 pt-2 dark:border-slate-700">
+                    <p className="flex items-start gap-1.5 text-[10px] leading-relaxed text-gray-400 dark:text-slate-500">
+                      <Package className="mt-0.5 h-3 w-3 shrink-0" />
+                      Estos materiales se descontaran del stock una vez que la cita se marque como
+                      &quot;completada&quot;.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+      </VentanaPopup>
+
+      {/* ════════ Ventana de materiales del procedimiento elegido ════════
+          Overlay transparente para no oscurecer la ventana de detalles, que
+          queda visible al lado (o arriba, en móvil).
+
+          El alto es fijo (400) porque el buscador se abre desplegado: el cuerpo
+          necesita espacio para la lista o quedaría recortada. Reparto del alto:
+          ~77 de encabezado + 32 de padding + 36 del campo + 4 de margen + 224
+          de lista (max-h-56) = 373, con algo de holgura. */}
+      <VentanaPopup
+        open={materialsOpen}
+        onOpenChange={open => {
+          setMaterialsOpen(open)
+          if (!open) setMaterialValue("")
+        }}
+        title="Materiales de Apoyo para:"
+        subtitle={selectedProcedure?.nombre}
+        hideWindowControls
+        overlayClassName="bg-transparent"
+        contentClassName="h-[400px] sm:max-w-xs max-lg:top-auto max-lg:bottom-0 max-lg:translate-y-0 lg:translate-x-[83px]"
+        // En móvil entra desde abajo; desde `lg` recupera la entrada centrada.
+        // El eje X se mantiene en ambos casos: el fotograma inicial reemplaza el
+        // `transform` completo, así que sin él la ventana saltaría a la derecha.
+        animationClassName={
+          "data-[state=open]:slide-in-from-left-1/2 data-[state=closed]:slide-out-to-left-1/2 " +
+          "data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full " +
+          "lg:data-[state=open]:slide-in-from-top-[48%] lg:data-[state=closed]:slide-out-to-top-[48%]"
+        }
+      >
+        <div className="space-y-3">
+          <div className="flex items-start gap-2">
+            <button
+              type="button"
+              disabled={!materialValue}
+              title="Agregar material"
+              aria-label="Agregar material"
+              className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 transition-colors hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300 dark:hover:bg-sky-900/40"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+            <div className="min-w-0 flex-1">
+              <SearchableSelect
+                options={[]}
+                value={materialValue}
+                onChange={setMaterialValue}
+                placeholder="Buscar material"
+                direction="down"
+                defaultOpen
+                emptyText="No tienes materiales de apoyo en tu inventario"
+              />
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </VentanaPopup>
     </div>
   )
 }
