@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo, useLayoutEffect, type ReactNode }
 import { createPortal } from "react-dom"
 import { ChevronDown, Check, Plus } from "lucide-react"
 
-export type Option = { value: string; label: string; badge?: string }
+export type Option = { value: string; label: string; badge?: string; description?: string }
 
 // Normaliza para comparar sin acentos ni mayúsculas (útil para "México", etc.).
 const norm = (s: string) =>
@@ -35,6 +35,7 @@ export default function SearchableSelect({
   creatable = false,
   createLabel,
   defaultOpen = false,
+  keepOpenOnSelect = false,
 }: {
   options: Option[]
   value: string
@@ -60,6 +61,9 @@ export default function SearchableSelect({
   // que atender al abrir una ventana; el contenedor debe reservar el alto de la
   // lista para que no quede recortada.
   defaultOpen?: boolean
+  // Mantiene la lista desplegada tras elegir una opción. Útil cuando el select
+  // sirve para agregar varios elementos seguidos (p. ej. materiales de apoyo).
+  keepOpenOnSelect?: boolean
 }) {
   const [open, setOpen] = useState(defaultOpen)
   const [query, setQuery] = useState("")
@@ -152,6 +156,12 @@ export default function SearchableSelect({
   const pick = (opt: Option) => {
     onChange(opt.value)
     setQuery("")
+    // Al agregar varios elementos seguidos, se conserva la lista abierta y el
+    // foco en el input para poder seguir buscando sin volver a desplegar.
+    if (keepOpenOnSelect) {
+      requestAnimationFrame(() => inputRef.current?.focus())
+      return
+    }
     setOpen(false)
   }
 
@@ -217,7 +227,14 @@ export default function SearchableSelect({
                   : "text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"}`}
             >
               <Check className={`w-3.5 h-3.5 shrink-0 ${active ? "opacity-100 text-sky-500" : "opacity-0"}`} />
-              <span className="truncate">{opt.label}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{opt.label}</span>
+                {opt.description && (
+                  <span className="block truncate text-xs font-normal text-gray-400 dark:text-slate-500">
+                    {opt.description}
+                  </span>
+                )}
+              </span>
               {opt.badge && (
                 <span className="ml-auto shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
                   {opt.badge}

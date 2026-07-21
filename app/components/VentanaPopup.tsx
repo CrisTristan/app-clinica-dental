@@ -76,6 +76,20 @@ export type VentanaPopupProps = {
   /** Clases extra para el área del cuerpo. */
   bodyClassName?: string
 
+  /**
+   * Reemplaza las clases de la ventana cuando está maximizada. Por defecto
+   * ocupa toda la pantalla; pásalo para que ocupe, p. ej., solo 2/3 y deje
+   * espacio a otra ventana al lado.
+   */
+  maximizedClassName?: string
+  /** Se dispara cuando cambia el estado maximizado/normal de la ventana. */
+  onMaximizedChange?: (maximized: boolean) => void
+
+  /** Ref al contenedor de la ventana (p. ej. para medir su alto). */
+  contentRef?: React.Ref<HTMLDivElement>
+  /** Estilos en línea para el contenedor (p. ej. fijar un alto calculado). */
+  contentStyle?: React.CSSProperties
+
   /** Oculta los controles de ventana (minimizar / maximizar). */
   hideWindowControls?: boolean
 }
@@ -100,10 +114,23 @@ export default function VentanaPopup({
   animationClassName = DEFAULT_ANIMATION,
   overlayClassName,
   bodyClassName,
+  maximizedClassName = "h-screen max-h-screen w-screen max-w-none rounded-none",
+  onMaximizedChange,
+  contentRef,
+  contentStyle,
   hideWindowControls = false,
 }: VentanaPopupProps) {
   // Estado de ventana estilo escritorio: maximizada (pantalla completa) o normal.
   const [maximized, setMaximized] = React.useState(false)
+
+  // Avisa al contenedor cuando cambia el tamaño (para reordenar su layout). Se
+  // usa un ref para el callback y así disparar solo cuando `maximized` cambia,
+  // sin depender de la identidad de la función.
+  const onMaximizedChangeRef = React.useRef(onMaximizedChange)
+  onMaximizedChangeRef.current = onMaximizedChange
+  React.useEffect(() => {
+    onMaximizedChangeRef.current?.(maximized)
+  }, [maximized])
 
   // Al cerrar, restablece el tamaño para la próxima apertura.
   const handleOpenChange = (o: boolean) => {
@@ -119,6 +146,8 @@ export default function VentanaPopup({
       <DialogPortal>
         <DialogOverlay className={overlayClassName} />
         <DialogPrimitive.Content
+          ref={contentRef}
+          style={contentStyle}
           className={cn(
             // Posición y animaciones idénticas al Dialog de shadcn: entrada
             // centrada con fade + zoom + slide sutil hacia el centro.
@@ -128,7 +157,7 @@ export default function VentanaPopup({
             animationClassName,
             "w-full",
             maximized
-              ? "h-screen max-h-screen w-screen max-w-none rounded-none"
+              ? maximizedClassName
               : cn("max-h-[85vh] rounded-none sm:rounded-lg", contentClassName)
           )}
         >

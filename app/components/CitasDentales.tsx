@@ -11,6 +11,7 @@ import {
   FileText,
   Package,
   Plus,
+  X,
 } from "lucide-react"
 import VentanaPopup from "./VentanaPopup"
 import SearchableSelect from "./SearchableSelect"
@@ -49,6 +50,31 @@ type PlanProcedure = {
   nombre: string
   cantidad: number | null
 }
+
+// Material del inventario físico de la clínica (GET /api/inventory).
+type InventoryEntry = {
+  material_id: number
+  descripcion: string | null
+  material_name: { id: number; nombre: string } | null
+  item: { id: number; unidad_medica: string | null }
+}
+
+// Material de apoyo asignado a un procedimiento: se guarda por procedimiento en
+// `materialsByProcedure`. La cantidad y la unidad son editables en la tarjeta.
+type AssignedMaterial = {
+  materialId: number
+  nombre: string
+  descripcion: string | null
+  cantidad: number
+  unidad: string
+}
+
+// Unidades de medida frecuentes para el material de apoyo (el select además
+// conserva la unidad original del inventario aunque no esté en la lista).
+const UNIDADES_MEDIDA = [
+  "Pieza", "Caja", "Frasco", "Envase", "Paquete", "Bote", "Tubo", "Sobre",
+  "Jeringa", "Kit", "Par", "Rollo", "ml", "mg", "g", "L",
+]
 
 const STATUS_CFG: Record<AppointmentStatus, { label: string; dot: string; badge: string }> = {
   Confirmed: {
@@ -93,6 +119,14 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
   const [selectedDay, setSelectedDay] = useState(() => new Date())
   const [detailsCita, setDetailsCita] = useState<Cita | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  // ¿La ventana de detalles está maximizada? En ese modo la pantalla se divide
+  // en 3 slots: procedimientos (1) · material de apoyo (2) · buscador (3).
+  const [detailsMaximized, setDetailsMaximized] = useState(false)
+  // Alto (px) de la ventana de detalles en `lg`, para que el panel de
+  // materiales (slot 3) tenga exactamente la misma altura. null = no aplicar
+  // (móvil, o ventana cerrada): se usa el alto por defecto del panel.
+  const detailsContentRef = useRef<HTMLDivElement>(null)
+  const [detailsHeight, setDetailsHeight] = useState<number | null>(null)
   // Tratamientos activos por paciente; undefined = todavía cargando.
   const [treatmentsByPatient, setTreatmentsByPatient] = useState<Record<number, ActiveTreatment[]>>({})
   const requestedPatients = useRef<Set<number>>(new Set())
@@ -103,6 +137,12 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
   // Ventana lateral para asignar materiales de apoyo al procedimiento elegido.
   const [materialsOpen, setMaterialsOpen] = useState(false)
   const [materialValue, setMaterialValue] = useState("")
+  // Inventario físico de la clínica (materiales de apoyo disponibles).
+  const [inventoryItems, setInventoryItems] = useState<InventoryEntry[]>([])
+  const [inventoryLoaded, setInventoryLoaded] = useState(false)
+  const [inventoryLoading, setInventoryLoading] = useState(false)
+  // Materiales de apoyo asignados por procedimiento (id del procedimiento → lista).
+  const [materialsByProcedure, setMaterialsByProcedure] = useState<Record<number, AssignedMaterial[]>>({})
 
   useEffect(() => {
     setLocalCitas(citas)
@@ -216,6 +256,97 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
 
   const selectedProcedure = planProcedures?.find(procedure => procedure.id === selectedProcedureId)
 
+  // Mide el alto real de la ventana de detalles (que se ajusta a su contenido)
+  // y lo refleja en el panel de materiales para que ambos coincidan. Solo en
+  // `lg`; en pantallas menores el panel usa su alto por defecto.
+  useEffect(() => {
+    if (!detailsOpen) {
+      setDetailsHeight(null)
+      return
+    }
+    const el = detailsContentRef.current
+    if (!el || typeof ResizeObserver === "undefined") return
+
+    const mq = window.matchMedia("(min-width: 1024px)")
+    const update = () => setDetailsHeight(mq.matches ? el.offsetHeight : null)
+
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    mq.addEventListener("change", update)
+    return () => {
+      observer.disconnect()
+      mq.removeEventListener("change", update)
+    }
+  }, [detailsOpen])
+
+  // Materiales de apoyo ya asignados al procedimiento seleccionado.
+  const assignedMaterials = selectedProcedureId ? materialsByProcedure[selectedProcedureId] ?? [] : []
+
+  // Catálogo del inventario: se carga la primera vez que se abre la ventana de
+  // materiales, para no consultar la base de datos si nunca se usa.
+  const loadInventory = () => {
+    if (inventoryLoaded || inventoryLoading) return
+    setInventoryLoading(true)
+    fetch("/api/inventory")
+      .then(r => r.json())
+      .then(d => {
+        setInventoryItems(d.items ?? [])
+        setInventoryLoaded(true)
+      })
+      .catch(console.error)
+      .finally(() => setInventoryLoading(false))
+  }
+
+  // Opciones del buscador: todo el inventario, salvo lo ya asignado al
+  // procedimiento actual (para no duplicar).
+  const inventoryOptions = inventoryItems
+    .filter(inv => !assignedMaterials.some(m => m.materialId === inv.material_id))
+    .map(inv => ({
+      value: String(inv.material_id),
+      label: inv.material_name?.nombre ?? inv.descripcion ?? "Material",
+      description: inv.descripcion ?? undefined,
+    }))
+
+  // Agrega el material elegido en el buscador a la lista del procedimiento.
+  const addMaterial = (materialIdStr: string) => {
+    if (!selectedProcedureId || !materialIdStr) return
+    const inv = inventoryItems.find(i => String(i.material_id) === materialIdStr)
+    if (!inv) return
+    setMaterialsByProcedure(prev => {
+      const list = prev[selectedProcedureId] ?? []
+      if (list.some(m => m.materialId === inv.material_id)) return prev
+      return {
+        ...prev,
+        [selectedProcedureId]: [
+          ...list,
+          {
+            materialId: inv.material_id,
+            nombre: inv.material_name?.nombre ?? inv.descripcion ?? "Material",
+            descripcion: inv.descripcion ?? null,
+            cantidad: 1,
+            unidad: inv.item.unidad_medica || "Pieza",
+          },
+        ],
+      }
+    })
+    setMaterialValue("")
+  }
+
+  const updateMaterial = (procId: number, materialId: number, patch: Partial<AssignedMaterial>) => {
+    setMaterialsByProcedure(prev => ({
+      ...prev,
+      [procId]: (prev[procId] ?? []).map(m => (m.materialId === materialId ? { ...m, ...patch } : m)),
+    }))
+  }
+
+  const removeMaterial = (procId: number, materialId: number) => {
+    setMaterialsByProcedure(prev => ({
+      ...prev,
+      [procId]: (prev[procId] ?? []).filter(m => m.materialId !== materialId),
+    }))
+  }
+
   const openDetails = (cita: Cita) => {
     setDetailsCita(cita)
     setDetailsOpen(true)
@@ -226,7 +357,47 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
     setDetailsCita(null)
     setMaterialsOpen(false)
     setMaterialValue("")
+    setMaterialsByProcedure({})
+    setDetailsMaximized(false)
   }
+
+  // Al maximizar la ventana de detalles, el buscador de materiales (slot 3) debe
+  // quedar siempre visible; se abre solo y precarga el inventario.
+  const handleDetailsMaximized = (maximized: boolean) => {
+    setDetailsMaximized(maximized)
+    if (maximized) {
+      loadInventory()
+      setMaterialsOpen(true)
+    }
+  }
+
+  // Ventana de materiales (slot 3). En móvil es una hoja inferior de alto fijo.
+  // En `lg` se ancla al tercio derecho; su alto iguala al de la ventana de
+  // detalles: en modo normal toma el alto medido (`materialsContentStyle`,
+  // centrado en Y), y a pantalla completa si la ventana de detalles está
+  // maximizada.
+  const materialsContentClassName =
+    "h-[400px] sm:max-w-xs max-lg:top-auto max-lg:bottom-0 max-lg:translate-y-0 " +
+    "lg:left-[66.666vw] lg:translate-x-0 lg:w-[33.333vw] lg:max-w-none lg:rounded-none " +
+    (detailsMaximized
+      ? "lg:top-0 lg:translate-y-0 lg:h-screen lg:max-h-screen"
+      : "lg:max-h-[85vh]")
+
+  // En `lg` normal, replica el alto medido de la ventana de detalles. En móvil
+  // o maximizada, el alto lo define la clase (no se aplica estilo en línea).
+  const materialsContentStyle =
+    !detailsMaximized && detailsHeight ? { height: detailsHeight } : undefined
+
+  // Animación: móvil desde abajo (X centrado para no saltar); en `lg` desde el
+  // borde derecho. En modo normal la ventana queda centrada en Y, así que la
+  // entrada conserva el translate-y-[-50%] de reposo (from-top-[50%]).
+  const materialsAnimationClassName =
+    "max-lg:data-[state=open]:slide-in-from-left-1/2 max-lg:data-[state=closed]:slide-out-to-left-1/2 " +
+    "max-lg:data-[state=open]:slide-in-from-bottom-full max-lg:data-[state=closed]:slide-out-to-bottom-full " +
+    "lg:data-[state=open]:slide-in-from-right-full lg:data-[state=closed]:slide-out-to-right-full " +
+    (detailsMaximized
+      ? ""
+      : "lg:data-[state=open]:slide-in-from-top-[50%] lg:data-[state=closed]:slide-out-to-top-[50%]")
 
   return (
     <div className="space-y-5">
@@ -437,11 +608,20 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
             : undefined
         }
         icon={CalendarClock}
-        contentClassName={`sm:max-w-[470px] lg:transition-transform ${
+        onMaximizedChange={handleDetailsMaximized}
+        contentRef={detailsContentRef}
+        // Normal: la ventana ocupa 1/3 del viewport centrado (slot 2) y se ajusta
+        // a su contenido (max 85vh). Su alto real se mide y se replica en el panel
+        // de materiales (slot 3) para que ambos coincidan sin espacio sobrante.
+        contentClassName={`sm:max-w-[470px] lg:w-[33.333vw] lg:max-w-none ${
           materialsOpen
-            ? "max-lg:top-auto max-lg:bottom-[408px] max-lg:translate-y-0 max-lg:max-h-[calc(100dvh_-_416px)] lg:translate-x-[-403px]"
+            ? "max-lg:top-auto max-lg:bottom-[408px] max-lg:translate-y-0 max-lg:max-h-[calc(100dvh_-_416px)]"
             : ""
         }`}
+        // Maximizada: en `lg` ocupa 2/3 (slots 1 y 2), anclada a la izquierda,
+        // dejando el slot 3 para el buscador de materiales. En móvil, pantalla
+        // completa como de costumbre.
+        maximizedClassName="h-screen max-h-screen w-screen max-w-none rounded-none lg:left-0 lg:translate-x-0 lg:w-[66.666vw]"
       >
         {detailsCita && (
           <div className="space-y-6">
@@ -469,9 +649,9 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
                 Detalles
               </p>
 
-              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2">
+              <div className={`mt-2 grid grid-cols-1 ${detailsMaximized ? "sm:grid-cols-2" : "sm:grid-cols-[0.8fr_1.2fr]"}`}>
                 {/* Columna izquierda: procedimientos del plan activo. */}
-                <div className="sm:pr-5">
+                <div className="min-w-0 sm:pr-5">
                   <p className="text-xs font-semibold text-gray-700 dark:text-slate-200">
                     Procedimientos a realizar
                   </p>
@@ -489,7 +669,7 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
                       Este tratamiento no tiene procedimientos registrados.
                     </p>
                   ) : (
-                    <ul className="mt-2 space-y-1">
+                    <ul className="mt-2 space-y-1.5">
                       {planProcedures.map(procedure => {
                         const selected = procedure.id === selectedProcedureId
                         return (
@@ -497,15 +677,25 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
                             <button
                               type="button"
                               onClick={() => setSelectedProcedureId(procedure.id)}
-                              className={`flex w-full items-center gap-1.5 border-b-2 py-1.5 text-left text-xs transition-colors
+                              className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-all
                                 ${selected
-                                  ? "border-sky-400 font-semibold text-sky-700 dark:border-sky-500 dark:text-sky-300"
-                                  : "border-transparent text-gray-600 hover:text-sky-600 dark:text-slate-300 dark:hover:text-sky-400"}`}
+                                  ? "border-sky-200 bg-sky-50 font-semibold text-sky-700 shadow-sm dark:border-sky-800 dark:bg-sky-900/30 dark:text-sky-300"
+                                  : "border-transparent text-gray-600 hover:border-gray-200 hover:bg-gray-50 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-700/40"}`}
                             >
-                              <Plus className={`h-3 w-3 shrink-0 ${selected ? "text-sky-500" : "text-gray-300 dark:text-slate-600"}`} />
+                              <span
+                                className={`grid h-4 w-4 shrink-0 place-items-center rounded-full transition-colors
+                                  ${selected
+                                    ? "bg-sky-500 text-white"
+                                    : "bg-gray-100 text-gray-400 dark:bg-slate-700 dark:text-slate-500"}`}
+                              >
+                                {selected ? <CheckCircle2 className="h-3 w-3" /> : <Plus className="h-2.5 w-2.5" />}
+                              </span>
                               <span className="truncate">{procedure.nombre}</span>
                               {procedure.cantidad !== null && procedure.cantidad > 1 && (
-                                <span className="ml-auto shrink-0 text-[10px] text-gray-400 dark:text-slate-500">
+                                <span className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium
+                                  ${selected
+                                    ? "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300"
+                                    : "bg-gray-100 text-gray-400 dark:bg-slate-700 dark:text-slate-500"}`}>
                                   x{procedure.cantidad}
                                 </span>
                               )}
@@ -526,7 +716,7 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
                 </div>
 
                 {/* Columna derecha: materiales de apoyo del procedimiento elegido. */}
-                <div className="mt-5 border-gray-100 dark:border-slate-700 sm:mt-0 sm:border-l sm:pl-5">
+                <div className="mt-5 min-w-0 border-gray-100 dark:border-slate-700 sm:mt-0 sm:border-l sm:pl-5">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-xs font-semibold text-gray-700 dark:text-slate-200">
                       Material de Apoyo
@@ -534,7 +724,7 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
                     <button
                       type="button"
                       disabled={!selectedProcedure}
-                      onClick={() => setMaterialsOpen(true)}
+                      onClick={() => { loadInventory(); setMaterialsOpen(true) }}
                       className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-[10px] font-medium text-sky-700 transition-colors hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300 dark:hover:bg-sky-900/40"
                     >
                       <Plus className="h-3 w-3" />
@@ -542,9 +732,76 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
                     </button>
                   </div>
 
-                  <p className="mt-2 text-xs leading-relaxed text-gray-400 dark:text-slate-500">
-                    Aun no se ha asignado ningun material de apoyo para este procedimiento.
-                  </p>
+                  {assignedMaterials.length === 0 ? (
+                    <p className="mt-2 text-xs leading-relaxed text-gray-400 dark:text-slate-500">
+                      Aun no se ha asignado ningun material de apoyo para este procedimiento.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 space-y-2">
+                      {assignedMaterials.map(material => {
+                        // Opciones de unidad: las frecuentes + la del inventario si no está.
+                        const unidadOptions = UNIDADES_MEDIDA.includes(material.unidad)
+                          ? UNIDADES_MEDIDA
+                          : [material.unidad, ...UNIDADES_MEDIDA]
+                        return (
+                          <li
+                            key={material.materialId}
+                            className="rounded-xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-slate-700 dark:bg-slate-700/40"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs font-semibold text-gray-700 dark:text-slate-200" title={material.nombre}>
+                                  {material.nombre}
+                                </p>
+                                {material.descripcion && (
+                                  <p className="truncate text-[11px] leading-snug text-gray-400 dark:text-slate-500" title={material.descripcion}>
+                                    {material.descripcion}
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => selectedProcedureId && removeMaterial(selectedProcedureId, material.materialId)}
+                                title="Quitar material"
+                                aria-label="Quitar material"
+                                className="shrink-0 rounded-md p-0.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                            <div className="mt-2 flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                min={1}
+                                value={material.cantidad}
+                                onChange={e =>
+                                  selectedProcedureId &&
+                                  updateMaterial(selectedProcedureId, material.materialId, {
+                                    cantidad: Math.max(1, parseInt(e.target.value, 10) || 1),
+                                  })
+                                }
+                                title="Cantidad a utilizar"
+                                className="h-7 w-12 shrink-0 rounded-lg border border-gray-200 bg-white text-center text-xs tabular-nums text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                              />
+                              <select
+                                value={material.unidad}
+                                onChange={e =>
+                                  selectedProcedureId &&
+                                  updateMaterial(selectedProcedureId, material.materialId, { unidad: e.target.value })
+                                }
+                                title="Unidad de medida"
+                                className="h-7 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                              >
+                                {unidadOptions.map(u => (
+                                  <option key={u} value={u}>{u}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
 
                   <div className="mt-4 border-t border-dashed border-gray-200 pt-2 dark:border-slate-700">
                     <p className="flex items-start gap-1.5 text-[10px] leading-relaxed text-gray-400 dark:text-slate-500">
@@ -564,10 +821,10 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
           Overlay transparente para no oscurecer la ventana de detalles, que
           queda visible al lado (o arriba, en móvil).
 
-          El alto es fijo (400) porque el buscador se abre desplegado: el cuerpo
-          necesita espacio para la lista o quedaría recortada. Reparto del alto:
-          ~77 de encabezado + 32 de padding + 36 del campo + 4 de margen + 224
-          de lista (max-h-56) = 373, con algo de holgura. */}
+          En `lg` se ancla como panel del slot 3 (tercio derecho del viewport),
+          pegado a la ventana de detalles, con su misma altura (ver
+          `materialsContentClassName`). En móvil sigue siendo una hoja inferior
+          de alto fijo (400) para que el buscador desplegado no se recorte. */}
       <VentanaPopup
         open={materialsOpen}
         onOpenChange={open => {
@@ -578,38 +835,28 @@ export default function CitasDentales({ citas = [] }: { citas?: Cita[] }) {
         subtitle={selectedProcedure?.nombre}
         hideWindowControls
         overlayClassName="bg-transparent"
-        contentClassName="h-[400px] sm:max-w-xs max-lg:top-auto max-lg:bottom-0 max-lg:translate-y-0 lg:translate-x-[83px]"
-        // En móvil entra desde abajo; desde `lg` recupera la entrada centrada.
-        // El eje X se mantiene en ambos casos: el fotograma inicial reemplaza el
-        // `transform` completo, así que sin él la ventana saltaría a la derecha.
-        animationClassName={
-          "data-[state=open]:slide-in-from-left-1/2 data-[state=closed]:slide-out-to-left-1/2 " +
-          "data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full " +
-          "lg:data-[state=open]:slide-in-from-top-[48%] lg:data-[state=closed]:slide-out-to-top-[48%]"
-        }
+        contentClassName={materialsContentClassName}
+        contentStyle={materialsContentStyle}
+        animationClassName={materialsAnimationClassName}
       >
         <div className="space-y-3">
-          <div className="flex items-start gap-2">
-            <button
-              type="button"
-              disabled={!materialValue}
-              title="Agregar material"
-              aria-label="Agregar material"
-              className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 transition-colors hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300 dark:hover:bg-sky-900/40"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-            <div className="min-w-0 flex-1">
-              <SearchableSelect
-                options={[]}
-                value={materialValue}
-                onChange={setMaterialValue}
-                placeholder="Buscar material"
-                direction="down"
-                defaultOpen
-                emptyText="No tienes materiales de apoyo en tu inventario"
-              />
-            </div>
+          <div className="min-w-0">
+            <SearchableSelect
+              options={inventoryOptions}
+              value={materialValue}
+              onChange={addMaterial}
+              onOpen={loadInventory}
+              loading={inventoryLoading}
+              placeholder="Buscar material"
+              direction="down"
+              defaultOpen
+              keepOpenOnSelect
+              emptyText={
+                inventoryLoaded
+                  ? "No tienes materiales de apoyo en tu inventario"
+                  : "Sin coincidencias"
+              }
+            />
           </div>
         </div>
       </VentanaPopup>
